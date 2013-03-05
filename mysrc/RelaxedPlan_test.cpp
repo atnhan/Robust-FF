@@ -99,7 +99,7 @@ void print_fact_layer(RelaxedPlan::FactLayer& fact_layer) {
 }
 
 void print_fact_node(RelaxedPlan::FactNode& node) {
-
+	cout<<"Clauses: ";
 }
 
 
