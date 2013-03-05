@@ -1,0 +1,4 @@
+- CORE DUMP: c->insert(bvar) in StripsEncoding::supporting_constraints, line 147
+- NEED FURTHER OPTIMIZE?: Check if a fact is in a state ("helpful.h")
+- POTENTIAL BUGS: at -i 120 code part, check >>> DUMMY_PRED(null) --- so object V not found
+- StripsEncoding::get_bool_var can be optimized? by using gft_conn, instead of gop_conn; and by checking if a ft is not possibly added or deleted by any action
