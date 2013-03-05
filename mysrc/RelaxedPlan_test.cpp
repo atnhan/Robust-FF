@@ -100,6 +100,9 @@ void print_fact_layer(RelaxedPlan::FactLayer& fact_layer) {
 
 void print_fact_node(RelaxedPlan::FactNode& node) {
 	cout<<"Clauses: ";
+	for (ClauseSet::const_iterator itr = node.clauses.begin(); itr != node.clauses.end(); itr++) {
+
+	}
 }
 
 
