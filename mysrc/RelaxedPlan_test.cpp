@@ -86,26 +86,51 @@ void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goa
 	print_state(current);
 
 	rp.initialize_fact_layer();
+	print_fact_layer(*(rp.P[0]));
+
+	rp.grow_action_layer();
+	print_action_layer(*(rp.A[0]));
 }
 
 void print_fact_layer(RelaxedPlan::FactLayer& fact_layer) {
 	for (int ft = 0; ft < gnum_ft_conn; ft++) {
 		if (fact_layer.find(ft) == fact_layer.end())
 			continue;
-
+		cout<<"--- ";
+		print_ft_name(ft);
+		cout<<endl;
 		RelaxedPlan::FactNode& node = fact_layer[ft];
+		print_fact_node(node);
+		cout<<endl<<endl;
+	}
+}
 
+void print_action_layer(RelaxedPlan::ActionLayer& action_layer) {
+	for (int op = 0; op <gnum_op_conn; op++) {
+		if (action_layer.find(op) != action_layer.end())
+			continue;
+		cout<<"--- ";
+		print_op_name(op);
+		cout<<endl;
+		RelaxedPlan::ActionNode& node = action_layer[op];
+		print_action_node(node);
+		cout<<endl<<endl;
 	}
 }
 
 void print_fact_node(RelaxedPlan::FactNode& node) {
 	cout<<"Clauses: ";
-	for (ClauseSet::const_iterator itr = node.clauses.begin(); itr != node.clauses.end(); itr++) {
-
-	}
+	cout<<node.clauses<<endl;
+	cout<<"Robustness: "<<node.robustness<<endl;
+	cout<<"Supporting action: "<<node.best_supporting_action;
 }
 
-
+void print_action_node(RelaxedPlan::ActionNode& node) {
+	cout<<"Clauses: ";
+	cout<<node.clauses<<endl;
+	cout<<"Robustness: ";
+	cout<<node.robustness;
+}
 
 
 

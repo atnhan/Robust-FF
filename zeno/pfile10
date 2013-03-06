@@ -49,7 +49,7 @@
 	(next fl4 fl5)
 	(next fl5 fl6)
 	
-	(dummy_pred v)
+	
 )
 (:goal (and
 	(at plane1 city2)
