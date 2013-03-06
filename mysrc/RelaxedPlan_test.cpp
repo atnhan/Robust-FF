@@ -96,7 +96,7 @@ void print_fact_layer(RelaxedPlan::FactLayer& fact_layer) {
 	for (int ft = 0; ft < gnum_ft_conn; ft++) {
 		if (fact_layer.find(ft) == fact_layer.end())
 			continue;
-		cout<<"--- ";
+		cout<<"--- ["<<ft<<"]";
 		print_ft_name(ft);
 		cout<<endl;
 		RelaxedPlan::FactNode& node = fact_layer[ft];
@@ -109,9 +109,11 @@ void print_action_layer(RelaxedPlan::ActionLayer& action_layer) {
 	for (int op = 0; op <gnum_op_conn; op++) {
 		if (action_layer.find(op) != action_layer.end())
 			continue;
-		cout<<"--- ";
+		cout<<"--- ["<<op<<"]";
 		print_op_name(op);
 		cout<<endl;
+		cout<<"Known PCs: ";
+
 		RelaxedPlan::ActionNode& node = action_layer[op];
 		print_action_node(node);
 		cout<<endl<<endl;

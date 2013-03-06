@@ -84,7 +84,9 @@ public:
 	// UNIT TEST
 	friend void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State* goal_state);
 	friend void print_fact_layer(FactLayer& fact_layer);
+	friend void print_action_layer(ActionLayer& action_layer);
 	friend void print_fact_node(FactNode& node);
+	friend void print_action_node(ActionNode& node);
 };
 
 #endif /* RELAXEDPLAN_H_ */
