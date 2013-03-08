@@ -79,26 +79,42 @@ void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goa
 	}
 
 	// Creating relaxed plan
-	cout<<"==== RELAXED PLAN ===="<<endl;
-	RelaxedPlan rp(&e, goal_state);
-	cout<<endl<<"Current state:"<<endl;
-	const State& current = rp.get_current_state();
-	print_state(current);
+	int test = 2;
+	if (test == 1) {
+		cout<<"==== RELAXED PLAN ===="<<endl;
+		RelaxedPlan rp(&e, goal_state);
+		cout<<endl<<"Current state:"<<endl;
+		const State& current = rp.get_current_state();
+		print_state(current);
 
-	cout<<endl;
-	cout<<"Encoding: "<<e.get_clauses()<<endl;
+		cout<<endl;
+		cout<<"Encoding: "<<e.get_clauses()<<endl;
 
-	rp.initialize_fact_layer();
-	cout<<endl<<"FIRST FACT LAYER:"<<endl<<endl;
-	print_fact_layer(*(rp.P[0]));
+		rp.initialize_fact_layer();
+		cout<<endl<<"FIRST FACT LAYER:"<<endl<<endl;
+		print_fact_layer(*(rp.P[0]));
 
-	rp.grow_action_layer();
-	cout<<endl<<"FIRST ACTION LAYER:"<<endl<<endl;
-	print_action_layer(*(rp.A[0]));
+		rp.grow_action_layer();
+		cout<<endl<<"FIRST ACTION LAYER:"<<endl<<endl;
+		print_action_layer(*(rp.A[0]));
 
-	rp.grow_fact_layer();
-	cout<<endl<<"SECOND FACT LAYER:"<<endl<<endl;
-	print_fact_layer(*(rp.P[1]));
+		rp.grow_fact_layer();
+		cout<<endl<<"SECOND FACT LAYER:"<<endl<<endl;
+		print_fact_layer(*(rp.P[1]));
+	}
+	else if (test == 2) {
+		cout<<"==== RELAXED PLAN ===="<<endl;
+		RelaxedPlan rp(&e, goal_state);
+		cout<<endl<<"Current state:"<<endl;
+		const State& current = rp.get_current_state();
+		print_state(current);
+
+		cout<<endl;
+		cout<<"Encoding: "<<e.get_clauses()<<endl;
+
+		rp.build_relaxed_planning_graph(10);
+		print_relaxed_planning_graph(rp);
+	}
 }
 
 void print_fact_layer(RelaxedPlan::FactLayer& fact_layer) {
@@ -133,6 +149,30 @@ void print_action_layer(RelaxedPlan::ActionLayer& action_layer) {
 		RelaxedPlan::ActionNode& node = action_layer[op];
 		print_action_node(node);
 		cout<<endl<<endl;
+	}
+}
+
+void print_relaxed_planning_graph(RelaxedPlan& rp) {
+	if (rp.P.size() <= 0) {
+		cout<<"EMPTY RGP"<<endl;
+		return;
+	}
+
+	int i = 0;
+	bool new_layer = true;
+	while (new_layer) {
+		new_layer = false;
+		if (i < rp.P.size()) {
+			cout<<"==== FACT LAYER "<<i<<"===="<<endl;
+			print_fact_layer(*(rp.P[i]));
+			new_layer = true;
+		}
+		if (i < rp.A.size()) {
+			cout<<"==== ACTION LAYER "<<i<<"===="<<endl;
+			print_action_layer(*(rp.A[i]));
+			new_layer = true;
+		}
+		i++;
 	}
 }
 

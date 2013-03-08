@@ -66,6 +66,7 @@ using namespace std;
 
 extern void evaluate_plan_robustness(std::string filename, State *initial_state, State *goal_state);
 extern void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goal_state);
+extern void test_estimate_robustness();
 extern int gnum_possible_annotations;
 
 /*
@@ -683,12 +684,22 @@ int main( int argc, char *argv[] )
 	test_relaxed_plan(sol_file, &ginitial_state, &ggoal_state);
 
 	exit(0);
+	/*
+	 * TUAN (end)
+	 */
+//	ClauseSet::weights.resize(gnum_possible_annotations);
+//	for (int i=0;i<gnum_possible_annotations;i++)
+//		ClauseSet::weights[i] = 0.5;
+//	test_estimate_robustness();
+//	exit(0);
 
+	/*
+	 * TUAN (begin)
+	 */
 
 	/*
 	 * TUAN (end)
 	 */
-
 
 
 	/***********************************************************

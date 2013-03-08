@@ -65,16 +65,41 @@ RelaxedPlan::~RelaxedPlan() {
 	if (actions_in_rpg) delete actions_in_rpg;
 }
 
-void RelaxedPlan::build_relaxed_planning_graph() {
+void RelaxedPlan::build_relaxed_planning_graph(int max_length) {
 	bool goals_in_rpg = false;
 
 	// Initialization
 	initialize_fact_layer();
 
-	while (grow_action_layer()) {
-		if (!grow_fact_layer())
+	for (int i=0; i<max_length; i++) {
+		if (!grow_action_layer()) {
+			cout<<endl<<"FAIL TO GROW ACTION LAYER!"<<endl;
 			break;
+		}
+		if (!grow_fact_layer()) {
+			cout<<endl<<"FAIL TO GROW FACT LAYER!"<<endl;
+			break;
+		}
 	}
+//
+//	int l = 1;
+//	while (true) {
+//		if (!grow_action_layer()) {
+//			cout<<endl<<"FAIL TO GROW ACTION LAYER!"<<endl;
+//			break;
+//		}
+//		if (!grow_fact_layer()) {
+//			cout<<endl<<"FAIL TO GROW FACT LAYER!"<<endl;
+//			break;
+//		}
+//		if (stop_growing()) {
+//			cout<<endl<<"STOPPING CONDITIONS MEET!"<<endl;
+//			break;
+//		}
+//		if (++l > max_length)
+//			break;
+//	}
+
 }
 
 void RelaxedPlan::initialize_fact_layer() {
@@ -343,9 +368,42 @@ bool RelaxedPlan::goals_present() {
 	return true;
 }
 
-bool RelaxedPlan::stop_growing() {
-	if (!goals_present()) return false;
+bool RelaxedPlan::goals_present(FactLayer& fact_layer) {
+	for (int i = 0; i< goals->num_F; i++) {
+		int ft = goals->F[i];
+		if (fact_layer.find(ft) == fact_layer.end()) return false;
+	}
+	return true;
+}
 
+bool RelaxedPlan::same_fact_layers(FactLayer& factlayer_1, FactLayer& factlayer_2) {
+	if (factlayer_1.size() != factlayer_2.size()) return false;
+	for (int ft = 0; ft < gnum_ft_conn; ft++) {
+		bool found_1 = (factlayer_1.find(ft) != factlayer_1.end());
+		bool found_2 = (factlayer_2.find(ft) != factlayer_2.end());
+		if ((found_1 && !found_2) || (!found_1 && found_2))
+			return false;
+
+		// In case the set of facts are the same, we check the set of clauses present
+		if (found_1 && found_2) {
+			if (factlayer_1[ft].clauses == factlayer_2[ft].clauses) return false;
+		}
+	}
+	return true;
+}
+
+bool RelaxedPlan::stop_growing() {
+	assert(A.size() <= P.size());
+	if (!goals_present()) return false;
+	if (A.size() == P.size()) return false;
+	int n = P.size()-1;
+	if (n <= 1) return false;
+	FactLayer& current_fact_layer = *(P[n]);
+	FactLayer& last_fact_layer = *(P[n-1]);
+
+	// Check if the current fact layer and the last fact layer are exactly the same
+	if (!same_fact_layers(current_fact_layer, last_fact_layer))
+		return false;
 	return true;
 }
 

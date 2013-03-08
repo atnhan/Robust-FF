@@ -18,6 +18,17 @@ class ClauseSet {
 
 	std::set<Clause> clauses;
 
+	/*
+	 * Helper functions for processing clauses
+	 */
+
+	// If c1 is subset of c2
+	static bool is_subset(const Clause& c1, const Clause& c2);
+
+	/*
+	 *
+	 */
+
 	// Probability that a clause is true
 	double true_prob(const Clause& c);
 
@@ -29,7 +40,7 @@ public:
 	virtual ~ClauseSet();
 
 	// Add clauses into the set
-	void add_clause(const Clause& c);
+	void add_clause(const Clause& c);				// OPTIMIZATION POSSIBLE!!!
 	void add_clauses(const ClauseSet& cs);
 
 	// Get size
@@ -60,6 +71,10 @@ public:
 
 	iterator end() {
 		return clauses.end();
+	}
+
+	friend bool operator==(const ClauseSet& cs1, const ClauseSet& cs2) {
+		return (cs1.clauses == cs2.clauses);
 	}
 
 	// Compute approximate robustness value

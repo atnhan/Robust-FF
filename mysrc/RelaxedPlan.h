@@ -62,6 +62,10 @@ class RelaxedPlan {
 
 	// Check if a goal set present in the last layer
 	bool goals_present();
+	bool goals_present(FactLayer& fact_layer);
+
+	// Check if two fact layers are the same
+	bool same_fact_layers(FactLayer& factlayer_1, FactLayer& factlayer_2);
 
 	// Check if we should stop growing the RPG
 	bool stop_growing();
@@ -71,7 +75,7 @@ public:
 	virtual ~RelaxedPlan();
 
 	// Create relaxed planning graph.
-	void build_relaxed_planning_graph();
+	void build_relaxed_planning_graph(int max_length = 100);
 
 	// Gets
 	const State& get_current_state() const {
@@ -85,6 +89,7 @@ public:
 	friend void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State* goal_state);
 	friend void print_fact_layer(FactLayer& fact_layer);
 	friend void print_action_layer(ActionLayer& action_layer);
+	friend void print_relaxed_planning_graph(RelaxedPlan& rp);
 	friend void print_fact_node(FactNode& node);
 	friend void print_action_node(ActionNode& node);
 };
