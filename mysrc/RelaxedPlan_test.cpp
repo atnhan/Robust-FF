@@ -81,15 +81,24 @@ void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goa
 	// Creating relaxed plan
 	cout<<"==== RELAXED PLAN ===="<<endl;
 	RelaxedPlan rp(&e, goal_state);
-	cout<<"Current state:"<<endl;
+	cout<<endl<<"Current state:"<<endl;
 	const State& current = rp.get_current_state();
 	print_state(current);
 
+	cout<<endl;
+	cout<<"Encoding: "<<e.get_clauses()<<endl;
+
 	rp.initialize_fact_layer();
+	cout<<endl<<"FIRST FACT LAYER:"<<endl<<endl;
 	print_fact_layer(*(rp.P[0]));
 
 	rp.grow_action_layer();
+	cout<<endl<<"FIRST ACTION LAYER:"<<endl<<endl;
 	print_action_layer(*(rp.A[0]));
+
+	rp.grow_fact_layer();
+	cout<<endl<<"SECOND FACT LAYER:"<<endl<<endl;
+	print_fact_layer(*(rp.P[1]));
 }
 
 void print_fact_layer(RelaxedPlan::FactLayer& fact_layer) {
@@ -107,12 +116,19 @@ void print_fact_layer(RelaxedPlan::FactLayer& fact_layer) {
 
 void print_action_layer(RelaxedPlan::ActionLayer& action_layer) {
 	for (int op = 0; op <gnum_op_conn; op++) {
-		if (action_layer.find(op) != action_layer.end())
+		if (action_layer.find(op) == action_layer.end())
 			continue;
 		cout<<"--- ["<<op<<"]";
 		print_op_name(op);
 		cout<<endl;
 		cout<<"Known PCs: ";
+		for (int i = 0; i < gop_conn[op].num_E; i++) {
+			int ef = gop_conn[op].E[i];
+			for (int j=0;j<gef_conn[ef].num_PC;j++) {
+				cout<<gef_conn[ef].PC[j]<<" ";
+			}
+		}
+		cout<<endl;
 
 		RelaxedPlan::ActionNode& node = action_layer[op];
 		print_action_node(node);

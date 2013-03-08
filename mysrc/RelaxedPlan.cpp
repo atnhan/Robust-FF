@@ -122,6 +122,11 @@ bool RelaxedPlan::grow_action_layer() {
 	if (P.size() == 0 || A.size() >= P.size())
 		return false;
 
+#ifndef NDEBUG
+	// We want to test if the set of known PCs of all actions in the RPG is subset of the current facts in the RPG
+	set<int> all_known_PCs;
+#endif
+
 	int n = P.size()-1;
 	ActionLayer * new_action_layer = new ActionLayer;
 
@@ -177,7 +182,21 @@ bool RelaxedPlan::grow_action_layer() {
 
 		// Mark this action being present in the relaxed planning graph
 		(*actions_in_rpg)[op] = true;
+
+#ifndef NDEBUG
+		for (int i=0;i<gef_conn[ef].num_PC;i++) {
+			all_known_PCs.insert(gef_conn[ef].PC[i]);
+		}
+#endif
 	}
+
+#ifndef NDEBUG
+	// Test if all known preconditions of actions in the RPG are present in the facts present in the RPG
+	for (set<int>::const_iterator itr = all_known_PCs.begin(); itr != all_known_PCs.end(); itr++) {
+		int ft = *itr;
+		assert((*facts_in_rpg)[ft]);
+	}
+#endif
 
 	A.push_back(new_action_layer);
 	return true;
@@ -216,15 +235,15 @@ bool RelaxedPlan::grow_fact_layer() {
 		// Collect actions certainly/possibly supporting this fact
 		vector<int> certainly_supporting_actions;
 		vector<int> possibly_supporting_actions;
-		for (int i = 0; i < gft_conn[ft].num_PC; i++) {
-			int ef = gft_conn[ft].PC[i];
+		for (int i = 0; i < gft_conn[ft].num_A; i++) {
+			int ef = gft_conn[ft].A[i];
 			int op = gef_conn[ef].op;
 			if (action_present(op, n)) {	// the action must be in the RPG
 				certainly_supporting_actions.push_back(op);
 			}
 		}
-		for (int i = 0; i < gft_conn[ft].num_poss_PC; i++) {
-			int ef = gft_conn[ft].poss_PC[i];
+		for (int i = 0; i < gft_conn[ft].num_poss_A; i++) {
+			int ef = gft_conn[ft].poss_A[i];
 			int op = gef_conn[ef].op;
 			if (action_present(op, n)) {
 				possibly_supporting_actions.push_back(op);
@@ -292,6 +311,25 @@ bool RelaxedPlan::grow_fact_layer() {
 			(*facts_in_rpg)[ft] = true;
 		}
 	}
+
+#ifndef NDEBUG
+	// We want to test if all add and possible add effects of actions are present in the set of facts of the RPG
+	set<int> all_add_and_possible_add_effects;
+	for (int op=0; op<gnum_op_conn; op++) {
+		if (!(*actions_in_rpg)[op]) continue;
+		for (int i=0;i<gop_conn[op].num_E;i++) {
+			int ef = gop_conn[op].E[i];
+			for (int j = 0;j < gef_conn[ef].num_A; j++) {
+				int ft = gef_conn[ef].A[j];
+				assert(new_fact_layer->find(ft) != new_fact_layer->end());
+			}
+			for (int j = 0;j < gef_conn[ef].num_poss_A; j++) {
+				int ft = gef_conn[ef].poss_A[j];
+				assert(new_fact_layer->find(ft) != new_fact_layer->end());
+			}
+		}
+	}
+#endif
 
 	P.push_back(new_fact_layer);
 	return true;

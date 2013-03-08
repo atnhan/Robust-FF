@@ -51,12 +51,13 @@ double ClauseSet::true_prob(const Clause& c) {
 	double false_prob = 1;
 	for (Clause::const_iterator itr = c.begin(); itr != c.end(); itr++) {
 		int l = *itr;
-		assert(l > 0 && l < weights.size());
+		int p = l > 0? l : -l;
+		assert(p > 0 && p <= weights.size());
 		if (l > 0) {
-			false_prob *= (1 - weights[l]);
+			false_prob *= (1 - weights[p-1]);
 		}
 		else {
-			false_prob *= (1 - weights[-l]);
+			false_prob *= weights[-p-1];
 		}
 	}
 
