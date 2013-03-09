@@ -74,12 +74,14 @@ void RelaxedPlan::build_relaxed_planning_graph(int max_length) {
 	for (int i=0; i<max_length; i++) {
 		if (!grow_action_layer()) {
 			cout<<endl<<"FAIL TO GROW ACTION LAYER!"<<endl;
-			break;
+			exit(1);
 		}
 		if (!grow_fact_layer()) {
 			cout<<endl<<"FAIL TO GROW FACT LAYER!"<<endl;
-			break;
+			exit(1);
 		}
+
+		if (stop_growing()) break;
 	}
 //
 //	int l = 1;
@@ -102,6 +104,10 @@ void RelaxedPlan::build_relaxed_planning_graph(int max_length) {
 
 }
 
+bool RelaxedPlan::extract() {
+
+}
+
 void RelaxedPlan::initialize_fact_layer() {
 	assert(P.size() == 0);
 
@@ -113,6 +119,7 @@ void RelaxedPlan::initialize_fact_layer() {
 		bool success = e->supporting_constraints(ft, n, node.clauses);
 		node.robustness = node.clauses.estimate_robustness(e->get_clauses());
 		node.best_supporting_action = e->get_actions()[e->get_actions().size()-1];
+		node.in_rp = false;
 		(*new_fact_layer)[ft] = node;
 		// Mark this fact as being present in the RPG
 		(*facts_in_rpg)[ft] = true;
@@ -201,6 +208,7 @@ bool RelaxedPlan::grow_action_layer() {
 			node.clauses.add_clauses(temp_ft_cs);
 		}
 		node.robustness = node.clauses.estimate_robustness(e->get_clauses());
+		node.in_rp = false;
 
 		// Add this node into the layer action and its clause set into the action layer
 		(*new_action_layer)[op] = node;
@@ -243,7 +251,7 @@ bool RelaxedPlan::grow_fact_layer() {
 		bool will_be_added = false;	// Whether this fact will be added into the RPG at this iteration
 		int best_supporting_action;
 		ClauseSet best_clauses;
-		double best_robustness;
+		double best_robustness = -1;
 
 		// Optional initialization: if this fact has been present in the RPG, then it will be at the next layer
 		// The current best choice is NOOP
@@ -252,9 +260,6 @@ bool RelaxedPlan::grow_fact_layer() {
 			best_supporting_action = NOOP;
 			best_clauses = current_fact_layer[ft].clauses;
 			best_robustness = current_fact_layer[ft].robustness;
-		}
-		else {
-			best_robustness = 0;
 		}
 
 		// Collect actions certainly/possibly supporting this fact
@@ -292,13 +297,12 @@ bool RelaxedPlan::grow_fact_layer() {
 			bool flag = false;	// true if the best action comes from one of these "possible" actions
 			for (int i = 0; i < possibly_supporting_actions.size(); i++) {
 				int op = possibly_supporting_actions[i];
-				int bvar = get_bool_var(ft, op, POSS_PRE);
-				ClauseSet cs;
-				for (ClauseSet::const_iterator itr = current_action_layer[op].clauses.begin(); itr != current_action_layer[op].clauses.end(); itr++) {
-					Clause c = *itr;
-					c.insert(-bvar);
-					cs.add_clause(c);
-				}
+				int bvar = get_bool_var(ft, op, POSS_ADD);
+				ClauseSet cs = current_action_layer[op].clauses;
+				Clause c;
+				c.insert(bvar);
+				cs.add_clause(c);		// CAREFUL: this very like removes many clauses that are superset of "c"
+
 				double r = cs.estimate_robustness(e->get_clauses());
 				if (r > best_robustness) {
 					best_robustness = r;
@@ -312,13 +316,11 @@ bool RelaxedPlan::grow_fact_layer() {
 				best_robustness = current_action_layer[best_supporting_action].robustness;
 			}
 			else {
-				int bvar = get_bool_var(ft, best_supporting_action, POSS_PRE);
-				for (ClauseSet::const_iterator itr = current_action_layer[best_supporting_action].clauses.begin();
-						itr != current_action_layer[best_supporting_action].clauses.end(); itr++) {
-					Clause c = *itr;
-					c.insert(-bvar);
-					best_clauses.add_clause(c);
-				}
+				int bvar = get_bool_var(ft, best_supporting_action, POSS_ADD);
+				ClauseSet cs = current_action_layer[best_supporting_action].clauses;
+				Clause c;
+				c.insert(bvar);
+				cs.add_clause(c);
 				best_robustness = best_clauses.estimate_robustness(e->get_clauses());
 			}
 
@@ -330,6 +332,7 @@ bool RelaxedPlan::grow_fact_layer() {
 			node.clauses = best_clauses;
 			node.robustness = best_robustness;
 			node.best_supporting_action = best_supporting_action;
+			node.in_rp = false;
 			(*new_fact_layer)[ft] = node;
 
 			// Mark this fact being in the RPG

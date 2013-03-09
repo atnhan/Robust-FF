@@ -28,11 +28,13 @@ class RelaxedPlan {
 		ClauseSet clauses;
 		double robustness;
 		int best_supporting_action;
+		bool in_rp; // TRUE if this action node is selected
 	};
 
 	struct ActionNode {
 		ClauseSet clauses;
 		double robustness;
+		bool in_rp;		// TRUE if this action node is selected
 	};
 
 	/*
@@ -76,6 +78,9 @@ public:
 
 	// Create relaxed planning graph.
 	void build_relaxed_planning_graph(int max_length = 100);
+
+	// Extract the relaxed plan
+	bool extract();
 
 	// Gets
 	const State& get_current_state() const {
