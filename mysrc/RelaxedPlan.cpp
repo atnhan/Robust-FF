@@ -76,6 +76,7 @@ void RelaxedPlan::build_relaxed_planning_graph(int max_length) {
 			cout<<endl<<"FAIL TO GROW ACTION LAYER!"<<endl;
 			exit(1);
 		}
+
 		if (!grow_fact_layer()) {
 			cout<<endl<<"FAIL TO GROW FACT LAYER!"<<endl;
 			exit(1);
@@ -83,28 +84,9 @@ void RelaxedPlan::build_relaxed_planning_graph(int max_length) {
 
 		if (stop_growing()) break;
 	}
-//
-//	int l = 1;
-//	while (true) {
-//		if (!grow_action_layer()) {
-//			cout<<endl<<"FAIL TO GROW ACTION LAYER!"<<endl;
-//			break;
-//		}
-//		if (!grow_fact_layer()) {
-//			cout<<endl<<"FAIL TO GROW FACT LAYER!"<<endl;
-//			break;
-//		}
-//		if (stop_growing()) {
-//			cout<<endl<<"STOPPING CONDITIONS MEET!"<<endl;
-//			break;
-//		}
-//		if (++l > max_length)
-//			break;
-//	}
-
 }
 
-bool RelaxedPlan::extract() {
+void RelaxedPlan::extract() {
 
 }
 
@@ -116,8 +98,8 @@ void RelaxedPlan::initialize_fact_layer() {
 	for (int i=0;i<current->num_F;i++) {
 		int ft = current->F[i];
 		FactNode node;
-		bool success = e->supporting_constraints(ft, n, node.clauses);
-		node.robustness = node.clauses.estimate_robustness(e->get_clauses());
+		bool success = e->supporting_constraints(ft, n, node.best_clauses);
+		node.best_robustness = node.best_clauses.estimate_robustness(e->get_clauses());
 		node.best_supporting_action = e->get_actions()[e->get_actions().size()-1];
 		node.in_rp = false;
 		(*new_fact_layer)[ft] = node;
@@ -187,7 +169,7 @@ bool RelaxedPlan::grow_action_layer() {
 		// first, known preconditions
 		for (int i=0;i<gef_conn[ef].num_PC;i++) {
 			int ft = gef_conn[ef].PC[i];
-			ClauseSet ft_cs = (*P[n])[ft].clauses;
+			ClauseSet ft_cs = (*P[n])[ft].best_clauses;
 			node.clauses.add_clauses(ft_cs);
 		}
 
@@ -197,15 +179,24 @@ bool RelaxedPlan::grow_action_layer() {
 			int bvar = get_bool_var(ft, op, POSS_PRE);
 			assert(bvar > 0);
 
-			ClauseSet ft_cs = (*P[n])[ft].clauses;
-			ClauseSet temp_ft_cs;
-			for (ClauseSet::const_iterator itr = ft_cs.cbegin(); itr != ft_cs.cend(); itr++) {
-				Clause c = *itr;
-				c.insert(-bvar);
-				temp_ft_cs.add_clause(c);
+			// TWO CASES: (1) this fact is in the current fact layer, (2) it is not
+			if (P[n]->find(ft) != P[n]->end()) {
+				ClauseSet ft_cs = (*P[n])[ft].best_clauses;
+				ClauseSet temp_ft_cs;
+				for (ClauseSet::const_iterator itr = ft_cs.cbegin(); itr != ft_cs.cend(); itr++) {
+					Clause c = *itr;
+					c.insert(-bvar);
+					temp_ft_cs.add_clause(c);
+				}
+				node.clauses.add_clauses(temp_ft_cs);
 			}
-
-			node.clauses.add_clauses(temp_ft_cs);
+			else {
+				ClauseSet cs;
+				Clause c;
+				c.insert(-bvar);
+				cs.add_clause(c);
+				node.clauses.add_clauses(cs);
+			}
 		}
 		node.robustness = node.clauses.estimate_robustness(e->get_clauses());
 		node.in_rp = false;
@@ -253,15 +244,6 @@ bool RelaxedPlan::grow_fact_layer() {
 		ClauseSet best_clauses;
 		double best_robustness = -1;
 
-		// Optional initialization: if this fact has been present in the RPG, then it will be at the next layer
-		// The current best choice is NOOP
-		if (current_fact_layer.find(ft) != current_fact_layer.end()) {
-			will_be_added = true;
-			best_supporting_action = NOOP;
-			best_clauses = current_fact_layer[ft].clauses;
-			best_robustness = current_fact_layer[ft].robustness;
-		}
-
 		// Collect actions certainly/possibly supporting this fact
 		vector<int> certainly_supporting_actions;
 		vector<int> possibly_supporting_actions;
@@ -290,11 +272,11 @@ bool RelaxedPlan::grow_fact_layer() {
 				if (current_action_layer[op].robustness > best_robustness) {
 					best_robustness = current_action_layer[op].robustness;
 					best_supporting_action = op;
+					best_clauses = current_action_layer[op].clauses;
 				}
 			}
 
 			// Similarly, find the best actions possibly adding this fact
-			bool flag = false;	// true if the best action comes from one of these "possible" actions
 			for (int i = 0; i < possibly_supporting_actions.size(); i++) {
 				int op = possibly_supporting_actions[i];
 				int bvar = get_bool_var(ft, op, POSS_ADD);
@@ -307,30 +289,33 @@ bool RelaxedPlan::grow_fact_layer() {
 				if (r > best_robustness) {
 					best_robustness = r;
 					best_supporting_action = op;
-					flag = true;
+					best_clauses = current_action_layer[op].clauses;
 				}
 			}
+		}
 
-			if (!flag) {
-				best_clauses = current_action_layer[best_supporting_action].clauses;
-				best_robustness = current_action_layer[best_supporting_action].robustness;
+		// If this fact has been present in the RPG, then it will be at the next layer
+		if (current_fact_layer.find(ft) != current_fact_layer.end()) {
+			if (best_robustness < current_fact_layer[ft].best_robustness) {
+				will_be_added = true;
+				best_clauses = current_fact_layer[ft].best_clauses;
+				best_robustness = current_fact_layer[ft].best_robustness;
+				best_supporting_action = NOOP;
 			}
-			else {
-				int bvar = get_bool_var(ft, best_supporting_action, POSS_ADD);
-				ClauseSet cs = current_action_layer[best_supporting_action].clauses;
-				Clause c;
-				c.insert(bvar);
-				cs.add_clause(c);
-				best_robustness = best_clauses.estimate_robustness(e->get_clauses());
-			}
-
 		}
 
 		if (will_be_added) {
+
+#ifndef NDEBUG
+			if (current_fact_layer.find(ft) != current_fact_layer.end()) {
+				assert(best_robustness >= current_fact_layer[ft].best_robustness);
+			}
+#endif
+
 			// Add this fact and its associated clause set into the fact layer
 			FactNode node;
-			node.clauses = best_clauses;
-			node.robustness = best_robustness;
+			node.best_clauses = best_clauses;
+			node.best_robustness = best_robustness;
 			node.best_supporting_action = best_supporting_action;
 			node.in_rp = false;
 			(*new_fact_layer)[ft] = node;
@@ -380,7 +365,9 @@ bool RelaxedPlan::goals_present(FactLayer& fact_layer) {
 }
 
 bool RelaxedPlan::same_fact_layers(FactLayer& factlayer_1, FactLayer& factlayer_2) {
+
 	if (factlayer_1.size() != factlayer_2.size()) return false;
+
 	for (int ft = 0; ft < gnum_ft_conn; ft++) {
 		bool found_1 = (factlayer_1.find(ft) != factlayer_1.end());
 		bool found_2 = (factlayer_2.find(ft) != factlayer_2.end());
@@ -389,7 +376,7 @@ bool RelaxedPlan::same_fact_layers(FactLayer& factlayer_1, FactLayer& factlayer_
 
 		// In case the set of facts are the same, we check the set of clauses present
 		if (found_1 && found_2) {
-			if (factlayer_1[ft].clauses == factlayer_2[ft].clauses) return false;
+			if (!(factlayer_1[ft].best_clauses == factlayer_2[ft].best_clauses)) return false;
 		}
 	}
 	return true;

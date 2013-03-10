@@ -11,7 +11,10 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <assert.h>
 using namespace std;
+
+#define SEP		"\t"
 
 void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goal_state) {
 
@@ -79,7 +82,7 @@ void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goa
 	}
 
 	// Creating relaxed plan
-	int test = 2;
+	int test = 3;
 	if (test == 1) {
 		cout<<"==== RELAXED PLAN ===="<<endl;
 		RelaxedPlan rp(&e, goal_state);
@@ -90,17 +93,20 @@ void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goa
 		cout<<endl;
 		cout<<"Encoding: "<<e.get_clauses()<<endl;
 
+		int style = 1;
 		rp.initialize_fact_layer();
 		cout<<endl<<"FIRST FACT LAYER:"<<endl<<endl;
-		print_fact_layer(*(rp.P[0]));
+		print_fact_layer(*(rp.P[0]), style);
 
 		rp.grow_action_layer();
 		cout<<endl<<"FIRST ACTION LAYER:"<<endl<<endl;
-		print_action_layer(*(rp.A[0]));
+		print_action_layer(*(rp.A[0]), style);
 
 		rp.grow_fact_layer();
 		cout<<endl<<"SECOND FACT LAYER:"<<endl<<endl;
-		print_fact_layer(*(rp.P[1]));
+		print_fact_layer(*(rp.P[1]), style);
+
+
 	}
 	else if (test == 2) {
 		cout<<"==== RELAXED PLAN ===="<<endl;
@@ -112,47 +118,163 @@ void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goa
 		cout<<endl;
 		cout<<"Encoding: "<<e.get_clauses()<<endl;
 
-		rp.build_relaxed_planning_graph(10);
-		print_relaxed_planning_graph(rp);
+		rp.build_relaxed_planning_graph(3);
+		print_relaxed_planning_graph(rp, 2, 3);
+	}
+	else if (test == 3) {
+		cout<<"==== RELAXED PLAN ===="<<endl;
+		RelaxedPlan rp(&e, goal_state);
+		cout<<endl<<"Current state:"<<endl;
+		const State& current = rp.get_current_state();
+		print_state(current);
+
+		cout<<endl;
+		cout<<"Encoding: "<<e.get_clauses()<<endl;
+		rp.build_relaxed_planning_graph(3);
+		print_action_through_layers(rp, 1037, 3);
 	}
 }
 
-void print_fact_layer(RelaxedPlan::FactLayer& fact_layer) {
-	for (int ft = 0; ft < gnum_ft_conn; ft++) {
-		if (fact_layer.find(ft) == fact_layer.end())
-			continue;
-		cout<<"--- ["<<ft<<"]";
-		print_ft_name(ft);
-		cout<<endl;
-		RelaxedPlan::FactNode& node = fact_layer[ft];
-		print_fact_node(node);
-		cout<<endl<<endl;
-	}
-}
-
-void print_action_layer(RelaxedPlan::ActionLayer& action_layer) {
-	for (int op = 0; op <gnum_op_conn; op++) {
-		if (action_layer.find(op) == action_layer.end())
-			continue;
-		cout<<"--- ["<<op<<"]";
-		print_op_name(op);
-		cout<<endl;
-		cout<<"Known PCs: ";
-		for (int i = 0; i < gop_conn[op].num_E; i++) {
-			int ef = gop_conn[op].E[i];
-			for (int j=0;j<gef_conn[ef].num_PC;j++) {
-				cout<<gef_conn[ef].PC[j]<<" ";
-			}
+void print_fact_layer(RelaxedPlan::FactLayer& fact_layer, int style) {
+	int count = 0;
+	int L = 10;
+	switch (style) {
+	case 0:
+		for (int ft = 0; ft < gnum_ft_conn; ft++) {
+			if (fact_layer.find(ft) == fact_layer.end())
+				continue;
+			cout<<"--- ["<<ft<<"]";
+			print_ft_name(ft);
+			cout<<endl;
+			RelaxedPlan::FactNode& node = fact_layer[ft];
+			print_fact_node(node);
+			cout<<endl<<endl;
+		}
+		break;
+	case 1:
+		for (int ft = 0; ft < gnum_ft_conn; ft++) {
+			if (fact_layer.find(ft) == fact_layer.end())
+				continue;
+			cout<<ft<<SEP;
+			if (++count % L == 0) cout<<endl;
 		}
 		cout<<endl;
+		break;
+	case 2:
+		for (int ft = 0; ft < gnum_ft_conn; ft++) {
+			if (fact_layer.find(ft) == fact_layer.end())
+				continue;
+			cout<<"F"<<ft;
+			RelaxedPlan::FactNode& node = fact_layer[ft];
+			cout<<"["<<node.best_supporting_action<<","<<node.best_robustness<<"]";
+			cout<<node.best_clauses<<SEP;
+			if (++count % L == 0) cout<<endl;
+		}
+		cout<<endl;
+		break;
 
-		RelaxedPlan::ActionNode& node = action_layer[op];
-		print_action_node(node);
-		cout<<endl<<endl;
+	default:
+		cout<<"Options not found!"<<endl;
+		exit(1);
+	}
+
+}
+
+void print_action_layer(RelaxedPlan::ActionLayer& action_layer, int style) {
+	int count = 0;
+	int L = 10;
+	switch (style) {
+	case 0:
+		for (int op = 0; op <gnum_op_conn; op++) {
+			if (action_layer.find(op) == action_layer.end())
+				continue;
+			cout<<"--- ["<<op<<"]";
+			print_op_name(op);
+			cout<<endl;
+			cout<<"Known PCs: ";
+			for (int i = 0; i < gop_conn[op].num_E; i++) {
+				int ef = gop_conn[op].E[i];
+				for (int j=0;j<gef_conn[ef].num_PC;j++) {
+					cout<<gef_conn[ef].PC[j]<<" ";
+				}
+			}
+			cout<<endl;
+
+			RelaxedPlan::ActionNode& node = action_layer[op];
+			print_action_node(node);
+			cout<<endl<<endl;
+		}
+
+		break;
+	case 1:
+
+		for (int op = 0; op <gnum_op_conn; op++) {
+			if (action_layer.find(op) == action_layer.end())
+				continue;
+			cout<<op<<"=> ";
+			cout<<"PCs: ";
+			for (int i = 0; i < gop_conn[op].num_E; i++) {
+				int ef = gop_conn[op].E[i];
+				for (int j=0;j<gef_conn[ef].num_PC;j++) {
+					cout<<gef_conn[ef].PC[j]<<" ";
+				}
+			}
+			cout<<";;;; Poss-PCs: ";
+			for (int i = 0; i < gop_conn[op].num_E; i++) {
+				int ef = gop_conn[op].E[i];
+				for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
+					cout<<gef_conn[ef].poss_PC[j]<<" ";
+				}
+			}
+			cout<<endl;
+		}
+		break;
+	case 2:
+		for (int op = 0; op <gnum_op_conn; op++) {
+			if (action_layer.find(op) == action_layer.end())
+				continue;
+			cout<<"A"<<op<<"["<<action_layer[op].robustness<<"]";
+			cout<<"{";
+			for (int i = 0; i < gop_conn[op].num_E; i++) {
+				int ef = gop_conn[op].E[i];
+				for (int j=0;j<gef_conn[ef].num_PC;j++) {
+					cout<<gef_conn[ef].PC[j];
+					if (j < gef_conn[ef].num_PC - 1) cout<<" ";
+				}
+			}
+			cout<<"} ";
+			cout<<"*{";
+			for (int i = 0; i < gop_conn[op].num_E; i++) {
+				int ef = gop_conn[op].E[i];
+				for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
+					cout<<gef_conn[ef].poss_PC[j];
+					if (j < gef_conn[ef].num_poss_PC - 1) cout<<" ";
+				}
+			}
+			cout<<"} ";
+
+			if (++count % L == 0) cout<<endl;
+		}
+		break;
+
+	case 3:
+
+		for (int op = 0; op <gnum_op_conn; op++) {
+			if (action_layer.find(op) == action_layer.end())
+				continue;
+			cout<<"A"<<op<<"["<<action_layer[op].robustness<<"]";
+			cout<<action_layer[op].clauses<<SEP;
+			if (++count % L == 0) cout<<endl;
+		}
+		break;
+
+	default:
+		cout<<"Options not found!"<<endl;
+		exit(1);
 	}
 }
 
-void print_relaxed_planning_graph(RelaxedPlan& rp) {
+void print_relaxed_planning_graph(RelaxedPlan& rp, int style_f, int style_a) {
 	if (rp.P.size() <= 0) {
 		cout<<"EMPTY RGP"<<endl;
 		return;
@@ -164,22 +286,25 @@ void print_relaxed_planning_graph(RelaxedPlan& rp) {
 		new_layer = false;
 		if (i < rp.P.size()) {
 			cout<<"==== FACT LAYER "<<i<<"===="<<endl;
-			print_fact_layer(*(rp.P[i]));
+			print_fact_layer(*(rp.P[i]), style_f);
+			cout<<endl;
 			new_layer = true;
 		}
 		if (i < rp.A.size()) {
 			cout<<"==== ACTION LAYER "<<i<<"===="<<endl;
-			print_action_layer(*(rp.A[i]));
+			print_action_layer(*(rp.A[i]), style_a);
+			cout<<endl<<endl;
 			new_layer = true;
 		}
 		i++;
 	}
+	cout<<endl<<endl<<"END OF RPG. LENGTH: "<<rp.P.size()<<endl;
 }
 
 void print_fact_node(RelaxedPlan::FactNode& node) {
 	cout<<"Clauses: ";
-	cout<<node.clauses<<endl;
-	cout<<"Robustness: "<<node.robustness<<endl;
+	cout<<node.best_clauses<<endl;
+	cout<<"Robustness: "<<node.best_robustness<<endl;
 	cout<<"Supporting action: "<<node.best_supporting_action;
 }
 
@@ -188,6 +313,37 @@ void print_action_node(RelaxedPlan::ActionNode& node) {
 	cout<<node.clauses<<endl;
 	cout<<"Robustness: ";
 	cout<<node.robustness;
+}
+
+void print_action_through_layers(RelaxedPlan& rp, int op, int num_layers) {
+	assert(num_layers <= rp.P.size());
+	assert(op >= 0 && op < gnum_op_conn);
+
+	for (int i = 0; i < num_layers; i++) {
+		cout<<"==========  LAYER "<<i<<"=========="<<endl;
+		if (rp.A[i]->find(op) == rp.A[i]->end())
+			continue;
+		cout<<"PCs: ";
+		for (int j=0;j<gop_conn[op].num_E;j++) {
+			int ef = gop_conn[op].E[j];
+			for (int k=0;k<gef_conn[ef].num_PC;k++) {
+				int ft = gef_conn[ef].PC[k];
+				cout<<ft<<"["<<(*(rp.P[i]))[ft].best_supporting_action<<","<<(*(rp.P[i]))[ft].best_robustness<<"]"<<(*(rp.P[i]))[ft].best_clauses<<SEP;
+			}
+		}
+		cout<<endl;
+		cout<<"Poss-PCs: ";
+		for (int j=0;j<gop_conn[op].num_E;j++) {
+			int ef = gop_conn[op].E[j];
+			for (int k=0;k<gef_conn[ef].num_poss_PC;k++) {
+				int ft = gef_conn[ef].poss_PC[k];
+				cout<<ft<<"["<<(*(rp.P[i]))[ft].best_supporting_action<<","<<(*(rp.P[i]))[ft].best_robustness<<"]"<<(*(rp.P[i]))[ft].best_clauses<<SEP;
+			}
+		}
+		cout<<endl;
+		cout<<"Action: "<<(*(rp.A[i]))[op].clauses<<"["<<(*(rp.A[i]))[op].robustness<<"]";
+		cout<<endl<<endl;
+	}
 }
 
 

@@ -25,15 +25,24 @@ class RelaxedPlan {
 
 	// All information we want to store at each fact and action node in the relaxed planning graph
 	struct FactNode {
-		ClauseSet clauses;
-		double robustness;
-		int best_supporting_action;
+
+		/*
+		 * INFORMATION ON THE BEST SUPPORTING ACTION
+		 */
+		int best_supporting_action;	// The supporting action with the best robustness. Possible add effect taken into account in robustness estimation
+		ClauseSet best_clauses;		// Clause set derived from the best supporting action
+		double best_robustness;		// Best robustness computed from the best supporting action, including NOOP
+
+		/*
+		 * OTHER INFORMATION
+		 */
 		bool in_rp; // TRUE if this action node is selected
 	};
 
 	struct ActionNode {
-		ClauseSet clauses;
-		double robustness;
+		ClauseSet clauses;	// Clauses constructed from preconditions and possible preconditions
+		double robustness;	// and its according estimate robustness
+
 		bool in_rp;		// TRUE if this action node is selected
 	};
 
@@ -80,7 +89,7 @@ public:
 	void build_relaxed_planning_graph(int max_length = 100);
 
 	// Extract the relaxed plan
-	bool extract();
+	void extract();
 
 	// Gets
 	const State& get_current_state() const {
@@ -92,11 +101,12 @@ public:
 
 	// UNIT TEST
 	friend void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State* goal_state);
-	friend void print_fact_layer(FactLayer& fact_layer);
-	friend void print_action_layer(ActionLayer& action_layer);
-	friend void print_relaxed_planning_graph(RelaxedPlan& rp);
+	friend void print_fact_layer(FactLayer& fact_layer, int style = 0);
+	friend void print_action_layer(ActionLayer& action_layer, int style = 0);
+	friend void print_relaxed_planning_graph(RelaxedPlan& rp, int option_f=0, int option_a=0);
 	friend void print_fact_node(FactNode& node);
 	friend void print_action_node(ActionNode& node);
+	friend void print_action_through_layers(RelaxedPlan& rp, int op, int num_layers);
 };
 
 #endif /* RELAXEDPLAN_H_ */
