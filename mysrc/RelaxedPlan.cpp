@@ -422,10 +422,21 @@ bool RelaxedPlan::stop_growing() {
  */
 void RelaxedPlan::most_robust_rp_extraction() {
 	int n = P.size() - 1;
+	FactLayer& current_fact_layer = *(P[n]);
 	for (int i = 0; i < goals->num_F; i++) {
 		int g = goals->F[i];
 
-		if ()
+		if (current_fact_layer[g].first_layer == 0)
+			continue;
+
+		double best_robustness = -1;
+		for (int j = current_fact_layer[g].first_layer; j < n; j++) {
+			FactNode& node = (*(P[j]))[g];
+			if (best_robustness < node.best_robustness) {
+				best_robustness = node.best_robustness;
+			}
+		}
+		// Choose the action providing the best robustness at the lowest layer
 
 	}
 }
