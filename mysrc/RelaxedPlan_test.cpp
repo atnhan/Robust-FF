@@ -82,7 +82,7 @@ void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goa
 	}
 
 	// Creating relaxed plan
-	int test = 3;
+	int test = 2;
 	if (test == 1) {
 		cout<<"==== RELAXED PLAN ===="<<endl;
 		RelaxedPlan rp(&e, goal_state);
@@ -118,7 +118,7 @@ void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goa
 		cout<<endl;
 		cout<<"Encoding: "<<e.get_clauses()<<endl;
 
-		rp.build_relaxed_planning_graph(3);
+		rp.build_relaxed_planning_graph(10);
 		print_relaxed_planning_graph(rp, 2, 3);
 	}
 	else if (test == 3) {
@@ -130,7 +130,7 @@ void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goa
 
 		cout<<endl;
 		cout<<"Encoding: "<<e.get_clauses()<<endl;
-		rp.build_relaxed_planning_graph(3);
+		rp.build_relaxed_planning_graph(10);
 		print_action_through_layers(rp, 1037, 3);
 	}
 }
@@ -328,7 +328,10 @@ void print_action_through_layers(RelaxedPlan& rp, int op, int num_layers) {
 			int ef = gop_conn[op].E[j];
 			for (int k=0;k<gef_conn[ef].num_PC;k++) {
 				int ft = gef_conn[ef].PC[k];
-				cout<<ft<<"["<<(*(rp.P[i]))[ft].best_supporting_action<<","<<(*(rp.P[i]))[ft].best_robustness<<"]"<<(*(rp.P[i]))[ft].best_clauses<<SEP;
+				cout<<ft<<"["<<(*(rp.P[i]))[ft].best_supporting_action<<":";
+				if ((*(rp.P[i]))[ft].best_supporting_action != NOOP)
+					print_op_name((*(rp.P[i]))[ft].best_supporting_action);
+				cout<<","<<(*(rp.P[i]))[ft].best_robustness<<"]"<<(*(rp.P[i]))[ft].best_clauses<<SEP;
 			}
 		}
 		cout<<endl;
@@ -337,7 +340,10 @@ void print_action_through_layers(RelaxedPlan& rp, int op, int num_layers) {
 			int ef = gop_conn[op].E[j];
 			for (int k=0;k<gef_conn[ef].num_poss_PC;k++) {
 				int ft = gef_conn[ef].poss_PC[k];
-				cout<<ft<<"["<<(*(rp.P[i]))[ft].best_supporting_action<<","<<(*(rp.P[i]))[ft].best_robustness<<"]"<<(*(rp.P[i]))[ft].best_clauses<<SEP;
+				cout<<ft<<"["<<(*(rp.P[i]))[ft].best_supporting_action<<":";
+				if ((*(rp.P[i]))[ft].best_supporting_action != NOOP)
+					print_op_name((*(rp.P[i]))[ft].best_supporting_action);
+				cout<<","<<(*(rp.P[i]))[ft].best_robustness<<"]"<<(*(rp.P[i]))[ft].best_clauses<<SEP;
 			}
 		}
 		cout<<endl;

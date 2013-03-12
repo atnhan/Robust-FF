@@ -26,6 +26,9 @@ class RelaxedPlan {
 	// All information we want to store at each fact and action node in the relaxed planning graph
 	struct FactNode {
 
+		// First layer at which a node appears
+		int first_layer;
+
 		/*
 		 * INFORMATION ON THE BEST SUPPORTING ACTION
 		 */
@@ -40,6 +43,10 @@ class RelaxedPlan {
 	};
 
 	struct ActionNode {
+
+		// First layer at which an action node occurs
+		int first_layer;
+
 		ClauseSet clauses;	// Clauses constructed from preconditions and possible preconditions
 		double robustness;	// and its according estimate robustness
 
@@ -81,7 +88,16 @@ class RelaxedPlan {
 	// Check if we should stop growing the RPG
 	bool stop_growing();
 
+	/*
+	 * STRATEGY TO EXTRACT RELAXED PLANS
+	 */
+	void most_robust_rp_extraction();
+
 public:
+
+	// Ways to extract relaxed plans
+	enum RELAXED_PLAN_TYPE {FF, MOST_ROBUST};
+
 	RelaxedPlan(StripsEncoding *e, State *goals);
 	virtual ~RelaxedPlan();
 
@@ -89,7 +105,7 @@ public:
 	void build_relaxed_planning_graph(int max_length = 100);
 
 	// Extract the relaxed plan
-	void extract();
+	void extract(RELAXED_PLAN_TYPE t);
 
 	// Gets
 	const State& get_current_state() const {

@@ -86,8 +86,13 @@ void RelaxedPlan::build_relaxed_planning_graph(int max_length) {
 	}
 }
 
-void RelaxedPlan::extract() {
-
+void RelaxedPlan::extract(RelaxedPlan::RELAXED_PLAN_TYPE t) {
+	switch (t) {
+	case FF:
+		break;
+	case MOST_ROBUST:
+		break;
+	}
 }
 
 void RelaxedPlan::initialize_fact_layer() {
@@ -102,6 +107,7 @@ void RelaxedPlan::initialize_fact_layer() {
 		node.best_robustness = node.best_clauses.estimate_robustness(e->get_clauses());
 		node.best_supporting_action = e->get_actions()[e->get_actions().size()-1];
 		node.in_rp = false;
+		node.first_layer = 0;
 		(*new_fact_layer)[ft] = node;
 		// Mark this fact as being present in the RPG
 		(*facts_in_rpg)[ft] = true;
@@ -289,14 +295,14 @@ bool RelaxedPlan::grow_fact_layer() {
 				if (r > best_robustness) {
 					best_robustness = r;
 					best_supporting_action = op;
-					best_clauses = current_action_layer[op].clauses;
+					best_clauses = cs;
 				}
 			}
 		}
 
 		// If this fact has been present in the RPG, then it will be at the next layer
 		if (current_fact_layer.find(ft) != current_fact_layer.end()) {
-			if (best_robustness < current_fact_layer[ft].best_robustness) {
+			if (best_robustness <= current_fact_layer[ft].best_robustness) {	// NOTE: using "<=" makes NOOP preferable
 				will_be_added = true;
 				best_clauses = current_fact_layer[ft].best_clauses;
 				best_robustness = current_fact_layer[ft].best_robustness;
@@ -318,6 +324,12 @@ bool RelaxedPlan::grow_fact_layer() {
 			node.best_robustness = best_robustness;
 			node.best_supporting_action = best_supporting_action;
 			node.in_rp = false;
+			if (!(*facts_in_rpg[ft]))
+				node.first_layer = n+1;
+			else {
+
+			}
+
 			(*new_fact_layer)[ft] = node;
 
 			// Mark this fact being in the RPG
@@ -368,13 +380,16 @@ bool RelaxedPlan::same_fact_layers(FactLayer& factlayer_1, FactLayer& factlayer_
 
 	if (factlayer_1.size() != factlayer_2.size()) return false;
 
+	// Consider each fact "ft"
 	for (int ft = 0; ft < gnum_ft_conn; ft++) {
-		bool found_1 = (factlayer_1.find(ft) != factlayer_1.end());
-		bool found_2 = (factlayer_2.find(ft) != factlayer_2.end());
-		if ((found_1 && !found_2) || (!found_1 && found_2))
+		bool found_1 = (factlayer_1.find(ft) != factlayer_1.end());	// If this fact is in the first layer
+		bool found_2 = (factlayer_2.find(ft) != factlayer_2.end());	// If it is in the second layer
+		if ((found_1 && !found_2) || (!found_1 && found_2))	// If it is in only one layer, the two layers are different
 			return false;
 
-		// In case the set of facts are the same, we check the set of clauses present
+		// Here, "ft" could be in both, or neither.
+
+		// For the first case, we check if the sets of clauses present are the same
 		if (found_1 && found_2) {
 			if (!(factlayer_1[ft].best_clauses == factlayer_2[ft].best_clauses)) return false;
 		}
@@ -384,19 +399,36 @@ bool RelaxedPlan::same_fact_layers(FactLayer& factlayer_1, FactLayer& factlayer_
 
 bool RelaxedPlan::stop_growing() {
 	assert(A.size() <= P.size());
+
 	if (!goals_present()) return false;
+
 	if (A.size() == P.size()) return false;
+
 	int n = P.size()-1;
-	if (n <= 1) return false;
+	if (n == 0) return false;
 	FactLayer& current_fact_layer = *(P[n]);
-	FactLayer& last_fact_layer = *(P[n-1]);
+	FactLayer& previous_fact_layer = *(P[n-1]);
 
 	// Check if the current fact layer and the last fact layer are exactly the same
-	if (!same_fact_layers(current_fact_layer, last_fact_layer))
+	if (!same_fact_layers(current_fact_layer, previous_fact_layer))
 		return false;
 	return true;
 }
 
+/*
+ * In this strategy, we choose action "a" to support a (sub-)goal "g" at layer "l_g" as follows:
+ * + Assume "g" first appears at layer "l_0"
+ * +
+ */
+void RelaxedPlan::most_robust_rp_extraction() {
+	int n = P.size() - 1;
+	for (int i = 0; i < goals->num_F; i++) {
+		int g = goals->F[i];
+
+		if ()
+
+	}
+}
 
 
 
