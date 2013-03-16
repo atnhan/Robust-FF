@@ -324,10 +324,10 @@ bool RelaxedPlan::grow_fact_layer() {
 			node.best_robustness = best_robustness;
 			node.best_supporting_action = best_supporting_action;
 			node.in_rp = false;
-			if (!(*facts_in_rpg[ft]))
+			if (!(*facts_in_rpg)[ft])
 				node.first_layer = n+1;
 			else {
-
+				node.first_layer = current_fact_layer[ft].first_layer;
 			}
 
 			(*new_fact_layer)[ft] = node;
@@ -423,21 +423,31 @@ bool RelaxedPlan::stop_growing() {
 void RelaxedPlan::most_robust_rp_extraction() {
 	int n = P.size() - 1;
 	FactLayer& current_fact_layer = *(P[n]);
+	actions_in_rp.reserve(n);
 	for (int i = 0; i < goals->num_F; i++) {
 		int g = goals->F[i];
 
 		if (current_fact_layer[g].first_layer == 0)
 			continue;
 
+		// Find the fact node with the best robustness value
 		double best_robustness = -1;
+		int chosen_layer;
 		for (int j = current_fact_layer[g].first_layer; j < n; j++) {
 			FactNode& node = (*(P[j]))[g];
 			if (best_robustness < node.best_robustness) {
 				best_robustness = node.best_robustness;
+				chosen_layer = j;
 			}
 		}
-		// Choose the action providing the best robustness at the lowest layer
 
+		// Mark the chosen node being in the relaxed plan
+		(*(P[chosen_layer]))[g].in_rp = true;
+
+		// Choose the action providing the best robustness at the chosen layer
+		int chosen_action = (*(P[chosen_layer]))[g].best_supporting_action;
+		(*(A[chosen_layer]))[chosen_action].in_rp = true;
+		actions_in_rp[chosen_layer].push_back(chosen_action);
 	}
 }
 

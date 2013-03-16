@@ -53,8 +53,8 @@ class RelaxedPlan {
 		bool in_rp;		// TRUE if this action node is selected
 	};
 
-	// The structure to store actions selected at each layer
-	std::vector<std::set<int> > actions_in_rp;
+	// The (totally ordered) relaxed plan
+
 
 	/*
 	 * FUNCTIONS ON FACT AND ACTION LAYERS
