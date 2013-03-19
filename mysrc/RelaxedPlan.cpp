@@ -86,13 +86,25 @@ void RelaxedPlan::build_relaxed_planning_graph(int max_length) {
 	}
 }
 
-void RelaxedPlan::extract(RelaxedPlan::RELAXED_PLAN_TYPE t) {
-	switch (t) {
-	case FF:
-		break;
-	case MOST_ROBUST:
-		break;
+void RelaxedPlan::extract() {
+
+	if (relaxed_plan.size()) {
+		relaxed_plan.clear();
 	}
+
+	if (states_in_relaxed_plan.size()) {
+		states_in_relaxed_plan.clear();
+	}
+
+	// The level at which the extraction starts
+	int n = P.size() - 1;
+
+	for (int i = 0; i < goals->num_F; i++) {
+		int g = goals->F[i];
+
+
+	}
+
 }
 
 void RelaxedPlan::initialize_fact_layer() {
@@ -415,41 +427,6 @@ bool RelaxedPlan::stop_growing() {
 	return true;
 }
 
-/*
- * In this strategy, we choose action "a" to support a (sub-)goal "g" at layer "l_g" as follows:
- * + Assume "g" first appears at layer "l_0"
- * +
- */
-void RelaxedPlan::most_robust_rp_extraction() {
-	int n = P.size() - 1;
-	FactLayer& current_fact_layer = *(P[n]);
-	actions_in_rp.reserve(n);
-	for (int i = 0; i < goals->num_F; i++) {
-		int g = goals->F[i];
-
-		if (current_fact_layer[g].first_layer == 0)
-			continue;
-
-		// Find the fact node with the best robustness value
-		double best_robustness = -1;
-		int chosen_layer;
-		for (int j = current_fact_layer[g].first_layer; j < n; j++) {
-			FactNode& node = (*(P[j]))[g];
-			if (best_robustness < node.best_robustness) {
-				best_robustness = node.best_robustness;
-				chosen_layer = j;
-			}
-		}
-
-		// Mark the chosen node being in the relaxed plan
-		(*(P[chosen_layer]))[g].in_rp = true;
-
-		// Choose the action providing the best robustness at the chosen layer
-		int chosen_action = (*(P[chosen_layer]))[g].best_supporting_action;
-		(*(A[chosen_layer]))[chosen_action].in_rp = true;
-		actions_in_rp[chosen_layer].push_back(chosen_action);
-	}
-}
 
 
 

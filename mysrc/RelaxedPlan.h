@@ -14,6 +14,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <queue>
 
 class RelaxedPlan {
 
@@ -53,7 +54,35 @@ class RelaxedPlan {
 		bool in_rp;		// TRUE if this action node is selected
 	};
 
-	// The (totally ordered) relaxed plan
+	// The (totally ordered) relaxed plan, and the states before each action
+	std::vector<int> relaxed_plan;
+	std::vector<State> states_in_relaxed_plan;
+
+	// Actions in the relaxed plan, grouped wrt layers at which they are selected
+	std::vector<std::vector<int> > partially_ordered_relaxed_plan;
+
+	/*
+	 * The queue to store actions during the extraction of relaxed plan
+	 */
+	struct ChosenAction {
+		int action;
+		int layer;
+	};
+
+	// The function to compare two chosen actions. Note: the priority queue will pop the greatest element.
+	class ChosenActionComparison {
+	public:
+		bool operator() (const ChosenAction& a1, const ChosenAction& a2) {
+			if (a1.layer != a2.layer)
+				return (a1.layer < a2.layer);
+			else {
+				// if the two actions are at the same layer in the relaxed planning graph
+				// we choose
+			}
+			return true;
+		}
+	};
+
 
 
 	/*
@@ -91,15 +120,7 @@ class RelaxedPlan {
 	// Check if we should stop growing the RPG
 	bool stop_growing();
 
-	/*
-	 * STRATEGY TO EXTRACT RELAXED PLANS
-	 */
-	void most_robust_rp_extraction();
-
 public:
-
-	// Ways to extract relaxed plans
-	enum RELAXED_PLAN_TYPE {FF, MOST_ROBUST};
 
 	RelaxedPlan(StripsEncoding *e, State *goals);
 	virtual ~RelaxedPlan();
@@ -108,7 +129,7 @@ public:
 	void build_relaxed_planning_graph(int max_length = 100);
 
 	// Extract the relaxed plan
-	void extract(RELAXED_PLAN_TYPE t);
+	void extract();
 
 	// Gets
 	const State& get_current_state() const {
