@@ -15,10 +15,14 @@
 #include <string>
 #include <map>
 #include <queue>
+#include <list>
+#include <utility>
 
 class RelaxedPlan {
 
 #define NOOP -1
+#define GOAL_ACTION		-1
+#define MAX_RELAXED_PLAN_LENGTH		200
 
 	State *current;
 	State *goals;
@@ -54,36 +58,35 @@ class RelaxedPlan {
 		bool in_rp;		// TRUE if this action node is selected
 	};
 
-	// The (totally ordered) relaxed plan, and the states before each action
-	std::vector<int> relaxed_plan;
-	std::vector<State> states_in_relaxed_plan;
+	// The (totally ordered) relaxed plan
+	typedef std::list<std::pair<State*, int> > RELAXED_PLAN_TYPE;
+	RELAXED_PLAN_TYPE relaxed_plan;
 
 	// Actions in the relaxed plan, grouped wrt layers at which they are selected
 	std::vector<std::vector<int> > partially_ordered_relaxed_plan;
 
 	/*
-	 * The queue to store actions during the extraction of relaxed plan
+	 * THE QUEUE AND RELATED DATA STRUCTURE TO STORE ACTIONS CHOSEN DURING THE RELAXED PLAN EXTRACTION
+	 * THOSE ARE ACTIONS WHOSE (POSSIBLE) PRECONDITIONS MUST BE SUPPORTED
 	 */
-	struct ChosenAction {
+	struct UnsupportedAction {
 		int action;
 		int layer;
 	};
 
-	// The function to compare two chosen actions. Note: the priority queue will pop the greatest element.
-	class ChosenActionComparison {
+	// The function to compare two chosen actions.
+	// This function must return true when "a1" is ordered before "a2"
+	// The priority queue will pop the greatest element
+	class unsupported_action_comparison {
 	public:
-		bool operator() (const ChosenAction& a1, const ChosenAction& a2) {
+		bool operator() (const UnsupportedAction& a1, const UnsupportedAction& a2) const {
 			if (a1.layer != a2.layer)
-				return (a1.layer < a2.layer);
-			else {
-				// if the two actions are at the same layer in the relaxed planning graph
-				// we choose
-			}
+				return (a1.layer > a2.layer);	// prefer actions at earlier layers to be supported first (like DFS)
 			return true;
 		}
 	};
 
-
+	typedef std::priority_queue<UnsupportedAction, std::vector<UnsupportedAction>, unsupported_action_comparison> UNSUPPORTED_ACTION_QUEUE;
 
 	/*
 	 * FUNCTIONS ON FACT AND ACTION LAYERS

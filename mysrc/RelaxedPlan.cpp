@@ -42,14 +42,19 @@ RelaxedPlan::RelaxedPlan(StripsEncoding *e, State *goals) {
 }
 
 RelaxedPlan::~RelaxedPlan() {
-	if (current)
+	if (current) {
 		free(current);
-	if (goals)
+		current = 0;
+	}
+	if (goals) {
 		free(goals);
+		goals = 0;
+	}
 
 	for (int i=0;i<P.size();i++) {
 		if (P[i]) {
 			delete P[i];
+			P[i] = 0;
 		}
 	}
 	P.clear();
@@ -57,12 +62,21 @@ RelaxedPlan::~RelaxedPlan() {
 	for (int i=0;i<A.size();i++) {
 		if (A[i]) {
 			delete A[i];
+			A[i] = 0;
 		}
 	}
 	A.clear();
 
 	if (facts_in_rpg) delete facts_in_rpg;
 	if (actions_in_rpg) delete actions_in_rpg;
+
+	// Free space used by the relaxed plan
+	for (RELAXED_PLAN_TYPE::iterator itr = relaxed_plan.begin(); itr != relaxed_plan.end(); itr++) {
+		if (itr->first) {
+			free(itr->first);
+			itr->first = 0;
+		}
+	}
 }
 
 void RelaxedPlan::build_relaxed_planning_graph(int max_length) {
@@ -88,20 +102,68 @@ void RelaxedPlan::build_relaxed_planning_graph(int max_length) {
 
 void RelaxedPlan::extract() {
 
-	if (relaxed_plan.size()) {
-		relaxed_plan.clear();
-	}
+	// The queue to store all unsupported chosen actions
+	UNSUPPORTED_ACTION_QUEUE Q;
 
-	if (states_in_relaxed_plan.size()) {
-		states_in_relaxed_plan.clear();
-	}
-
-	// The level at which the extraction starts
+	// The level at which all goals appear
 	int n = P.size() - 1;
+
+	// Initialize Q
+	UnsupportedAction goal_action;
+	goal_action.action = GOAL_ACTION;
+	goal_action.layer = n + 1;	// One layer after all the goals
+	Q.push(goal_action);
+
+	// Initialize the relaxed plan with the goal action
+	relaxed_plan.push_back(make_pair(this->current, GOAL_ACTION));
+
+	// Extracting actions in the relaxed planning graph to supported actions in Q
+	vector<int> known_preconditions;
+	vector<int> possible_preconditions;
+	while (!Q.empty()) {
+		UnsupportedAction a = Q.top();
+		Q.pop();
+		int op = a.action;
+		int l_a = a.layer;
+
+		FactLayer &current_fact_layer = *(P[l_a-1]);
+		known_preconditions.clear();
+		possible_preconditions.clear();
+		if (op == GOAL_ACTION) {
+			for (int i = 0; i < goals->num_F; i++) {
+				int g = goals->F[i];
+				known_preconditions.push_back(g);
+			}
+		}
+		else {
+			for (int i = 0; i < gop_conn[op].num_E; i++) {
+				int ef = gop_conn[op].E[i];
+				for (int j = 0; j < gef_conn[ef].num_PC; j++) {
+					int g = gef_conn[ef].PC[j];
+					known_preconditions.push_back(g);
+				}
+				for (int j = 0; j < gef_conn[ef].num_poss_PC; j++) {
+					int g = gef_conn[ef].poss_PC[j];
+					possible_preconditions.push_back(g);
+				}
+			}
+		}
+
+		// We try to support known precondition first
+		for (int i = 0; i < known_preconditions.size(); i++) {
+			int g = known_preconditions[i];
+
+
+
+			int first_layer = current_fact_layer[g].first_layer;
+
+		}
+
+	}
+
 
 	for (int i = 0; i < goals->num_F; i++) {
 		int g = goals->F[i];
-
 
 	}
 
