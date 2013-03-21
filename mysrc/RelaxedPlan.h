@@ -58,12 +58,12 @@ class RelaxedPlan {
 		bool in_rp;		// TRUE if this action node is selected
 	};
 
-	// The (totally ordered) relaxed plan
-	typedef std::list<std::pair<State*, int> > RELAXED_PLAN_TYPE;
+	// The (partially ordered) relaxed plan
+	typedef std::vector<std::list<std::pair<State*, int> > > RELAXED_PLAN_TYPE;
 	RELAXED_PLAN_TYPE relaxed_plan;
 
-	// Actions in the relaxed plan, grouped wrt layers at which they are selected
-	std::vector<std::vector<int> > partially_ordered_relaxed_plan;
+	// Evaluate a candidate action wrt the current relaxed plan
+	double evaluate_candidate_action(int action, int layer);
 
 	/*
 	 * THE QUEUE AND RELATED DATA STRUCTURE TO STORE ACTIONS CHOSEN DURING THE RELAXED PLAN EXTRACTION

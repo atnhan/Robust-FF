@@ -7,7 +7,6 @@
 
 #include "RelaxedPlan.h"
 #include "Helpful.h"
-#include <vector>
 #include <algorithm>
 #include <assert.h>
 using namespace std;
@@ -71,10 +70,13 @@ RelaxedPlan::~RelaxedPlan() {
 	if (actions_in_rpg) delete actions_in_rpg;
 
 	// Free space used by the relaxed plan
-	for (RELAXED_PLAN_TYPE::iterator itr = relaxed_plan.begin(); itr != relaxed_plan.end(); itr++) {
-		if (itr->first) {
-			free(itr->first);
-			itr->first = 0;
+	for (int i=0;i<relaxed_plan.size();i++) {
+		list<pair<State*, int> >& actions = relaxed_plan[i];
+		for (list<pair<State*, int> >::iterator itr = actions.begin(); itr != actions.end(); itr++) {
+			if (itr->first) {
+				free(itr->first);
+				itr->first = 0;
+			}
 		}
 	}
 }
@@ -115,6 +117,8 @@ void RelaxedPlan::extract() {
 	Q.push(goal_action);
 
 	// Initialize the relaxed plan with the goal action
+	relaxed_plan.reserve(goal_action.layer + 1);
+
 	relaxed_plan.push_back(make_pair(this->current, GOAL_ACTION));
 
 	// Extracting actions in the relaxed planning graph to supported actions in Q
@@ -152,15 +156,18 @@ void RelaxedPlan::extract() {
 		// We try to support known precondition first
 		for (int i = 0; i < known_preconditions.size(); i++) {
 			int g = known_preconditions[i];
-
-
-
 			int first_layer = current_fact_layer[g].first_layer;
 
+			// Consider *all* actions from "first_layer" to "l_a - 1" which (possibly) support "g"
+			// OPTIONS: only consider actions with the best robustness at each layer
+			for (int j = 0; j < gft_conn[g].num_A; j++) {
+				int supporting_action = gft_conn[g].A[j];
+				for (int l = first_layer; l < l_a; l++) {
+
+				}
+			}
 		}
-
 	}
-
 
 	for (int i = 0; i < goals->num_F; i++) {
 		int g = goals->F[i];
@@ -168,6 +175,11 @@ void RelaxedPlan::extract() {
 	}
 
 }
+
+double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
+
+}
+
 
 void RelaxedPlan::initialize_fact_layer() {
 	assert(P.size() == 0);
