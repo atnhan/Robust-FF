@@ -28,22 +28,22 @@ class RelaxedPlan {
 	State *goals;
 	StripsEncoding *e;
 
+
+	/**************************************************************************************************
+	 * RELAXED PLANNING GRAPH
+	 **************************************************************************************************/
+
 	// All information we want to store at each fact and action node in the relaxed planning graph
 	struct FactNode {
 
 		// First layer at which a node appears
 		int first_layer;
 
-		/*
-		 * INFORMATION ON THE BEST SUPPORTING ACTION
-		 */
+		// INFORMATION ON THE BEST SUPPORTING ACTION
 		int best_supporting_action;	// The supporting action with the best robustness. Possible add effect taken into account in robustness estimation
 		ClauseSet best_clauses;		// Clause set derived from the best supporting action
 		double best_robustness;		// Best robustness computed from the best supporting action, including NOOP
 
-		/*
-		 * OTHER INFORMATION
-		 */
 		bool in_rp; // TRUE if this action node is selected
 	};
 
@@ -58,39 +58,6 @@ class RelaxedPlan {
 		bool in_rp;		// TRUE if this action node is selected
 	};
 
-	// The (partially ordered) relaxed plan
-	typedef std::vector<std::list<std::pair<State*, int> > > RELAXED_PLAN_TYPE;
-	RELAXED_PLAN_TYPE relaxed_plan;
-
-	// Evaluate a candidate action wrt the current relaxed plan
-	double evaluate_candidate_action(int action, int layer);
-
-	/*
-	 * THE QUEUE AND RELATED DATA STRUCTURE TO STORE ACTIONS CHOSEN DURING THE RELAXED PLAN EXTRACTION
-	 * THOSE ARE ACTIONS WHOSE (POSSIBLE) PRECONDITIONS MUST BE SUPPORTED
-	 */
-	struct UnsupportedAction {
-		int action;
-		int layer;
-	};
-
-	// The function to compare two chosen actions.
-	// This function must return true when "a1" is ordered before "a2"
-	// The priority queue will pop the greatest element
-	class unsupported_action_comparison {
-	public:
-		bool operator() (const UnsupportedAction& a1, const UnsupportedAction& a2) const {
-			if (a1.layer != a2.layer)
-				return (a1.layer > a2.layer);	// prefer actions at earlier layers to be supported first (like DFS)
-			return true;
-		}
-	};
-
-	typedef std::priority_queue<UnsupportedAction, std::vector<UnsupportedAction>, unsupported_action_comparison> UNSUPPORTED_ACTION_QUEUE;
-
-	/*
-	 * FUNCTIONS ON FACT AND ACTION LAYERS
-	 */
 	// Proposition and action layers.
 	typedef std::map<int, FactNode> FactLayer;
 	typedef std::map<int, ActionNode> ActionLayer;
@@ -122,6 +89,47 @@ class RelaxedPlan {
 
 	// Check if we should stop growing the RPG
 	bool stop_growing();
+
+	/**************************************************************************************************
+	 * RELAXED PLAN
+	 **************************************************************************************************/
+
+	// In the relaxed plan, actions at the same layer of the relaxed planning graph are stored in a list
+	// For each action, we also store the state before it. We use this information to construct constraints
+	// for the correctness of the relaxed plan after being totally ordered.
+	struct RP_STEP {
+		State *s;
+		int action;
+	};
+	typedef std::vector<std::list<RP_STEP> > RELAXED_PLAN;
+	RELAXED_PLAN relaxed_plan;
+
+	// Unsupported actions chosen during the relaxed plan extraction are stored in a queue
+	struct UnsupportedAction {
+		int action;
+		int layer;
+	};
+
+	// The function to compare two chosen actions.
+	// This function must return true when "a1" is ordered before "a2"
+	// The priority queue will pop the greatest element
+	class unsupported_action_comparison {
+	public:
+		bool operator() (const UnsupportedAction& a1, const UnsupportedAction& a2) const {
+			if (a1.layer != a2.layer)
+				return (a1.layer > a2.layer);	// prefer actions at earlier layers to be supported first (like DFS)
+			return true;
+		}
+	};
+
+	typedef std::priority_queue<UnsupportedAction, std::vector<UnsupportedAction>, unsupported_action_comparison> UNSUPPORTED_ACTION_QUEUE;
+
+	// Evaluate a candidate action wrt the current relaxed plan
+	double evaluate_candidate_action(int action, int layer);
+
+	// Insert/remove an action "a" at layer "l" into a relaxed plan
+	bool insert_action_into_relaxed_plan(int action, int layer, RELAXED_PLAN& rp);
+
 
 public:
 
