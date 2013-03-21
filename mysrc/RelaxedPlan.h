@@ -11,6 +11,7 @@
 #include "../ff.h"
 #include "ClauseSet.h"
 #include "StripsEncoding.h"
+#include "Helpful.h"
 #include <vector>
 #include <string>
 #include <map>
@@ -98,11 +99,12 @@ class RelaxedPlan {
 	// For each action, we also store the state before it. We use this information to construct constraints
 	// for the correctness of the relaxed plan after being totally ordered.
 	struct RP_STEP {
-		State *s;
-		int action;
+		int a;	// the action at the step
+		State *s;	// the state right before the action
+
 	};
 	typedef std::vector<std::list<RP_STEP> > RELAXED_PLAN;
-	RELAXED_PLAN relaxed_plan;
+	RELAXED_PLAN rp;
 
 	// Unsupported actions chosen during the relaxed plan extraction are stored in a queue
 	struct UnsupportedAction {
@@ -124,11 +126,11 @@ class RelaxedPlan {
 
 	typedef std::priority_queue<UnsupportedAction, std::vector<UnsupportedAction>, unsupported_action_comparison> UNSUPPORTED_ACTION_QUEUE;
 
-	// Evaluate a candidate action wrt the current relaxed plan
-	double evaluate_candidate_action(int action, int layer);
+	// Evaluate a candidate action "a", which is at layer "l" wrt the current relaxed plan.
+	double evaluate_candidate_action(int a, int l);
 
 	// Insert/remove an action "a" at layer "l" into a relaxed plan
-	bool insert_action_into_relaxed_plan(int action, int layer, RELAXED_PLAN& rp);
+	void insert_action_into_relaxed_plan(int a, int l);
 
 
 public:
