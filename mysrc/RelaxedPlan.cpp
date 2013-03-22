@@ -280,6 +280,25 @@ void RelaxedPlan::insert_action_into_relaxed_plan(int a, int l) {
 	rp[l].push_front(new_step);
 }
 
+void RelaxedPlan::remove_action_from_relaxed_plan(int a, int l) {
+	if (l < 0 || l >= rp.size())
+		return;
+
+	// STEP 1: find the action in the current relaxed plan
+	list<RP_STEP>& actions = rp[l];
+
+	list<RP_STEP>::iterator itr;
+	for (itr = actions.begin(); itr != actions.end(); itr++) {
+		if (itr->a == a)
+			break;
+	}
+	if (itr == actions.end())
+		return;
+
+	// STEP 2: update all the states after the action
+	// Seem a heavy step
+}
+
 void RelaxedPlan::initialize_fact_layer() {
 	assert(P.size() == 0);
 

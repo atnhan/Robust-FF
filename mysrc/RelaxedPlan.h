@@ -131,6 +131,7 @@ class RelaxedPlan {
 
 	// Insert/remove an action "a" at layer "l" into a relaxed plan
 	void insert_action_into_relaxed_plan(int a, int l);
+	void remove_action_from_relaxed_plan(int a, int l);
 
 
 public:
