@@ -23,7 +23,7 @@ bool is_add(int ft, int action);
 bool is_del(int ft, int action);
 
 // Check if a fact is in a state. Faster implementation may be needed.
-bool is_in_state(int ft, State *s);
+bool is_in_state(int ft, const State *s);
 
 // Find the index of an action from its name. Action name is assumed to be in upper case,
 // parameters are separated by white spaces: "DEBARK PERSON4 PLANE2 CITY1"

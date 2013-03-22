@@ -102,6 +102,9 @@ class RelaxedPlan {
 		int a;	// the action at the step
 		State *s;	// the state right before the action
 
+		// Each known and possible precondition of the action is associated
+		// with a clause set derived from possile add and delete of actions in the relaxed plan
+		std::map<int, ClauseSet> clause_set_of_preconditions;
 	};
 	typedef std::vector<std::list<RP_STEP> > RELAXED_PLAN;
 	RELAXED_PLAN rp;
@@ -110,6 +113,7 @@ class RelaxedPlan {
 	struct UnsupportedAction {
 		int action;
 		int layer;
+		const State *state;		// State before the action in the relaxed plan
 	};
 
 	// The function to compare two chosen actions.
@@ -126,13 +130,11 @@ class RelaxedPlan {
 
 	typedef std::priority_queue<UnsupportedAction, std::vector<UnsupportedAction>, unsupported_action_comparison> UNSUPPORTED_ACTION_QUEUE;
 
-	// Evaluate a candidate action "a", which is at layer "l" wrt the current relaxed plan.
+	// Evaluate a candidate action "a", which is at layer "l" of the RPG, wrt the current relaxed plan.
 	double evaluate_candidate_action(int a, int l);
 
-	// Insert/remove an action "a" at layer "l" into a relaxed plan
+	// Insert an action "a" at layer "l" into a relaxed plan
 	void insert_action_into_relaxed_plan(int a, int l);
-	void remove_action_from_relaxed_plan(int a, int l);
-
 
 public:
 

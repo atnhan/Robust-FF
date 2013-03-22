@@ -93,7 +93,7 @@ bool is_del(int ft, int action) {
 	return false;
 }
 
-bool is_in_state(int ft, State *s) {
+bool is_in_state(int ft, const State *s) {
 	if (!s) return false;
 	for (int i = 0; i < s->num_F; i++)
 		if (ft == s->F[i])
