@@ -18,6 +18,8 @@
 #include <queue>
 #include <list>
 #include <utility>
+#include <boost/unordered_set.hpp>
+#include <boost/unordered_map.hpp>
 
 class RelaxedPlan {
 
@@ -96,24 +98,42 @@ class RelaxedPlan {
 	 **************************************************************************************************/
 
 	// In the relaxed plan, actions at the same layer of the relaxed planning graph are stored in a list
-	// For each action, we also store the state before it. We use this information to construct constraints
-	// for the correctness of the relaxed plan after being totally ordered.
+	// For each action, we also store (1) the state before it, (2) clause set associated with known preconditions
+	// (3) clause set associated with possible preconditions.
+	typedef boost::unordered_map<int, bool> RP_STATE;	// A proposition is in the state if and only if (a) it is in the map,
+														// AND (b) the second field is TRUE. So to remove a proposition from a state,
+														// we simply turn the second field to FALSE.
+	typedef boost::unordered_map<int, ClauseSet> PRE_2_CLAUSES;
+	typedef boost::unordered_map<int, ClauseSet> POSS_PRE_2_CLAUSES;
+	// For each (possible) precondition of an action, we store the RP_STEP at which its truth value is confirmed
+	struct RP_STEP;
+	typedef boost::unordered_map<int, std::pair<int, std::list<RP_STEP>::iterator > > PRE_2_CONFIRMED_STEP;
+	typedef boost::unordered_map<int, std::pair<int, std::list<RP_STEP>::iterator > > POSS_PRE_2_CONFIRMED_STEP;
 	struct RP_STEP {
 		int a;	// the action at the step
-		State *s;	// the state right before the action
+		RP_STATE s;	// the state right before the action
 
 		// Each known and possible precondition of the action is associated
-		// with a clause set derived from possile add and delete of actions in the relaxed plan
-		std::map<int, ClauseSet> clause_set_of_preconditions;
+		// with a clause set derived from possible add and delete of actions in the relaxed plan
+		PRE_2_CLAUSES *pre_clauses;
+		POSS_PRE_2_CLAUSES *poss_pre_clauses;
+		PRE_2_CONFIRMED_STEP *pre_confirmed_step;
+		POSS_PRE_2_CONFIRMED_STEP *poss_pre_confirmed_step;
+
+		// These are used during relaxed plan evaluation only
+		PRE_2_CLAUSES *potentially_next_pre_clauses;
+		POSS_PRE_2_CLAUSES *potentially_next_poss_pre_clauses;
+		PRE_2_CONFIRMED_STEP *potentially_next_pre_confirmed_step;
+		POSS_PRE_2_CONFIRMED_STEP *potentially_next_poss_pre_confirmed_step;
 	};
 	typedef std::vector<std::list<RP_STEP> > RELAXED_PLAN;
-	RELAXED_PLAN rp;
+	RELAXED_PLAN *rp;
 
 	// Unsupported actions chosen during the relaxed plan extraction are stored in a queue
 	struct UnsupportedAction {
-		int action;
-		int layer;
-		const State *state;		// State before the action in the relaxed plan
+		int a;	// action
+		int l;	// layer of the RPG
+		const RP_STATE *s_ptr;		// State before the action in the relaxed plan
 	};
 
 	// The function to compare two chosen actions.
@@ -122,8 +142,8 @@ class RelaxedPlan {
 	class unsupported_action_comparison {
 	public:
 		bool operator() (const UnsupportedAction& a1, const UnsupportedAction& a2) const {
-			if (a1.layer != a2.layer)
-				return (a1.layer > a2.layer);	// prefer actions at earlier layers to be supported first (like DFS)
+			if (a1.l != a2.l)
+				return (a1.l > a2.l);	// prefer actions at earlier layers to be supported first (like DFS)
 			return true;
 		}
 	};
@@ -134,9 +154,9 @@ class RelaxedPlan {
 	double evaluate_candidate_action(int a, int l);
 
 	// Insert an action "a" at layer "l" into a relaxed plan
-	void insert_action_into_relaxed_plan(int a, int l);
+	void insert_action_into_relaxed_plan(int a, int l, bool for_evaluation = true);
 
-	// Get confirmed level for (possible) precondition "p" of action "a" at layer "l" of the relaxed plan
+	// Get confirmed level for proposition "p" in the rp-state before action "a" at layer "l" of the relaxed plan
 	int get_confirmed_level(int p, int a, int l);
 
 public:
