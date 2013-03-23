@@ -136,6 +136,9 @@ class RelaxedPlan {
 	// Insert an action "a" at layer "l" into a relaxed plan
 	void insert_action_into_relaxed_plan(int a, int l);
 
+	// Get confirmed level for (possible) precondition "p" of action "a" at layer "l" of the relaxed plan
+	int get_confirmed_level(int p, int a, int l);
+
 public:
 
 	RelaxedPlan(StripsEncoding *e, State *goals);

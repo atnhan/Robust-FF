@@ -107,7 +107,7 @@ void RelaxedPlan::extract() {
 	// The queue to store all unsupported chosen actions
 	UNSUPPORTED_ACTION_QUEUE Q;
 
-	// Known preconditions and effects that need to be supported
+	// Known and possible preconditions that need to be supported
 	vector<int> unsupported_preconditions;
 
 	// The level at which all goals appear. So this is also the layer at which GOAL_ACTION is put
@@ -123,13 +123,17 @@ void RelaxedPlan::extract() {
 	make_state(goal_step.s, gnum_ft_conn);
 	goal_step.s->max_F = gnum_ft_conn;
 	source_to_dest(goal_step.s, goals);
+	const FactLayer& first_fact_layer = *(P[0]);
+	const FactLayer& last_fact_layer = *(P[n]);
 	for (int i = 0; i < goal_step.s->num_F; i++) {
 		int g = goal_step.s->F[i];
-		if (is_in_state(g, current)) {
-
+		if (first_fact_layer.find(g) != first_fact_layer.end()) {
+			// If "g" is already in the first layer (i.e., the current state of the plan prefix)
+			// then we associate with it a clause set constructed similar to regular preconditions in the plan prefix
+			goal_step.clause_set_of_preconditions[g] = first_fact_layer.at(g).best_clauses;
 		}
 		else {
-
+			goal_step.clause_set_of_preconditions[g] = last_fact_layer.at(g).best_clauses;
 		}
 	}
 	rp[n].push_back(goal_step);
@@ -222,8 +226,48 @@ void RelaxedPlan::extract() {
 	}
 }
 
-double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
+double RelaxedPlan::evaluate_candidate_action(int a, int l) {
 
+	// STEP 1: Create the state before "a" in the relaxed plan
+
+	// Find the action "prev_a" preceding "a" in the relaxed plan "rp". Note that it may not exist.
+	int prev_a = -1;
+	State *prev_s = 0;
+	int prev_l = l - 1;
+	while (prev_l >= 0) {
+		// If the layer has chosen actions
+		if (rp[prev_l].size()) {
+			// then it is the last action.
+			list<RP_STEP>::iterator itr = --(rp[prev_l].end());
+			prev_a = itr->a;
+			prev_s = itr->s;
+			break;
+		}
+		--prev_l;
+	}
+
+	State *s = (State*) calloc(1, sizeof(State));
+	make_state(s, gnum_ft_conn);
+	s->max_F = gnum_ft_conn;
+	if (prev_a != -1) {
+		source_to_dest(s, prev_s);
+
+		// Add known and possible effects of "prev_a" into "s", if they were not present
+		for (int i = 0; i < gop_conn[prev_a].num_E; i++) {
+			int ef = gop_conn[prev_a].E[i];
+			for (int j = 0; j < gef_conn[ef].num_A; j++) {
+				if (!is_in_state(gef_conn[ef].A[j], s))
+					s->F[s->num_F++] = gef_conn[ef].A[j];
+			}
+			for (int j = 0; j < gef_conn[ef].num_poss_A; j++) {
+				if (!is_in_state(gef_conn[ef].poss_A[j], s))
+					s->F[s->num_F++] = gef_conn[ef].poss_A[j];
+			}
+		}
+	}
+	else {
+		source_to_dest(s, current);
+	}
 
 
 	return 0;
@@ -281,21 +325,22 @@ void RelaxedPlan::insert_action_into_relaxed_plan(int a, int l) {
 
 	new_step.s = s;
 
-	// STEP 2: Update states for all action after "a" with its known and possible add effects
-	for (int i = 0; i < gop_conn[a].num_E; i++) {
-		int ef = gop_conn[a].E[i];
-		for (int j = 0; j < gef_conn[ef].num_A; j++) {
-			if (!is_in_state(gef_conn[ef].A[j], s))
-				s->F[s->num_F++] = gef_conn[ef].A[j];
-		}
-		for (int j = 0; j < gef_conn[ef].num_poss_A; j++) {
-			if (!is_in_state(gef_conn[ef].poss_A[j], s))
-				s->F[s->num_F++] = gef_conn[ef].poss_A[j];
+	// STEP 2: Update states for all actions after "a" with its known and possible add effects
+
+	for (int i = l; i < rp.size(); i++) {
+		for (list<RP_STEP>::iterator itr = rp[i].begin(); itr != rp[i].end(); itr++) {
+
 		}
 	}
 
-	// STEP 3: Insert the step into the relaxed plan
+	// STEP 2: Insert the step into the relaxed plan
 	rp[l].push_front(new_step);
+
+
+}
+
+int RelaxedPlan::get_confirmed_level(int p, int a, int l) {
+
 }
 
 void RelaxedPlan::initialize_fact_layer() {
