@@ -40,7 +40,6 @@ RelaxedPlan::RelaxedPlan(StripsEncoding *e, State *goals) {
 	this->facts_in_rpg = new vector<bool>(gnum_ft_conn, false);
 	this->actions_in_rpg = new vector<bool>(gnum_op_conn, false);
 
-	this->rp = new RELAXED_PLAN;
 }
 
 RelaxedPlan::~RelaxedPlan() {
@@ -72,9 +71,6 @@ RelaxedPlan::~RelaxedPlan() {
 	if (facts_in_rpg) delete facts_in_rpg;
 	if (actions_in_rpg) delete actions_in_rpg;
 
-	// Free space used by the relaxed plan
-	if (rp)
-		delete rp;
 }
 
 void RelaxedPlan::build_relaxed_planning_graph(int max_length) {
@@ -109,32 +105,32 @@ void RelaxedPlan::extract() {
 
 	// The level at which all goals appear. So this is also the layer at which GOAL_ACTION is put
 	int n = P.size() - 1;
+	num_chosen_actions.reserve(n+1);
+	for (int i=0;i<=n;i++) num_chosen_actions[i] = 0;
 
 	// The last fact layer
 	const FactLayer& last_fact_layer = *(P[n]);
 
-	// Make space for the relaxed plan, including the step containing the goal action
-	rp->reserve(n+1);
-
 	// Create the step containing goal action of the relaxed plan
-	RP_STEP goal_step;
-	goal_step.a = GOAL_ACTION;
-	goal_step.pre_clauses = new PRE_2_CLAUSES;
-	goal_step.poss_pre_clauses = 0;
-	goal_step.potentially_next_pre_clauses = 0;
-	goal_step.potentially_next_poss_pre_clauses = 0;
+	RP_STEP *goal_step = new RP_STEP;
+	goal_step->a = GOAL_ACTION;
 	for (int i=0;i<goals->num_F; i++) {
 		int g = goals->F[i];
-		goal_step.s[g] = true;
-		(*(goal_step.pre_clauses))[g] = last_fact_layer.at(g).best_clauses;
+		goal_step->s[g] = true;
+		// WORTH TO TRY: if g is already in the current state, only take the clauses
+		// from there...
+		(goal_step->pre_clauses)[g] = last_fact_layer.at(g).best_clauses;
 	}
-	(*rp)[n].push_back(goal_step);
+
+	// Add the goal step to the relaxed plan
+	rp.push_back(goal_step);
+	num_chosen_actions[n] = 1;
 
 	// Initialize Q with the goal action
 	UnsupportedAction goal_action;
 	goal_action.a = GOAL_ACTION;
 	goal_action.l = n;
-	goal_action.s_ptr = &goal_step.s;
+	goal_action.s_ptr = &goal_step->s;
 	Q.push(goal_action);
 
 	// Extracting actions in the relaxed planning graph to support actions in Q
@@ -146,12 +142,11 @@ void RelaxedPlan::extract() {
 
 #ifndef NDEBUG
 		// This action must be found in the relaxed plan
-		list<RP_STEP>::const_iterator itr = (*rp)[l_op].begin();
-		for (; itr != (*rp)[l_op].end(); itr++) {
-			if (itr->a == op)
+		list<RP_STEP*>::iterator itr = rp.begin();
+		for (; itr != rp.end(); itr++)
+			if ((*itr)->a == op)
 				break;
-		}
-		assert(itr != (*rp)[l_op].end());
+		assert(itr != rp.end());
 #endif
 		// Make sure these are cleared before being filled
 		unsup_pres.clear();
@@ -224,100 +219,77 @@ double RelaxedPlan::evaluate_candidate_action(int a, int l) {
 
 // Insert action "a" at layer "l" of the RPG into the current relaxed plan
 // Note that we order "a" in front of all chosen actions at the same layer
-void RelaxedPlan::insert_action_into_relaxed_plan(int a, int l, bool for_evaluation) {
+void RelaxedPlan::insert_action_into_relaxed_plan(int action, int layer) {
 
-	// STEP 1: Create the state before "a" in the relaxed plan
+	// The new step to be inserted
+	RP_STEP *new_step = new RP_STEP;
 
-	// Find the action "prev_a" preceding "a" in the relaxed plan "rp". Note that it may not exist.
-	int prev_action = -1;
-	const RP_STATE *prev_state;
-	int prev_layer = l - 1;
-	while (prev_layer >= 0) {
-		// If the layer has chosen actions
-		if ((*rp)[prev_layer].size()) {
-			// then it is the last action.
-			list<RP_STEP>::iterator itr = --((*rp)[prev_layer].end());
-			prev_action = itr->a;
-			prev_state = &(itr->s);
-			break;
-		}
-		--prev_layer;
+	// Number of steps before the layer
+	int count = 0;
+	for (int l=0;l<layer;l++)
+		count += num_chosen_actions[l];
+
+	// We now insert the new step, and keep the iterator
+	RELAXED_PLAN::iterator new_itr;
+	if (count == 0) {
+		rp.push_front(new_step);
+		new_itr = rp.begin();
+	}
+	else {
+		RELAXED_PLAN::iterator itr = rp.begin();
+		for (int i=0;i<count-1;i++)
+			itr++;
+		new_itr = rp.insert(itr, new_step);
 	}
 
-	// Create the new step containing "a" in the relaxed plan
-	RP_STEP new_step;
-	new_step.a = a;
-	if (prev_action != -1) {
-		for (RP_STATE::const_iterator itr = prev_state->begin(); itr != prev_state->end(); itr++) {
-			if (itr->second)
-				new_step.s[itr->first] = true;
-		}
+	// Update the step's action
+	new_step->a = action;
 
-		// Add known and possible effects of "prev_a" into "s", if they were not present
+	// Update the step's state
+	if (new_itr == rp.begin()) {
+		for (int i=0;i<current->num_F; i++)
+			new_step->s[current->F[i]] = true;
+	}
+	else {
+		RELAXED_PLAN::iterator itr = new_itr;
+		itr--;
+		int prev_action = (*itr)->a;
+		const RP_STATE& prev_state = (*itr)->s;
+		for (RP_STATE::const_iterator i = prev_state.begin(); i != prev_state.end(); i++) {
+			if (i->second)
+				new_step->s[i->first] = true;
+		}
+		// Add known and possible effects of "prev_action" into "s", if they were not present
 		for (int i = 0; i < gop_conn[prev_action].num_E; i++) {
 			int ef = gop_conn[prev_action].E[i];
 			for (int j = 0; j < gef_conn[ef].num_A; j++)
-				new_step.s[gef_conn[ef].A[j]] = true;
+				new_step->s[gef_conn[ef].A[j]] = true;
 
 			for (int j = 0; j < gef_conn[ef].num_poss_A; j++)
-				new_step.s[gef_conn[ef].poss_A[j]] = true;
-		}
-	}
-	else {
-		for (int i=0;i<current->num_F; i++) {
-			new_step.s[current->F[i]] = true;
+				new_step->s[gef_conn[ef].poss_A[j]] = true;
 		}
 	}
 
-	// STEP 2: Update states for all actions after "a" with its known and possible add effects
-	for (int i = l; i < rp->size(); i++) {
-		for (list<RP_STEP>::iterator itr = (*rp)[i].begin(); itr != (*rp)[i].end(); itr++) {
-			RP_STEP& step = *itr;
-			for (int j = 0; j < gop_conn[a].num_E; j++) {
-				int ef = gop_conn[a].E[j];
-				for (int k = 0; k < gef_conn[ef].num_A; k++)
-					step.s[gef_conn[ef].A[k]] = true;
-				for (int k = 0; k < gef_conn[ef].num_poss_A; k++)
-					step.s[gef_conn[ef].poss_A[k]] = true;
-			}
+	// Update states for all actions after "action" with its known and possible add effects
+	RELAXED_PLAN::iterator itr = new_itr;
+	itr++;
+	while (itr != rp.end()) {
+		RP_STEP& step = **itr;
+		for (int j = 0; j < gop_conn[action].num_E; j++) {
+			int ef = gop_conn[action].E[j];
+			for (int k = 0; k < gef_conn[ef].num_A; k++)
+				step.s[gef_conn[ef].A[k]] = true;
+			for (int k = 0; k < gef_conn[ef].num_poss_A; k++)
+				step.s[gef_conn[ef].poss_A[k]] = true;
 		}
+		itr++;
 	}
 
-	// STEP 2: Update clause set for the new action's known and possible preconditions
-	new_step.pre_clauses = new PRE_2_CLAUSES;
-	new_step.poss_pre_clauses = new PRE_2_CLAUSES;
-	new_step.potentially_next_pre_clauses = new_step.potentially_next_poss_pre_clauses = 0;
-	for (int i=0;i<gop_conn[a].num_E;i++) {
-		int ef = gop_conn[a].E[i];
-		for (int j=0;j<gef_conn[ef].num_PC;j++) {
-			int p = gef_conn[ef].PC[j];
-		}
-		for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
-			int p = gef_conn[ef].poss_PC[j];
-		}
-	}
-
-	// STEP 3: Insert the step into the relaxed plan
-	(*rp)[l].push_front(new_step);
+	// Update clauses for known and possible preconditions of "action"
 
 }
 
-int RelaxedPlan::get_confirmed_level(int p, int a, int l) {
-	assert(l >= 0 && l < rp->size());
-	// First, find the step
-	list<RP_STEP>& steps = (*rp)[l];
-	list<RP_STEP>::const_iterator itr = steps.begin();
-	for (; itr != steps.end(); itr++) {
-		if (itr->a == a)
-			break;
-	}
-	assert(itr != steps.end());
-	assert(itr->s.find(p) != itr->s.end() && itr->s.at(p) == true);
 
-	list<RP_STEP>::const_iterator reverse_itr = itr;
-
-
-}
 
 void RelaxedPlan::initialize_fact_layer() {
 	assert(P.size() == 0);
