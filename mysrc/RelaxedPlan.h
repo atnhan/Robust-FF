@@ -146,7 +146,9 @@ class RelaxedPlan {
 	void insert_action_into_relaxed_plan(int a, int l);
 
 	// Get confirmed step for proposition "p" in the rp-state contained in the iterator "itr"
-	//RELAXED_PLAN::iterator get_confirmed_step(int p, RELAXED_PLAN::const_iterator& itr);
+	void get_confirmed_step(const RELAXED_PLAN::iterator& begin_itr, const RELAXED_PLAN::iterator& end_itr,
+								int p, RELAXED_PLAN::iterator& the_step_itr,
+								RELAXED_PLAN::iterator& the_confirmed_step_itr);
 
 public:
 

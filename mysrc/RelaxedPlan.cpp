@@ -289,7 +289,31 @@ void RelaxedPlan::insert_action_into_relaxed_plan(int action, int layer) {
 
 }
 
+void RelaxedPlan::get_confirmed_step(const RELAXED_PLAN::iterator& begin_itr, const RELAXED_PLAN::iterator& end_itr,
+							int p, RELAXED_PLAN::iterator& the_step_itr,
+							RELAXED_PLAN::iterator& the_confirmed_step_itr) {
+#ifndef NDEBUG
+	// Make sure "p" is in the state pointed to by "the_step_itr"
+	RP_STATE& the_start_state = (*the_step_itr)->s;
+	assert(the_start_state.find(p) != the_start_state.end());
+#endif
 
+	the_confirmed_step_itr = the_step_itr;
+	--the_confirmed_step_itr;
+	while (the_confirmed_step_itr != begin_itr) {
+		int a = (*the_confirmed_step_itr)->a;
+		// If the action at "the_confirmed_step_itr" adds "p", then return
+		// Why don't we consider "delete" as well?
+		if (is_add(p, a)) return;
+
+		// If the action at "the_confirmed_step_itr" has "p" as a precondition, then return
+		if (is_pre(p, a)) return;
+
+		// Move to the left
+		--the_confirmed_step_itr;
+	}
+
+}
 
 void RelaxedPlan::initialize_fact_layer() {
 	assert(P.size() == 0);
