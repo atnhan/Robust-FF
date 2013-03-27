@@ -145,10 +145,16 @@ class RelaxedPlan {
 	// Insert an action "a" at layer "l" into a relaxed plan
 	void insert_action_into_relaxed_plan(int a, int l);
 
-	// Get confirmed step for proposition "p" in the rp-state contained in the iterator "itr"
-	void get_confirmed_step(const RELAXED_PLAN::iterator& begin_itr, const RELAXED_PLAN::iterator& end_itr,
-								int p, RELAXED_PLAN::iterator& the_step_itr,
-								RELAXED_PLAN::iterator& the_confirmed_step_itr);
+	// Get confirmed step in the relaxed plan OR the confirmed level in the current plan prefix
+	// for proposition "p" in the rp-state contained in the iterator "itr"
+	// The output is a pair:
+	// + the first field is the level of the plan prefix; it is -1 if "p" is confirmed by a step in the current relaxed plan
+	// + the second field is the confirmed step in the current relaxed plan; it must not be used if the first field is >= 0
+	void get_confirmed_step_or_level(int p, RELAXED_PLAN::iterator& the_step_itr,
+								std::pair<int, RELAXED_PLAN::iterator>& output);
+
+	// Constructing supporting constraints for fact "p" at position pointed to by "the_step_itr" in the relaxed plan
+	bool supporting_constraints(int p, RELAXED_PLAN::iterator& the_step_itr, ClauseSet& clauses);
 
 public:
 

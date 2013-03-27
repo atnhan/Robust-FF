@@ -214,6 +214,11 @@ void RelaxedPlan::extract() {
 }
 
 double RelaxedPlan::evaluate_candidate_action(int a, int l) {
+
+	// Set of all clauses that need to be evaluated
+	ClauseSet clauses = e->get_clauses();
+
+
 	return 0;
 }
 
@@ -286,33 +291,228 @@ void RelaxedPlan::insert_action_into_relaxed_plan(int action, int layer) {
 	}
 
 	// Update clauses for known and possible preconditions of "action"
+	for (int i=0;i<gop_conn[action].num_E;i++) {
+		int ef = gop_conn[action].E[i];
+		for (int j=0;j<gef_conn[ef].num_PC;j++) {
+			int p = gef_conn[ef].PC[j];
+			ClauseSet cs;
+			bool success = supporting_constraints(p, new_itr, cs);
+			assert(success);
+			(*new_itr)->pre_clauses[p] = cs;
+		}
+		for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
+			int p = gef_conn[ef].poss_PC[j];
+			int bvar = get_bool_var(p, action, POSS_PRE);
+			ClauseSet cs;
+			bool success = supporting_constraints(p, new_itr, cs);
+			assert(success);
+			// These clauses are needed only if the possible precondition is realized
+			ClauseSet temp_cs;
+			for (ClauseSet::const_iterator itr = cs.cbegin(); itr != cs.cend(); itr++) {
+				Clause c = *itr;
+				c.insert(-bvar);
+				temp_cs.add_clause(c);
+			}
+			(*new_itr)->poss_pre_clauses[p] = temp_cs;
+		}
+	}
 
+	// Update clauses for known and possible preconditions of actions after "action" in the relaxed plan
+	// Note that we only need to update for those that are known or possible add effects of "action"
+	itr = new_itr;
+	itr++;
+	while (itr != rp.end()) {
+		RP_STEP& step = **itr;
+		for (int j = 0; j < gop_conn[action].num_E; j++) {
+			int ef = gop_conn[action].E[j];
+			for (int k = 0; k < gef_conn[ef].num_PC; k++) {
+				int p = gef_conn[ef].PC[k];
+				if (!is_add(p, action) || !is_poss_add(p, action))
+					continue;
+				ClauseSet cs;
+				bool success = supporting_constraints(p, itr, cs);
+				assert(success);
+				(*itr)->pre_clauses[p] = cs;
+			}
+
+			for (int k = 0; k < gef_conn[ef].num_poss_PC; k++) {
+				int p = gef_conn[ef].poss_PC[k];
+				if (!is_add(p, action) || !is_poss_add(p, action))
+					continue;
+				int bvar = get_bool_var(p, action, POSS_PRE);
+				ClauseSet cs;
+				bool success = supporting_constraints(p, itr, cs);
+				assert(success);
+				// These clauses are needed only if the possible precondition is realized
+				ClauseSet temp_cs;
+				for (ClauseSet::const_iterator itr2 = cs.cbegin(); itr2 != cs.cend(); itr2++) {
+					Clause c = *itr2;
+					c.insert(-bvar);
+					temp_cs.add_clause(c);
+				}
+				(*itr)->poss_pre_clauses[p] = temp_cs;
+			}
+		}
+		itr++;
+	}
 }
 
-void RelaxedPlan::get_confirmed_step(const RELAXED_PLAN::iterator& begin_itr, const RELAXED_PLAN::iterator& end_itr,
-							int p, RELAXED_PLAN::iterator& the_step_itr,
-							RELAXED_PLAN::iterator& the_confirmed_step_itr) {
+void RelaxedPlan::get_confirmed_step_or_level(int p, RELAXED_PLAN::iterator& the_step_itr,
+							pair<int, RELAXED_PLAN::iterator>& output) {
 #ifndef NDEBUG
 	// Make sure "p" is in the state pointed to by "the_step_itr"
 	RP_STATE& the_start_state = (*the_step_itr)->s;
 	assert(the_start_state.find(p) != the_start_state.end());
 #endif
-
-	the_confirmed_step_itr = the_step_itr;
-	--the_confirmed_step_itr;
-	while (the_confirmed_step_itr != begin_itr) {
-		int a = (*the_confirmed_step_itr)->a;
-		// If the action at "the_confirmed_step_itr" adds "p", then return
-		// Why don't we consider "delete" as well?
-		if (is_add(p, a)) return;
-
-		// If the action at "the_confirmed_step_itr" has "p" as a precondition, then return
-		if (is_pre(p, a)) return;
-
-		// Move to the left
-		--the_confirmed_step_itr;
+	RELAXED_PLAN::iterator begin_itr = rp.begin();
+	// If "p" is at the first step, then its value is confirmed at some level of the plan prefix
+	if (the_step_itr == begin_itr) {
+		int n = e->get_confirmed_level(p, e->get_actions().size());
+		if (n == e->get_actions().size()) {
+			output.first = -1;
+			output.second = begin_itr;
+		}
 	}
+	else {
+		output.first = 0;	// by default: every fact is confirmed at the initial state
+		output.second = the_step_itr;
+		--output.second;
+		while (output.second != begin_itr) {
+			int a = (*output.second)->a;
+			if (is_add(p, a)) {	// We ignore known delete effect here in the relaxed plan
+				output.first = -1;
+				output.second++;
+				break;
+			}
+			else if (is_pre(p, a)) {
+				output.first = -1;
+				break;
+			}
+			--output.second;
+		}
+		// If the confirmed step could be found above, we return.
+		if (output.first < 0)
+			return;
 
+		// Now we check the "begin_itr" separately
+		assert(output.second == begin_itr);
+		int a = (*output.second)->a;
+		if (is_add(p, a)) {	// We ignore known delete effect here in the relaxed plan
+			output.first = -1;
+			output.second++;
+		}
+		else if (is_pre(p, a)) {
+			output.first = -1;
+		}
+		else {
+			// Now we know for sure that the truth value of "p" is determined
+			// either by some actions in the plan prefix, or in the initial state
+			int n = e->get_confirmed_level(p, e->get_actions().size());
+			if (n == e->get_actions().size()) {
+				output.first = -1;
+				output.second = begin_itr;
+			}
+		}
+	}
+}
+
+bool RelaxedPlan::supporting_constraints(int p, RELAXED_PLAN::iterator& the_step_itr, ClauseSet& clauses) {
+	pair<int, RELAXED_PLAN::iterator> confirmed_pos;
+	get_confirmed_step_or_level(p, the_step_itr, confirmed_pos);
+	if (confirmed_pos.first >= 0) {
+		const vector<State*>& states = e->get_states();
+		const vector<int>& actions = e->get_actions();
+		// If "p" is false at the confirmed level, we first need establishment constraints
+		if (!is_in_state(p, states[confirmed_pos.first])) {
+			Clause c;
+			// part of the plan prefix
+			for(int i=confirmed_pos.first;i<actions.size();i++) {
+				if (is_poss_add(p, actions[i])) {
+					int bvar = get_bool_var(p, actions[i], POSS_ADD);
+					c.insert(bvar);
+				}
+			}
+			// part of the relaxed plan prefix
+			RELAXED_PLAN::iterator itr = rp.begin();
+			while (itr != the_step_itr) {
+				int a = (*itr)->a;
+				if (is_poss_add(p, a)) {
+					int bvar = get_bool_var(p, a, POSS_ADD);
+					c.insert(bvar);
+				}
+				itr++;
+			}
+			clauses.add_clause(c);
+		}
+
+		// Now protection constraints
+		// Note: Actions with possible delete effects are in the plan prefix only
+		// Known delete effects are ignored for actions in the relaxed plan prefix
+		for(int i=confirmed_pos.first;i<actions.size();i++) {
+			if (is_poss_del(p, actions[i])) {
+				Clause c;
+				int bvar = get_bool_var(p, actions[i], POSS_DEL);
+				c.insert(-bvar);
+				// Actions in plan prefix and relaxed plan are considered
+				// First, part of the plan prefix
+				for (int j=i+1;j<actions.size();j++)
+					if (is_poss_add(p, actions[j])) {
+						int bvar = get_bool_var(p, actions[j], POSS_ADD);
+						c.insert(bvar);
+					}
+				// Second, part of the relaxed plan
+				RELAXED_PLAN::iterator itr = rp.begin();
+				while (itr != the_step_itr) {
+					int a = (*itr)->a;
+					if (is_poss_add(p, a)) {
+						int bvar = get_bool_var(p, a, POSS_ADD);
+						c.insert(bvar);
+					}
+					itr++;
+				}
+				clauses.add_clause(c);
+			}
+		}
+	}
+	else {
+		// If "p" is confirmed false at the first step of the relaxed plan,
+		// we first need establishment constraints
+		if (confirmed_pos.second == rp.begin() && P[0]->find(p) == P[0]->end()) {
+			Clause c;
+			RELAXED_PLAN::iterator itr = confirmed_pos.second;
+			while (itr != the_step_itr) {
+				if (is_poss_add(p, (*itr)->a)) {
+					int bvar = get_bool_var(p, (*itr)->a, POSS_ADD);
+					c.insert(bvar);
+				}
+				itr++;
+			}
+			clauses.add_clause(c);
+		}
+
+		// Now protection constraints
+		// IMPORTANT: one may argue that we don't need protection constraints in the relaxed plan
+		RELAXED_PLAN::iterator itr = confirmed_pos.second;
+		while (itr != the_step_itr) {
+			if (is_poss_del(p, (*itr)->a)) {
+				Clause c;
+				int bvar = get_bool_var(p, (*itr)->a, POSS_DEL);
+				c.insert(-bvar);
+
+				RELAXED_PLAN::iterator itr2 = itr;
+				itr2++;
+				while (itr2 != the_step_itr) {
+					if (is_poss_add(p, (*itr2)->a)) {
+						bvar = get_bool_var(p, (*itr)->a, POSS_ADD);
+						c.insert(bvar);
+					}
+				}
+				clauses.add_clause(c);
+			}
+			itr++;
+		}
+	}
+	return true;
 }
 
 void RelaxedPlan::initialize_fact_layer() {
