@@ -24,6 +24,8 @@ protected:
 	ClauseSet *clauses;
 
 	// Get the latest level at which the truth value of a fact is "confirmed"
+	// NOTE: "ft" might definitely be false at the state at "level"
+	// (i.e., it has been deleted by some actions before it, otherwise be false in the initial state)
 	int get_confirmed_level(int ft,int level);
 
 	// Construct the set of clauses for TRUE truth value of a fact at a level

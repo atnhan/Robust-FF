@@ -71,6 +71,12 @@ double ClauseSet::estimate_robustness(const ClauseSet& additionals) {
 	return r;
 }
 
+double estimate_robustness(const std::vector<ClauseSet*> clause_sets) {
+	double r = 0;
+
+	return r;
+}
+
 double ClauseSet::true_prob(const Clause& c) {
 	double false_prob = 1;
 	for (Clause::const_iterator itr = c.begin(); itr != c.end(); itr++) {

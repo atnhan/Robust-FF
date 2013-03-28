@@ -79,6 +79,7 @@ public:
 
 	// Compute approximate robustness value
 	double estimate_robustness(const ClauseSet& cs);
+	friend double estimate_robustness(const std::vector<ClauseSet*> clause_sets);
 
 	// Print out the clause set
 	friend std::ostream& operator<<(std::ostream& os, const ClauseSet& cs);

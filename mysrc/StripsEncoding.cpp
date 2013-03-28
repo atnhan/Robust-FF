@@ -111,13 +111,21 @@ int StripsEncoding::get_confirmed_level(int ft,int level)
 	if (level == n) {
 		if (is_add(ft, actions[n-1]) || is_del(ft, actions[n-1]))
 			return n;
+
+		for (int l = n-1; l >= 1; l--) {
+			// Check if it is a precondition
+			if (is_pre(ft, actions[l])) return l;
+			// Check if it is add or delete effect
+			if (is_add(ft, actions[l-1]) || is_del(ft, actions[l-1])) return l;
+		}
 	}
-	// Otherwise, we also check if it is precondition of the action at some previous level
-	for (int l = level; l >= 1; l--) {
-		// Check if it is a precondition
-		if (is_pre(ft, actions[l])) return l;
-		// Check if it is add or delete effect
-		if (is_add(ft, actions[l-1]) || is_del(ft, actions[l-1])) return l;
+	else {
+		for (int l = level; l >= 1; l--) {
+			// Check if it is a precondition
+			if (is_pre(ft, actions[l])) return l;
+			// Check if it is add or delete effect
+			if (is_add(ft, actions[l-1]) || is_del(ft, actions[l-1])) return l;
+		}
 	}
 
 	// All fact values are "confirmed at the initial state

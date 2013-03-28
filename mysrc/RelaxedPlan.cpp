@@ -213,11 +213,28 @@ void RelaxedPlan::extract() {
 	}
 }
 
-double RelaxedPlan::evaluate_candidate_action(int a, int l) {
+double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 
-	// Set of all clauses that need to be evaluated
-	ClauseSet clauses = e->get_clauses();
+	// Pointers to all clause sets
+	vector<ClauseSet*> clause_sets;
 
+	// Number of steps before the layer
+	int count = 0;
+	for (int l=0;l<layer;l++)
+		count += num_chosen_actions[l];
+
+	// The state before "a"
+	RP_STATE s;
+	if (count == 0) {
+		for (int i=0;i<current->num_F; i++)
+			s[current->F[i]] = true;
+	}
+	else {
+		RELAXED_PLAN::iterator itr = rp.begin();
+		for (int i=0;i<count;i++)
+			itr++;
+		s = (*itr)->s;
+	}
 
 	return 0;
 }
