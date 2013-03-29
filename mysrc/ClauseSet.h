@@ -30,13 +30,14 @@ class ClauseSet {
 	 */
 
 	// Probability that a clause is true
-	double true_prob(const Clause& c);
+	double true_prob(const Clause& c) const;
 
 public:
 	// Weights for boolean variables
 	static std::vector<double> weights;	// The size is equal to the number of variables
 
 	ClauseSet();
+	ClauseSet(const ClauseSet& clauses);
 	virtual ~ClauseSet();
 
 	// Add clauses into the set
@@ -78,8 +79,8 @@ public:
 	}
 
 	// Compute approximate robustness value
-	double estimate_robustness(const ClauseSet& cs);
-	friend double estimate_robustness(const std::vector<ClauseSet*> clause_sets);
+	double estimate_robustness(const ClauseSet& cs) const;
+	double estimate_robustness(const std::vector<const ClauseSet*>& clause_sets) const;
 
 	// Print out the clause set
 	friend std::ostream& operator<<(std::ostream& os, const ClauseSet& cs);

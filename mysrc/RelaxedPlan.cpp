@@ -108,18 +108,28 @@ void RelaxedPlan::extract() {
 	num_chosen_actions.reserve(n+1);
 	for (int i=0;i<=n;i++) num_chosen_actions[i] = 0;
 
-	// The last fact layer
+	// The first and last fact layer
+	const FactLayer& first_fact_layer = *(P[0]);
 	const FactLayer& last_fact_layer = *(P[n]);
 
+	//
 	// Create the step containing goal action of the relaxed plan
+	//
 	RP_STEP *goal_step = new RP_STEP;
 	goal_step->a = GOAL_ACTION;
+	for (int i=0;i<current->num_F;i++) {
+		int f = current->F[i];
+		goal_step->s[f] = true;
+	}
 	for (int i=0;i<goals->num_F; i++) {
 		int g = goals->F[i];
 		goal_step->s[g] = true;
-		// WORTH TO TRY: if g is already in the current state, only take the clauses
-		// from there...
-		(goal_step->pre_clauses)[g] = last_fact_layer.at(g).best_clauses;
+
+		// If "g" is already in the current state, then we take the clauses for the fact at the current state
+		if (goal_step->s.find(g) != goal_step->s.end())
+			(goal_step->pre_clauses)[g] = new ClauseSet(first_fact_layer.at(g).best_clauses);
+		else
+			(goal_step->pre_clauses)[g] = new ClauseSet(last_fact_layer.at(g).best_clauses);
 	}
 
 	// Add the goal step to the relaxed plan
@@ -215,28 +225,187 @@ void RelaxedPlan::extract() {
 
 double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 
+	double r;
+
 	// Pointers to all clause sets
-	vector<ClauseSet*> clause_sets;
+	vector<const ClauseSet*> clause_sets_for_rp;
+
+	// The new step to be inserted
+	RP_STEP *new_step = new RP_STEP;
 
 	// Number of steps before the layer
 	int count = 0;
 	for (int l=0;l<layer;l++)
 		count += num_chosen_actions[l];
 
-	// The state before "a"
-	RP_STATE s;
+	// We now insert the new step, and keep the iterator
+	RELAXED_PLAN::iterator new_itr;
 	if (count == 0) {
-		for (int i=0;i<current->num_F; i++)
-			s[current->F[i]] = true;
+		rp.push_front(new_step);
+		new_itr = rp.begin();
 	}
 	else {
 		RELAXED_PLAN::iterator itr = rp.begin();
-		for (int i=0;i<count;i++)
+		for (int i=0;i<count-1;i++)
 			itr++;
-		s = (*itr)->s;
+		new_itr = rp.insert(itr, new_step);
 	}
 
-	return 0;
+	// Collect clause sets for (possible) preconditions of actions before "action" in the relaxed plan
+	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != new_itr; itr++) {
+		for (PRE_2_CLAUSES::iterator itr2 = (*itr)->pre_clauses.begin(); itr2 != (*itr)->pre_clauses.end(); itr2++) {
+			clause_sets_for_rp.push_back(itr2->second);
+		}
+	}
+
+	// Update the step's action
+	new_step->a = action;
+
+	// Update the step's state
+	if (new_itr == rp.begin()) {
+		for (int i=0;i<current->num_F; i++)
+			new_step->s[current->F[i]] = true;
+	}
+	else {
+		RELAXED_PLAN::iterator itr = new_itr;
+		itr--;
+		int prev_action = (*itr)->a;
+		const RP_STATE& prev_state = (*itr)->s;
+		for (RP_STATE::const_iterator i = prev_state.begin(); i != prev_state.end(); i++) {
+			if (i->second)
+				new_step->s[i->first] = true;
+		}
+		// Add known and possible effects of "prev_action" into "s", if they were not present
+		for (int i = 0; i < gop_conn[prev_action].num_E; i++) {
+			int ef = gop_conn[prev_action].E[i];
+			for (int j = 0; j < gef_conn[ef].num_A; j++)
+				new_step->s[gef_conn[ef].A[j]] = true;
+
+			for (int j = 0; j < gef_conn[ef].num_poss_A; j++)
+				new_step->s[gef_conn[ef].poss_A[j]] = true;
+		}
+	}
+
+	// Update clauses for known and possible preconditions of "action"
+	for (int i=0;i<gop_conn[action].num_E;i++) {
+		int ef = gop_conn[action].E[i];
+		for (int j=0;j<gef_conn[ef].num_PC;j++) {
+			int p = gef_conn[ef].PC[j];
+			ClauseSet cs;
+			bool success = supporting_constraints(p, new_itr, cs);
+			assert(success);
+			(*new_itr)->pre_clauses[p] = new ClauseSet(cs);
+			clause_sets_for_rp.push_back((*new_itr)->pre_clauses[p]);
+		}
+		for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
+			int p = gef_conn[ef].poss_PC[j];
+			int bvar = get_bool_var(p, action, POSS_PRE);
+			ClauseSet cs;
+			bool success = supporting_constraints(p, new_itr, cs);
+			assert(success);
+			// These clauses are needed only if the possible precondition is realized
+			ClauseSet temp_cs;
+			for (ClauseSet::const_iterator itr = cs.cbegin(); itr != cs.cend(); itr++) {
+				Clause c = *itr;
+				c.insert(-bvar);
+				temp_cs.add_clause(c);
+			}
+			(*new_itr)->poss_pre_clauses[p] = new ClauseSet(temp_cs);
+			clause_sets_for_rp.push_back((*new_itr)->poss_pre_clauses[p]);
+		}
+	}
+
+	// Collect clauses for known and possible preconditions of actions after "action" in the relaxed plan
+	RELAXED_PLAN::iterator itr = new_itr;
+	itr++;
+	while (itr != rp.end()) {
+		RP_STEP& step = **itr;
+		for (int j = 0; j < gop_conn[action].num_E; j++) {
+			int ef = gop_conn[action].E[j];
+			for (int k = 0; k < gef_conn[ef].num_PC; k++) {
+				int p = gef_conn[ef].PC[k];
+				if (!is_add(p, action) || !is_poss_add(p, action)) {
+					clause_sets_for_rp.push_back((*itr)->pre_clauses[p]);
+				}
+				else {
+					ClauseSet cs;
+					bool success = supporting_constraints(p, itr, cs);
+					assert(success);
+					(*itr)->temp_pre_clauses[p] = new ClauseSet(cs);
+					clause_sets_for_rp.push_back((*itr)->temp_pre_clauses[p]);
+				}
+			}
+
+			for (int k = 0; k < gef_conn[ef].num_poss_PC; k++) {
+				int p = gef_conn[ef].poss_PC[k];
+				if (!is_add(p, action) || !is_poss_add(p, action)) {
+					clause_sets_for_rp.push_back((*itr)->poss_pre_clauses[p]);
+				}
+				else {
+					int bvar = get_bool_var(p, action, POSS_PRE);
+					ClauseSet cs;
+					bool success = supporting_constraints(p, itr, cs);
+					assert(success);
+					// These clauses are needed only if the possible precondition is realized
+					ClauseSet temp_cs;
+					for (ClauseSet::const_iterator itr2 = cs.cbegin(); itr2 != cs.cend(); itr2++) {
+						Clause c = *itr2;
+						c.insert(-bvar);
+						temp_cs.add_clause(c);
+					}
+					(*itr)->temp_poss_pre_clauses[p] = new ClauseSet(temp_cs);
+					clause_sets_for_rp.push_back((*itr)->temp_poss_pre_clauses[p]);
+				}
+			}
+		}
+		itr++;
+	}
+
+	// Now we evaluate the clause sets
+	r = e->get_clauses().estimate_robustness(clause_sets_for_rp);
+
+	// Delete memory for clause sets of (possible) preconditions of the new action
+	for (PRE_2_CLAUSES::iterator itr3 = (*new_itr)->pre_clauses.begin(); itr3 != (*new_itr)->pre_clauses.end(); itr3++) {
+		if (itr3->second) {
+			delete itr3->second;
+			itr3->second = 0;
+		}
+	}
+
+	// Delete memory for temporary clause sets of (possible) preconditions of actions after "action"
+	itr = new_itr;
+	itr++;
+	while (itr != rp.end()) {
+		RP_STEP& step = **itr;
+		for (int j = 0; j < gop_conn[action].num_E; j++) {
+			int ef = gop_conn[action].E[j];
+			for (int k = 0; k < gef_conn[ef].num_PC; k++) {
+				int p = gef_conn[ef].PC[k];
+				if ((*itr)->temp_pre_clauses.find(p) != (*itr)->temp_pre_clauses.end() && (*itr)->temp_pre_clauses[p]) {
+					delete (*itr)->temp_pre_clauses[p];
+					(*itr)->temp_pre_clauses[p] = 0;
+				}
+
+			}
+			for (int k = 0; k < gef_conn[ef].num_poss_PC; k++) {
+				int p = gef_conn[ef].poss_PC[k];
+				if ((*itr)->temp_poss_pre_clauses.find(p) != (*itr)->temp_poss_pre_clauses.end() && (*itr)->temp_poss_pre_clauses[p]) {
+					delete (*itr)->temp_poss_pre_clauses[p];
+					(*itr)->temp_poss_pre_clauses[p] = 0;
+				}
+			}
+		}
+
+		itr++;
+	}
+
+	// Remove the iterator to the new step
+	rp.erase(new_itr);
+
+	// Delete memory for the new step
+	delete new_step;
+
+	return r;
 }
 
 // Insert action "a" at layer "l" of the RPG into the current relaxed plan
@@ -315,7 +484,7 @@ void RelaxedPlan::insert_action_into_relaxed_plan(int action, int layer) {
 			ClauseSet cs;
 			bool success = supporting_constraints(p, new_itr, cs);
 			assert(success);
-			(*new_itr)->pre_clauses[p] = cs;
+			(*new_itr)->pre_clauses[p] = new ClauseSet(cs);
 		}
 		for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
 			int p = gef_conn[ef].poss_PC[j];
@@ -330,7 +499,7 @@ void RelaxedPlan::insert_action_into_relaxed_plan(int action, int layer) {
 				c.insert(-bvar);
 				temp_cs.add_clause(c);
 			}
-			(*new_itr)->poss_pre_clauses[p] = temp_cs;
+			(*new_itr)->poss_pre_clauses[p] = new ClauseSet(temp_cs);
 		}
 	}
 
@@ -349,7 +518,10 @@ void RelaxedPlan::insert_action_into_relaxed_plan(int action, int layer) {
 				ClauseSet cs;
 				bool success = supporting_constraints(p, itr, cs);
 				assert(success);
-				(*itr)->pre_clauses[p] = cs;
+				(*itr)->pre_clauses[p] = new ClauseSet(cs);
+				if ((*itr)->temp_pre_clauses.find(p) != (*itr)->temp_pre_clauses.end()) {
+					(*itr)->temp_pre_clauses[p] = 0;
+				}
 			}
 
 			for (int k = 0; k < gef_conn[ef].num_poss_PC; k++) {
@@ -367,7 +539,10 @@ void RelaxedPlan::insert_action_into_relaxed_plan(int action, int layer) {
 					c.insert(-bvar);
 					temp_cs.add_clause(c);
 				}
-				(*itr)->poss_pre_clauses[p] = temp_cs;
+				(*itr)->poss_pre_clauses[p] = new ClauseSet(temp_cs);
+				if ((*itr)->temp_poss_pre_clauses.find(p) != (*itr)->temp_poss_pre_clauses.end()) {
+					(*itr)->temp_poss_pre_clauses[p] = 0;
+				}
 			}
 		}
 		itr++;
