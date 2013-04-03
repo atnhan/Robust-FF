@@ -26,10 +26,11 @@ class RelaxedPlan {
 #define NOOP -1
 #define GOAL_ACTION		-1
 #define MAX_RELAXED_PLAN_LENGTH		200
+#define MAX_RPG_LENGTH	500
 
 	State *current;
-	State *goals;
-	StripsEncoding *e;
+	const State *goals;
+	const StripsEncoding *e;
 
 
 	/**************************************************************************************************
@@ -166,14 +167,17 @@ class RelaxedPlan {
 
 public:
 
-	RelaxedPlan(StripsEncoding *e, State *goals);
+	RelaxedPlan(const StripsEncoding *e, const State *goals);
 	virtual ~RelaxedPlan();
 
 	// Create relaxed planning graph.
-	void build_relaxed_planning_graph(int max_length = 100);
+	void build_relaxed_planning_graph(int max_length = MAX_RPG_LENGTH);
 
 	// Extract the relaxed plan
-	void extract();
+	int extract();
+
+	// Get FF-style helpful actions
+	void get_FF_helpful_actions(std::vector<int>& helpful_actions);
 
 	// Gets
 	const State& get_current_state() const {

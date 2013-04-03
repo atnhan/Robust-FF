@@ -16,13 +16,9 @@ extern void source_to_dest( State *dest, State *source );
 extern void make_state( State *S, int n );
 
 
-RelaxedPlan::RelaxedPlan(StripsEncoding *e, State *goals) {
-	if (!goals) {
-		this->current = 0;
-		this->goals = 0;
-		this->e = 0;
-		return;
-	}
+RelaxedPlan::RelaxedPlan(const StripsEncoding *e, const State *goals) {
+	assert(e && goals);
+
 	this->current = (State*) calloc(1, sizeof(State));
 	make_state(this->current, gnum_ft_conn);
 	this->current->max_F = gnum_ft_conn;
@@ -31,11 +27,7 @@ RelaxedPlan::RelaxedPlan(StripsEncoding *e, State *goals) {
 	int plan_length = e->get_actions().size();
 	source_to_dest(this->current, states[plan_length]);
 
-	this->goals = (State*) calloc(1, sizeof(State));
-	make_state(this->goals, gnum_ft_conn);
-	this->goals->max_F = gnum_ft_conn;
-	source_to_dest(this->goals, goals);
-
+	this->goals = goals;
 	this->e = e;
 	this->facts_in_rpg = new vector<bool>(gnum_ft_conn, false);
 	this->actions_in_rpg = new vector<bool>(gnum_op_conn, false);
@@ -46,10 +38,6 @@ RelaxedPlan::~RelaxedPlan() {
 	if (current) {
 		free(current);
 		current = 0;
-	}
-	if (goals) {
-		free(goals);
-		goals = 0;
 	}
 
 	for (int i=0;i<P.size();i++) {
@@ -79,7 +67,8 @@ void RelaxedPlan::build_relaxed_planning_graph(int max_length) {
 	// Initialization
 	initialize_fact_layer();
 
-	for (int i=0; i<max_length; i++) {
+	int length = 0;
+	while (true) {
 		if (!grow_action_layer()) {
 			cout<<endl<<"FAIL TO GROW ACTION LAYER!"<<endl;
 			exit(1);
@@ -91,10 +80,18 @@ void RelaxedPlan::build_relaxed_planning_graph(int max_length) {
 		}
 
 		if (stop_growing()) break;
+
+		if (++length >= max_length) {
+			cout<<"Error! Increase max rpg length! File "<<__FILE__<<", line "<<__LINE__<<endl;
+			exit(1);
+		}
 	}
+
 }
 
-void RelaxedPlan::extract() {
+int RelaxedPlan::extract() {
+
+	build_relaxed_planning_graph();
 
 	// The queue to store all unsupported chosen actions
 	UNSUPPORTED_ACTION_QUEUE Q;
@@ -221,6 +218,12 @@ void RelaxedPlan::extract() {
 			insert_action_into_relaxed_plan(best_supporting_action, layer_of_best_supporting_action);
 		}
 	}
+
+	return rp.size();
+}
+
+void RelaxedPlan::get_FF_helpful_actions(std::vector<int>& helpful_actions) {
+
 }
 
 double RelaxedPlan::evaluate_candidate_action(int action, int layer) {

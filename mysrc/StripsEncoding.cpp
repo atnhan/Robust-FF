@@ -23,7 +23,6 @@ StripsEncoding::StripsEncoding(State *init) {
 	init_state->max_F = gnum_ft_conn;
 	source_to_dest(init_state, init);
 	this->states.push_back(init_state);
-	this->goal = 0;
 	this->clauses = new ClauseSet;
 }
 
@@ -31,9 +30,6 @@ StripsEncoding::~StripsEncoding() {
 	for (int i=0;i<this->states.size();i++)
 		if (this->states[i])
 			free(this->states[i]);
-
-	if (goal)
-		free(goal);
 
 	if (clauses)
 		delete clauses;
@@ -99,7 +95,7 @@ bool StripsEncoding::append(int action) {
 	return true;
 }
 
-int StripsEncoding::get_confirmed_level(int ft,int level)
+int StripsEncoding::get_confirmed_level(int ft,int level) const
 {
 	int n = actions.size();
 	if (level < 0 && level > n)
@@ -133,7 +129,7 @@ int StripsEncoding::get_confirmed_level(int ft,int level)
 }
 
 // Construct the set of clauses for TRUE truth value of a fact at a level
-bool StripsEncoding::supporting_constraints(int ft, int level, ClauseSet& clauses) {
+bool StripsEncoding::supporting_constraints(int ft, int level, ClauseSet& clauses) const {
 	if (clauses.size())
 		clauses.clear();
 

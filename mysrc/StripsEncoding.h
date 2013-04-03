@@ -18,7 +18,6 @@ class StripsEncoding {
 
 protected:
 
-	State *goal;
 	std::vector<int> actions;
 	std::vector<State*> states;		// NOTE: including both the initial state and the last state. So number of states = number of actions + 1
 	ClauseSet *clauses;
@@ -26,10 +25,10 @@ protected:
 	// Get the latest level at which the truth value of a fact is "confirmed"
 	// NOTE: "ft" might definitely be false at the state at "level"
 	// (i.e., it has been deleted by some actions before it, otherwise be false in the initial state)
-	int get_confirmed_level(int ft,int level);
+	int get_confirmed_level(int ft,int level) const;
 
 	// Construct the set of clauses for TRUE truth value of a fact at a level
-	bool supporting_constraints(int ft, int level, ClauseSet& clauses);
+	bool supporting_constraints(int ft, int level, ClauseSet& clauses) const;
 
 	// Add new clause set
 	void add_clause(const Clause& c);
