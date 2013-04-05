@@ -46,7 +46,7 @@ RelaxedPlan::~RelaxedPlan() {
 
 }
 
-void RelaxedPlan::build_relaxed_planning_graph(int max_length) {
+void RelaxedPlan::build_relaxed_planning_graph() {
 	bool goals_in_rpg = false;
 
 	// Initialization
@@ -66,7 +66,7 @@ void RelaxedPlan::build_relaxed_planning_graph(int max_length) {
 
 		if (stop_growing()) break;
 
-		if (++length >= max_length) {
+		if (++length >= MAX_RPG_LENGTH) {
 			cout<<"Error! Increase max rpg length! File "<<__FILE__<<", line "<<__LINE__<<endl;
 			exit(1);
 		}
@@ -105,8 +105,10 @@ int RelaxedPlan::extract() {
 		goal_step->s[g] = true;
 
 		// If "g" is already in the current state, then we take the clauses for the fact at the current state
-		if (goal_step->s.find(g) != goal_step->s.end())
+		if (goal_step->s.find(g) != goal_step->s.end()) {
+			assert(first_fact_layer.find(g) != first_fact_layer.end());
 			(goal_step->pre_clauses)[g] = new ClauseSet(first_fact_layer.at(g).best_clauses);
+		}
 		// Otherwise, take the most "optimistic" clause set (got from the RPG construction)
 		else
 			(goal_step->pre_clauses)[g] = new ClauseSet(last_fact_layer.at(g).best_clauses);
@@ -697,7 +699,7 @@ void RelaxedPlan::initialize_fact_layer() {
 	assert(P.size() == 0);
 
 	int n = e->get_actions().size();	// Plan prefix length
-	FactLayer *new_fact_layer = new FactLayer;
+	FactLayer *first_fact_layer = new FactLayer;
 	for (int i=0;i<current->num_F;i++) {
 		int ft = current->F[i];
 		FactNode node;
@@ -706,11 +708,11 @@ void RelaxedPlan::initialize_fact_layer() {
 		node.best_supporting_action = e->get_actions()[e->get_actions().size()-1];
 		node.in_rp = false;
 		node.first_layer = 0;
-		(*new_fact_layer)[ft] = node;
+		(*first_fact_layer)[ft] = node;
 		// Mark this fact as being present in the RPG
 		(*facts_in_rpg)[ft] = true;
 	}
-	P.push_back(new_fact_layer);
+	P.push_back(first_fact_layer);
 }
 
 bool RelaxedPlan::fact_present(int ft, int l) {

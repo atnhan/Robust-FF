@@ -123,7 +123,7 @@ class RelaxedPlan {
 		PRE_2_CLAUSES temp_pre_clauses;
 		POSS_PRE_2_CLAUSES temp_poss_pre_clauses;
 	};
-	typedef std::list<RP_STEP*> RELAXED_PLAN;
+	typedef std::list<RP_STEP*> RELAXED_PLAN;	// NOTE: including the step containing the unique goal action
 	RELAXED_PLAN rp;
 	std::vector<int> num_chosen_actions;	// Number of chosen actions in the relaxed plan at each layer
 
@@ -171,7 +171,7 @@ public:
 	virtual ~RelaxedPlan();
 
 	// Create relaxed planning graph.
-	void build_relaxed_planning_graph(int max_length = MAX_RPG_LENGTH);
+	void build_relaxed_planning_graph();
 
 	// Extract the relaxed plan
 	int extract();
@@ -181,7 +181,7 @@ public:
 
 	// Gets
 	int length() {
-		return rp.size();	// Number of steps in the relaxed plan
+		return rp.size();	// Number of steps in the relaxed plan, including the goal step
 	}
 
 	const State& get_current_state() const {

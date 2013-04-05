@@ -18,7 +18,6 @@ protected:
 	const State *goals;
 	std::vector<int> actions;
 
-
 public:
 	Search(State* init, State* goals);
 	virtual ~Search();
