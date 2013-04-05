@@ -12,21 +12,10 @@
 #include <boost/foreach.hpp>
 using namespace std;
 
-extern void source_to_dest( State *dest, State *source );
-extern void make_state( State *S, int n );
-
-
-RelaxedPlan::RelaxedPlan(const StripsEncoding *e, const State *goals) {
+RelaxedPlan::RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals) {
 	assert(e && goals);
 
-	this->current = (State*) calloc(1, sizeof(State));
-	make_state(this->current, gnum_ft_conn);
-	this->current->max_F = gnum_ft_conn;
-
-	const std::vector<State*>& states = e->get_states();
-	int plan_length = e->get_actions().size();
-	source_to_dest(this->current, states[plan_length]);
-
+	this->current = init;
 	this->goals = goals;
 	this->e = e;
 	this->facts_in_rpg = new vector<bool>(gnum_ft_conn, false);
@@ -35,10 +24,6 @@ RelaxedPlan::RelaxedPlan(const StripsEncoding *e, const State *goals) {
 }
 
 RelaxedPlan::~RelaxedPlan() {
-	if (current) {
-		free(current);
-		current = 0;
-	}
 
 	for (int i=0;i<P.size();i++) {
 		if (P[i]) {
@@ -86,12 +71,9 @@ void RelaxedPlan::build_relaxed_planning_graph(int max_length) {
 			exit(1);
 		}
 	}
-
 }
 
 int RelaxedPlan::extract() {
-
-	build_relaxed_planning_graph();
 
 	// The queue to store all unsupported chosen actions
 	UNSUPPORTED_ACTION_QUEUE Q;
@@ -125,6 +107,7 @@ int RelaxedPlan::extract() {
 		// If "g" is already in the current state, then we take the clauses for the fact at the current state
 		if (goal_step->s.find(g) != goal_step->s.end())
 			(goal_step->pre_clauses)[g] = new ClauseSet(first_fact_layer.at(g).best_clauses);
+		// Otherwise, take the most "optimistic" clause set (got from the RPG construction)
 		else
 			(goal_step->pre_clauses)[g] = new ClauseSet(last_fact_layer.at(g).best_clauses);
 	}
@@ -1013,17 +996,18 @@ bool RelaxedPlan::same_fact_layers(FactLayer& factlayer_1, FactLayer& factlayer_
 }
 
 bool RelaxedPlan::stop_growing() {
-	assert(A.size() <= P.size());
+	assert(A.size() <= P.size());	// We must always check after growing a fact layer
 
 	if (!goals_present()) return false;
 
 	if (A.size() == P.size()) return false;
 
 	int n = P.size()-1;
-	if (n == 0) return false;
+
+	if (n == 0) return false;		// So even the fact that all goals appear in the first layer is not a stopping condition
+
 	FactLayer& current_fact_layer = *(P[n]);
 	FactLayer& previous_fact_layer = *(P[n-1]);
-
 	// Check if the current fact layer and the last fact layer are exactly the same
 	if (!same_fact_layers(current_fact_layer, previous_fact_layer))
 		return false;

@@ -16,7 +16,7 @@ using namespace std;
 
 #define SEP		"\t"
 
-void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goal_state) {
+void test_relaxed_planning_graph(string partial_sol_file, State *initial_state, State* goal_state) {
 
 	string file_path = string(gcmd_line.path) + partial_sol_file;
 
@@ -67,8 +67,8 @@ void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goa
 			exit(1);
 		}
 	}
-	const vector<int> actions = e.get_actions();
-	const vector<State*> states = e.get_states();
+	const vector<int>& actions = e.get_actions();
+	const vector<State*>& states = e.get_states();
 	cout<<"Initial State:"<<endl;
 	print_state(states[0]);
 	cout<<endl<<endl;
@@ -81,11 +81,11 @@ void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goa
 		cout<<endl<<endl;
 	}
 
-	// Creating relaxed plan
+	// Creating relaxed planning graph
 	int test = 2;
 	if (test == 1) {
 		cout<<"==== RELAXED PLAN ===="<<endl;
-		RelaxedPlan rp(&e, goal_state);
+		RelaxedPlan rp(&e, e.get_last_state(), goal_state);
 		cout<<endl<<"Current state:"<<endl;
 		const State& current = rp.get_current_state();
 		print_state(current);
@@ -105,12 +105,10 @@ void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goa
 		rp.grow_fact_layer();
 		cout<<endl<<"SECOND FACT LAYER:"<<endl<<endl;
 		print_fact_layer(*(rp.P[1]), style);
-
-
 	}
 	else if (test == 2) {
 		cout<<"==== RELAXED PLAN ===="<<endl;
-		RelaxedPlan rp(&e, goal_state);
+		RelaxedPlan rp(&e, e.get_last_state(), goal_state);
 		cout<<endl<<"Current state:"<<endl;
 		const State& current = rp.get_current_state();
 		print_state(current);
@@ -118,21 +116,132 @@ void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goa
 		cout<<endl;
 		cout<<"Encoding: "<<e.get_clauses()<<endl;
 
-		rp.build_relaxed_planning_graph(10);
+		rp.build_relaxed_planning_graph();
 		print_relaxed_planning_graph(rp, 2, 3);
 	}
 	else if (test == 3) {
 		cout<<"==== RELAXED PLAN ===="<<endl;
-		RelaxedPlan rp(&e, goal_state);
+		RelaxedPlan rp(&e, e.get_last_state(), goal_state);
 		cout<<endl<<"Current state:"<<endl;
 		const State& current = rp.get_current_state();
 		print_state(current);
 
 		cout<<endl;
 		cout<<"Encoding: "<<e.get_clauses()<<endl;
-		rp.build_relaxed_planning_graph(10);
+		rp.build_relaxed_planning_graph();
 		print_action_through_layers(rp, 1037, 3);
 	}
+}
+
+void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State* goal_state) {
+
+	string file_path = string(gcmd_line.path) + partial_sol_file;
+
+	ifstream f(file_path.c_str(),ifstream::in );
+	if (!f.good()) {
+		printf("Error opening solution file: %s! File %s, line %d.\n",file_path.c_str(),__FILE__,__LINE__);
+		exit(1);
+	}
+
+	char buff[MAX_LENGTH];
+	string domain, problem, sol_file;
+	vector<string> plan_actions;
+
+	// Store the solution file name
+	sol_file = file_path;
+
+	// Domain file
+	f.getline(buff,MAX_LENGTH);
+	istringstream s1(string(buff),istringstream::in);
+	s1>>domain;
+
+	// Problem file
+	f.getline(buff,MAX_LENGTH);
+	istringstream s2(string(buff),istringstream::in);
+	s2>>problem;
+
+	// Number of plan actions
+	int num_actions;
+	f.getline(buff,MAX_LENGTH);
+	istringstream s5(string(buff),istringstream::in);
+	s5>>num_actions;
+
+	// Plan actions
+	for(int i=0;i<num_actions;i++) {
+		string the_action;
+		f.getline(buff,MAX_LENGTH);
+		plan_actions.push_back(buff);
+	}
+
+	// Close the solution file
+	f.close();
+
+	StripsEncoding e(initial_state);
+	for (int i=0;i<plan_actions.size();i++) {
+		int op = find_action(plan_actions[i]);
+		if (!e.append(op)) {
+			cout<<"Action "<<plan_actions[i]<<" not found! File "<<__FILE__<<", line "<<__LINE__<<endl;
+			exit(1);
+		}
+	}
+	const vector<int>& actions = e.get_actions();
+	const vector<State*>& states = e.get_states();
+	cout<<"Initial State:"<<endl;
+	print_state(states[0]);
+	cout<<endl<<endl;
+	for (int i=0;i<actions.size();i++) {
+		cout<<"Action "<<actions[i]<<": ";
+		print_op_name(actions[i]);
+		cout<<endl;
+		cout<<"State ["<<i+1<<"]:"<<endl;
+		print_state(states[i+1]);
+		cout<<endl<<endl;
+	}
+
+	RelaxedPlan rp(&e, e.get_last_state(), goal_state);
+	cout<<endl<<"Current state:"<<endl;
+	const State& current = rp.get_current_state();
+	print_state(current);
+
+	cout<<endl;
+	cout<<"Encoding: "<<e.get_clauses()<<endl;
+
+	rp.build_relaxed_planning_graph();
+
+}
+
+void print_rp_step(RelaxedPlan& r, int step) {
+	assert(step >= 0 && step < r.length());
+
+	RelaxedPlan::RELAXED_PLAN::const_iterator itr = r.rp.begin();
+	int i = 0;
+	for (; i < step; i++) itr++;
+
+	cout<<"===== STEP "<<step<<"====="<<endl;
+	cout<<"STATE:"<<endl;
+	for (int ft = 0; ft < gnum_ft_conn; ft++) {
+		if ((*itr)->s.find(ft) == (*itr)->s.end())
+			continue;
+		cout<<"F"<<ft<<" ";
+	}
+	cout<<endl;
+	cout<<"ACTION: "<<(*itr)->a<<endl;
+	for (int i=0;i<gop_conn[(*itr)->a].num_E;i++) {
+		int ef = gop_conn[(*itr)->a].E[i];
+		for (int j=0;j<gef_conn[ef].num_PC;j++) {
+			int p = gef_conn[ef].PC[j];
+			cout<<"Precond: "<<p;
+			if ((*itr)->pre_clauses.find(p) != (*itr)->pre_clauses.end())
+				cout<<"Clauses: "<<(*((*itr)->pre_clauses[p]));
+		}
+		for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
+			int p = gef_conn[ef].poss_PC[j];
+			cout<<"Poss precond: "<<p;
+			if ((*itr)->poss_pre_clauses.find(p) != (*itr)->poss_pre_clauses.end())
+				cout<<"Clauses: "<<(*((*itr)->poss_pre_clauses[p]));
+		}
+	}
+
 }
 
 void print_fact_layer(RelaxedPlan::FactLayer& fact_layer, int style) {

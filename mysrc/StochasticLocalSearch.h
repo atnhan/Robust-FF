@@ -14,6 +14,7 @@ class StochasticLocalSearch: public Search {
 	int max_restarts;
 	double noise;
 	int max_steps;
+
 public:
 	StochasticLocalSearch(State *init, State *goals, int max_restarts, int max_steps, double noise);
 	virtual ~StochasticLocalSearch();

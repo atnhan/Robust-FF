@@ -28,7 +28,7 @@ class RelaxedPlan {
 #define MAX_RELAXED_PLAN_LENGTH		200
 #define MAX_RPG_LENGTH	500
 
-	State *current;
+	const State *current;
 	const State *goals;
 	const StripsEncoding *e;
 
@@ -167,7 +167,7 @@ class RelaxedPlan {
 
 public:
 
-	RelaxedPlan(const StripsEncoding *e, const State *goals);
+	RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals);
 	virtual ~RelaxedPlan();
 
 	// Create relaxed planning graph.
@@ -180,6 +180,10 @@ public:
 	void get_FF_helpful_actions(std::vector<int>& helpful_actions);
 
 	// Gets
+	int length() {
+		return rp.size();	// Number of steps in the relaxed plan
+	}
+
 	const State& get_current_state() const {
 		return *current;
 	}
@@ -188,7 +192,9 @@ public:
 	}
 
 	// UNIT TEST
+	friend void test_relaxed_planning_graph(std::string partial_sol_file, State *initial_state, State* goal_state);
 	friend void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State* goal_state);
+	friend void print_rp_step(RelaxedPlan& rp, int step);
 	friend void print_fact_layer(FactLayer& fact_layer, int style = 0);
 	friend void print_action_layer(ActionLayer& action_layer, int style = 0);
 	friend void print_relaxed_planning_graph(RelaxedPlan& rp, int option_f=0, int option_a=0);

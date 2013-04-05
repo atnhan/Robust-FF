@@ -65,7 +65,7 @@
 using namespace std;
 
 extern void evaluate_plan_robustness(std::string filename, State *initial_state, State *goal_state);
-extern void test_relaxed_plan(string partial_sol_file, State *initial_state, State* goal_state);
+extern void test_relaxed_planning_graph(string partial_sol_file, State *initial_state, State* goal_state);
 extern void test_estimate_robustness();
 extern int gnum_possible_annotations;
 
@@ -681,7 +681,7 @@ int main( int argc, char *argv[] )
 	for (int i=0;i<gnum_possible_annotations;i++)
 		ClauseSet::weights[i] = 0.5;
 	string sol_file("pfile10.partial.sol");
-	test_relaxed_plan(sol_file, &ginitial_state, &ggoal_state);
+	test_relaxed_planning_graph(sol_file, &ginitial_state, &ggoal_state);
 
 	exit(0);
 	/*

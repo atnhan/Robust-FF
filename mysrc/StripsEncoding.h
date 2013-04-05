@@ -56,14 +56,19 @@ public:
 	bool evaluate_robustness(int& satresult,double& sat_prob, double& rtime, State *goals = 0);
 
 	// Gets
-	const std::vector<int> get_actions() const {
+	const std::vector<int>& get_actions() const {
 		return actions;
 	}
-	const std::vector<State*> get_states() const {
+	const std::vector<State*>& get_states() const {
 		return states;
 	}
 	const ClauseSet& get_clauses() const {
 		return *clauses;
+	}
+
+	// The last state (after the last action)
+	const State* get_last_state() const {
+		return states[states.size()-1];
 	}
 
 	friend class RelaxedPlan;
