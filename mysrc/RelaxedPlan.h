@@ -32,7 +32,6 @@ class RelaxedPlan {
 	const State *goals;
 	const StripsEncoding *e;
 
-
 	/**************************************************************************************************
 	 * RELAXED PLANNING GRAPH
 	 **************************************************************************************************/
@@ -101,13 +100,14 @@ class RelaxedPlan {
 	// In the relaxed plan, actions at the same layer of the relaxed planning graph are stored in a list
 	// For each action, we also store (1) the state before it, (2) clause set associated with known preconditions
 	// (3) clause set associated with possible preconditions.
-	typedef boost::unordered_map<int, bool> RP_STATE;	// A proposition is in the state if and only if (a) it is in the map,
-														// AND (b) the second field is TRUE. So to remove a proposition from a state,
-														// we simply turn the second field to FALSE.
+	typedef boost::unordered_map<int, int> RP_STATE;	// A proposition is in the state if and only if (a) it is in the map,
+														// AND (b) the second field is POSITIVE (the number of add or possible added effects
+														// supporting this proposition at the state)
 	typedef boost::unordered_map<int, ClauseSet*> PRE_2_CLAUSES;
 	typedef boost::unordered_map<int, ClauseSet*> POSS_PRE_2_CLAUSES;
 	struct RP_STEP {
 		int a;	// the action at the step
+		int layer;	// the layer of the action in the RPG
 		RP_STATE s;	// the state right before the action
 
 		// Each known and possible precondition of the action is associated
@@ -166,6 +166,9 @@ class RelaxedPlan {
 	bool supporting_constraints(int p, RELAXED_PLAN::iterator& the_step_itr, ClauseSet& clauses);
 
 public:
+	// If possible delete effects should be considered in evaluating robustness during
+	// RPG construction and RP extraction
+	static bool poss_del_in_rp;
 
 	RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals);
 	virtual ~RelaxedPlan();

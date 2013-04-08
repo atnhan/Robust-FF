@@ -204,9 +204,15 @@ void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State
 	print_state(current);
 
 	cout<<endl;
-	cout<<"Encoding: "<<e.get_clauses()<<endl;
+	cout<<"Correctness encoding for plan prefix: "<<e.get_clauses()<<endl;
 
+	cout<<"Building relaxed planning graph..."<<endl;
 	rp.build_relaxed_planning_graph();
+	cout<<"Done."<<endl<<endl;
+
+	cout<<"Extracting relaxed plan..."<<endl;
+	rp.extract();
+	cout<<"Done. RPG length: "<<rp.length()<<endl;
 
 }
 

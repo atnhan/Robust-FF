@@ -45,7 +45,7 @@ public:
 	void add_clauses(const ClauseSet& cs);
 
 	// Get size
-	int size() {
+	int size() const {
 		return clauses.size();
 	}
 

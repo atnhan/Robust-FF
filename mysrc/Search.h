@@ -13,10 +13,16 @@
 
 class Search {
 protected:
+
+	struct Plan {
+		std::vector<int> actions;
+		double robustness;
+	};
+
 	StripsEncoding *e;
 	const State *init;
 	const State *goals;
-	std::vector<int> actions;
+	std::vector<Plan> plans;
 
 public:
 	Search(State* init, State* goals);
