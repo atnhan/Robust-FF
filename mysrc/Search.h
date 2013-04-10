@@ -24,6 +24,13 @@ protected:
 	const State *goals;
 	std::vector<Plan> plans;
 
+	/*
+	 * FUNCTIONS
+	 */
+
+	// Get applicable actions for a given state
+	void get_applicable_actions(const State* state, std::vector<int>& actions);
+
 public:
 	Search(State* init, State* goals);
 	virtual ~Search();

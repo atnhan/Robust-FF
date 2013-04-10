@@ -6,6 +6,7 @@
  */
 
 #include "Search.h"
+#include "Helpful.h"
 
 Search::Search(State* init, State* goals) {
 	e = new StripsEncoding(init);
@@ -28,3 +29,20 @@ Search::~Search() {
 }
 
 
+// Get applicable actions for a given state
+void Search::get_applicable_actions(const State* state, std::vector<int>& actions) {
+	for (int op=0;op<gnum_op_conn;op++) {
+		bool applicable = true;
+		for (int i=0;i<gop_conn[op].num_E;i++) {
+			int ef = gop_conn[op].E[i];
+			for (int j=0;j<gef_conn[ef].num_PC;j++) {
+				int p = gef_conn[ef].PC[j];
+				if (!is_in_state(p, state)) {
+					applicable = false;
+					break;
+				}
+			}
+		}
+		if (applicable) actions.push_back(op);
+	}
+}

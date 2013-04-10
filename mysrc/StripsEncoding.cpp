@@ -95,6 +95,57 @@ bool StripsEncoding::append(int action) {
 	return true;
 }
 
+//
+// Get the set of clauses for known and possible precondition of "action"
+// if it is appended into the current plan prefix
+void StripsEncoding::compute_clauses(int action, ClauseSet& clauses) {
+	clauses.clear();
+	int level = this->actions.size();
+	assert(gop_conn[action].num_E == 1);
+	int n_ef = gop_conn[action].E[0];
+	// First, for known preconditions
+	for (int i=0;i<gef_conn[n_ef].num_PC;i++) {
+		int ft = gef_conn[n_ef].PC[i];
+		ClauseSet cs;
+		bool success = supporting_constraints(ft, level, cs);
+		assert(success);
+		// Update the clause set by adding new clauses
+		if (cs.size())
+			clauses.add_clauses(cs);
+	}
+
+	// Second, for possible preconditions
+	for (int i = 0; i < gef_conn[n_ef].num_poss_PC;i++) {
+		int ft = gef_conn[n_ef].poss_PC[i];
+		int bvar = get_bool_var(ft, action, POSS_PRE);
+		assert(bvar > 0);
+
+		if (is_in_state(ft, this->states[level])) {
+			ClauseSet cs;
+			bool success = supporting_constraints(ft, level, cs);
+			assert(success);
+
+			// Since "ft" is possible precondition, the above constraints need only when it is realized
+			// as a precondition of the action.
+			ClauseSet temp_cs;
+			for (ClauseSet::const_iterator itr = cs.cbegin(); itr != cs.cend(); itr++) {
+				Clause c = *itr;
+				c.insert(-bvar);
+				temp_cs.add_clause(c);
+			}
+
+			// Update the clause set by adding new ones
+			clauses.add_clauses(temp_cs);
+		}
+		else {	// If "ft" is false at the level, we don't need to find supporting clauses (i.e., they are empty)
+				// This action is applicable only when this possible precondition is not realized
+			Clause c;
+			c.insert(-bvar);
+			clauses.add_clause(c);
+		}
+	}
+}
+
 int StripsEncoding::get_confirmed_level(int ft,int level) const
 {
 	int n = actions.size();
@@ -182,7 +233,7 @@ void StripsEncoding::add_clause(const Clause& c) {
 	clauses->add_clause(c);
 }
 
-bool StripsEncoding::check_goals(State *goals, ClauseSet& cs) {
+bool StripsEncoding::check_goals(const State *goals, ClauseSet& cs) {
 	if (!goals) {
 		cs.clear();
 		return false;
@@ -206,12 +257,25 @@ bool StripsEncoding::check_goals(State *goals, ClauseSet& cs) {
 	return true;
 }
 
-bool StripsEncoding::evaluate_robustness(int& satresult, double& sat_prob, double& rtime, State *goals) {
+void StripsEncoding::evaluate_robustness(int& satresult, double& sat_prob, double& rtime, const State *goals) {
 	if (clauses->size() == 0) {
-		satresult = 0;
-		sat_prob = 0;
-		rtime = 0;
-		return false;
+		bool all_goals_satisfied = true;
+		for (int i=0;i<goals->num_F;i++) {
+			if (!is_in_state(goals->F[i], states[0])) {
+				all_goals_satisfied = false;
+				break;
+			}
+		}
+		if (all_goals_satisfied) {
+			satresult = 1;	// is this setting correct? (2 is unsatisfiable)
+			sat_prob = 1;
+			rtime = 0;
+		}
+		else {
+			satresult = 0;
+			sat_prob = 0;
+			rtime = 0;
+		}
 	}
 	float r = 0;
 
@@ -236,12 +300,12 @@ bool StripsEncoding::evaluate_robustness(int& satresult, double& sat_prob, doubl
 	read_weighted_model_counting_answer_file(satresult,sat_prob,rtime);
 
 	// The clause must be satisfiable
-	if (satresult != 2)
-	{
-		//printf("The clause set must not be unsatisfiable! File %s, line %d.\n",__FILE__,__LINE__);
-		//exit(1);
-		return false;
-	}
+//	if (satresult != 2)
+//	{
+//		//printf("The clause set must not be unsatisfiable! File %s, line %d.\n",__FILE__,__LINE__);
+//		//exit(1);
+//		return false;
+//	}
 
 	if (gcmd_line.display_info == 1000)
 	{
@@ -252,10 +316,10 @@ bool StripsEncoding::evaluate_robustness(int& satresult, double& sat_prob, doubl
 		printf(">> Counting time: %lf\n",rtime);
 		fflush(stdout);
 	}
-	return true;
+
 }
 
-bool StripsEncoding::write_cnf_file(const char* filename, State *goals, std::vector<float> *weights) {
+bool StripsEncoding::write_cnf_file(const char* filename, const State *goals, std::vector<float> *weights) {
 	FILE *CNF;
 	if ( (CNF = fopen(filename,"w")) == NULL )
 	{

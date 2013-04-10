@@ -25,12 +25,11 @@ class ClauseSet {
 	// If c1 is subset of c2
 	static bool is_subset(const Clause& c1, const Clause& c2);
 
-	/*
-	 *
-	 */
-
 	// Probability that a clause is true
-	double true_prob(const Clause& c) const;
+	double prob(const Clause& c) const;
+
+	// Probability that a clause "c2" is true, given that "c1" is true
+	double cond_prob(const Clause& c1, const Clause& c2) const;
 
 public:
 	// Weights for boolean variables

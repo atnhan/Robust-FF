@@ -35,7 +35,7 @@ protected:
 	void add_clauses(const ClauseSet& cs);
 
 	// Write the clause set into a CNF file
-	bool write_cnf_file(const char* filename, State *goals = 0, std::vector<float> *weights = 0);
+	bool write_cnf_file(const char* filename, const State *goals = 0, std::vector<float> *weights = 0);
 
 	// Read answer file by the model counting (Cachet)
 	void read_weighted_model_counting_answer_file(int& satresult,double& sat_prob, double& rtime);
@@ -48,12 +48,20 @@ public:
 	// Return true if succeeds.
 	bool append(int action);
 
+	// Get the set of clauses for known and possible precondition of "action"
+	// if it is appended into the current plan prefix
+	void compute_clauses(int action, ClauseSet& clauses);
+
+	// Evaluate an action wrt the plan robustness. This action is supposed to be appended into the current plan prefix.
+	double evaluate(int action, const State *goals = 0);
+
 	// Check the goals: return false if any goal proposition is not in the last state
 	// *New* constraints enforced on goal propositions are also returned
-	bool check_goals(State *goals, ClauseSet& cs);
+	bool check_goals(const State *goals, ClauseSet& cs);
 
 	// Evaluate the robustness of the current action sequence, optionally with a goal set
-	bool evaluate_robustness(int& satresult,double& sat_prob, double& rtime, State *goals = 0);
+	// Note: if correctness constraints are satisfiable, then the "satresult" must be 2
+	void evaluate_robustness(int& satresult,double& sat_prob, double& rtime, const State *goals = 0);
 
 	// Gets
 	const std::vector<int>& get_actions() const {

@@ -61,27 +61,32 @@ void ClauseSet::add_clauses(const ClauseSet& cs) {
 }
 
 double ClauseSet::estimate_robustness(const ClauseSet& additionals) const {
-	double r = 1;
+	if (this->size() + additionals.size() <= 0)
+		return 1;
+
 	ClauseSet cs;
 	const ClauseSet& original_clauses = *this;
 	cs.add_clauses(original_clauses);
 	cs.add_clauses(additionals);
-
+	double r = 1;
 	for (ClauseSet::const_iterator itr = cs.cbegin(); itr != cs.cend(); itr++) {
 		const Clause& c = *itr;
-		r *= true_prob(c);
+		r *= prob(c);
 	}
 
 	return r;
 }
 
 double ClauseSet::estimate_robustness(const std::vector<const ClauseSet*>& additional_clause_sets) const {
-	double r = 0;
-
-	return r;
+	ClauseSet cs;
+	for (vector<const ClauseSet*>::const_iterator itr = additional_clause_sets.begin(); itr != additional_clause_sets.end(); itr++) {
+		if (*itr && (*itr)->size())
+			cs.add_clauses(**itr);
+	}
+	return this->estimate_robustness(cs);
 }
 
-double ClauseSet::true_prob(const Clause& c) const {
+double ClauseSet::prob(const Clause& c) const {
 	double false_prob = 1;
 	for (Clause::const_iterator itr = c.begin(); itr != c.end(); itr++) {
 		int l = *itr;

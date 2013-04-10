@@ -211,8 +211,9 @@ void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State
 	cout<<"Done."<<endl<<endl;
 
 	cout<<"Extracting relaxed plan..."<<endl;
-	rp.extract();
-	cout<<"Done. RPG length: "<<rp.length()<<endl;
+	pair<int, double> rp_info;
+	rp.extract(rp_info);
+	cout<<"Done. RPG length: "<<rp_info.first<<", estimated robustness: "<<rp_info.second<<endl;
 
 }
 

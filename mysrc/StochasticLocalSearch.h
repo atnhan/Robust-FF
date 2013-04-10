@@ -11,6 +11,7 @@
 #include "Search.h"
 
 class StochasticLocalSearch: public Search {
+	int max_runs;
 	int max_restarts;
 	double noise;
 	int max_steps;
@@ -20,6 +21,9 @@ public:
 	virtual ~StochasticLocalSearch();
 
 	void run();
+
+	// Find a plan with better robustness than a threshold
+	bool improve(double current_best_robustness, std::vector<int>& new_plan);
 };
 
 #endif /* STOCHASTICLOCALSEARCH_H_ */

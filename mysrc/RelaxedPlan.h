@@ -90,9 +90,6 @@ class RelaxedPlan {
 	// Check if two fact layers are the same
 	bool same_fact_layers(FactLayer& factlayer_1, FactLayer& factlayer_2);
 
-	// Check if we should stop growing the RPG
-	bool stop_growing();
-
 	/**************************************************************************************************
 	 * RELAXED PLAN
 	 **************************************************************************************************/
@@ -165,6 +162,9 @@ class RelaxedPlan {
 	// Constructing supporting constraints for fact "p" at position pointed to by "the_step_itr" in the relaxed plan
 	bool supporting_constraints(int p, RELAXED_PLAN::iterator& the_step_itr, ClauseSet& clauses);
 
+	// Check if a proposition is in a RP-STATE
+	bool in_rp_state(int p, const RP_STATE& s) const;
+
 public:
 	// If possible delete effects should be considered in evaluating robustness during
 	// RPG construction and RP extraction
@@ -174,10 +174,13 @@ public:
 	virtual ~RelaxedPlan();
 
 	// Create relaxed planning graph.
-	void build_relaxed_planning_graph();
+	// Return false if there is a goal proposition that cannot be achieved at the last layer
+	// (which won't change if the RPG continues to grow)
+	bool build_relaxed_planning_graph();
 
-	// Extract the relaxed plan
-	int extract();
+	// Extract the relaxed plan.
+	// Return the length of the relaxed plan, and the robustness of {the plan prefix + the relaxed plan}
+	void extract(std::pair<int, double>& result);
 
 	// Get FF-style helpful actions
 	void get_FF_helpful_actions(std::vector<int>& helpful_actions);

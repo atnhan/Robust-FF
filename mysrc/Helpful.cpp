@@ -7,6 +7,7 @@
 
 #include "Helpful.h"
 #include <iostream>
+#include <assert.h>
 using namespace std;
 
 bool is_poss_pre(int ft, int action) {
@@ -176,5 +177,7 @@ int get_bool_var(int ft, int action, AnnotationType t) {
 			break;
 		}
 	}
+
+	assert(res > 0);
 	return res;
 }
