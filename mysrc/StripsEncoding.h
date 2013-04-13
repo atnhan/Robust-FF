@@ -40,6 +40,10 @@ protected:
 	// Read answer file by the model counting (Cachet)
 	void read_weighted_model_counting_answer_file(int& satresult,double& sat_prob, double& rtime);
 
+	// Get the set of clauses for known and possible precondition of "action"
+	// if it is appended into the current plan prefix
+	void compute_applicability_clauses(int action, ClauseSet& clauses);
+
 public:
 	StripsEncoding(State *init);
 	virtual ~StripsEncoding();
@@ -48,12 +52,11 @@ public:
 	// Return true if succeeds.
 	bool append(int action);
 
-	// Get the set of clauses for known and possible precondition of "action"
-	// if it is appended into the current plan prefix
-	void compute_clauses(int action, ClauseSet& clauses);
-
-	// Evaluate an action wrt the plan robustness. This action is supposed to be appended into the current plan prefix.
-	double evaluate(int action, const State *goals = 0);
+	// Evaluate an action wrt the current plan prefix and the goals.
+	// This action is supposed to be appended into the current plan prefix
+	// The <plan prefix + "action"> is treated as a candidate plan
+	// Return: lower and upper bound of the robustness
+	void evaluate_action(double& lower, double& upper, int action, const State *goals = 0);
 
 	// Check the goals: return false if any goal proposition is not in the last state
 	// *New* constraints enforced on goal propositions are also returned

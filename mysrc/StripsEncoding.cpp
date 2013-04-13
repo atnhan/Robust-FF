@@ -98,7 +98,7 @@ bool StripsEncoding::append(int action) {
 //
 // Get the set of clauses for known and possible precondition of "action"
 // if it is appended into the current plan prefix
-void StripsEncoding::compute_clauses(int action, ClauseSet& clauses) {
+void StripsEncoding::compute_applicability_clauses(int action, ClauseSet& clauses) {
 	clauses.clear();
 	int level = this->actions.size();
 	assert(gop_conn[action].num_E == 1);
@@ -144,6 +144,118 @@ void StripsEncoding::compute_clauses(int action, ClauseSet& clauses) {
 			clauses.add_clause(c);
 		}
 	}
+}
+
+// Evaluate an action wrt the current plan prefix and the goals.
+// This action is supposed to be appended into the current plan prefix
+void StripsEncoding::evaluate_action(double& lower, double& upper, int action, const State *goals) {
+
+	// Check extreme condition: there is one goal that is for sure not supported
+	// Return 0 robustness
+	const State *last_state = get_states().at(get_states().size() - 1);
+	for (int i=0;i<goals->num_F;i++) {
+		int g = goals->F[i];
+		if (is_del(g, action)) {
+			lower = upper = 0;
+			return;
+		}
+
+		if (!is_in_state(g, last_state) && !is_add(g, action) && !is_poss_add(g, action)) {
+			lower = upper = 0;
+		}
+	}
+
+	// Get clauses for (possible) preconditions of "action"
+	ClauseSet applicability_clauses;
+	compute_applicability_clauses(action, applicability_clauses);
+
+	/*
+	 * Get clauses for the goals, assuming that this "action" is appended
+	 * into the current plan prefix
+	 */
+	vector<ClauseSet> goal_to_clauses;
+	goal_to_clauses.reserve(goals->num_F);
+	for (int i=0;i<goals->num_F;i++) {
+		int g = goals->F[i];
+
+		// If "g" is added by "action", the clause set is empty
+		if (is_add(g, action)) {
+			goal_to_clauses[i].clear();
+			continue;
+		}
+
+		// If "g" is not possible added or possible deleted by "action",
+		// get the clause set from the previous layer
+		if (!is_poss_add(g, action) && !is_poss_del(g, action)) {
+			supporting_constraints(g, get_states().size()-1, goal_to_clauses[i]);
+			continue;
+		}
+
+
+		if (is_pre(g, action)) {
+			// If "g" is a possible add of "action", the clause set is empty
+
+			// If "g" is a possible delete of "action", we have one more clause
+			if (is_poss_del(g, action)) {
+				int bvar = get_bool_var(g, action, POSS_DEL);
+				Clause c;
+				c.insert(-bvar);
+				goal_to_clauses[g].add_clause(c);
+			}
+		}
+		else {
+			int level = get_states().size() - 1;
+			int confirmed_level = get_confirmed_level(g, level);
+
+			// Establishment constraints (taking "action" into account
+			if (!is_in_state(g, this->states[confirmed_level])) {
+				Clause c;
+				int k;
+				for (k = confirmed_level; k < level; k++)
+					if (is_poss_add(g, this->actions[k])) {
+						int bvar = get_bool_var(g, this->actions[k], POSS_ADD);
+						c.insert(bvar);
+					}
+				if (is_poss_add(g, action)) {
+					int bvar = get_bool_var(g, action, POSS_ADD);
+					c.insert(bvar);
+				}
+				goal_to_clauses[g].add_clause(c);
+			}
+
+			// Protection constraints
+			for (int k = confirmed_level; k < level; k++)
+				if (is_poss_del(g, this->actions[k])) {
+					Clause c;
+					int bvar = get_bool_var(g, this->actions[k], POSS_DEL);
+					c.insert(-bvar);
+
+					for (int j=k+1;j<level;j++) {
+						if (is_poss_add(g, this->actions[j])) {
+							bvar = get_bool_var(g, this->actions[j], POSS_ADD);
+							c.insert(bvar);
+						}
+					}
+					if (is_poss_add(g, action)) {
+						int bvar = get_bool_var(g, action, POSS_ADD);
+						c.insert(bvar);
+					}
+
+					goal_to_clauses[g].add_clause(c);
+				}
+		}
+	}
+
+	ClauseSet cs = get_clauses();
+
+	cs.add_clauses(applicability_clauses);
+	for (int i=0;i<goals->num_F;i++) {
+		int g = goals->F[i];
+		cs.add_clauses(goal_to_clauses[g]);
+	}
+	lower = cs.lower_bound();
+	upper = cs.upper_bound();
+
 }
 
 int StripsEncoding::get_confirmed_level(int ft,int level) const

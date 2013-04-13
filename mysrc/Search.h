@@ -19,10 +19,10 @@ protected:
 		double robustness;
 	};
 
-	StripsEncoding *e;
-	const State *init;
+	State *init;
 	const State *goals;
 	std::vector<Plan> plans;
+	Plan best_plan;
 
 	/*
 	 * FUNCTIONS
@@ -35,7 +35,7 @@ public:
 	Search(State* init, State* goals);
 	virtual ~Search();
 
-	virtual void run() = 0;
+	virtual bool run() = 0;
 };
 
 #endif /* SEARCH_H_ */

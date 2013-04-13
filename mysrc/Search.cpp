@@ -9,15 +9,10 @@
 #include "Helpful.h"
 
 Search::Search(State* init, State* goals) {
-	e = new StripsEncoding(init);
 	this->goals = goals;
 }
 
 Search::~Search() {
-	if (e) {
-		delete e;
-		e = 0;
-	}
 	if (goals) {
 		delete goals;
 		goals = 0;

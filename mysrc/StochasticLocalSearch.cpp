@@ -8,6 +8,7 @@
 #include "StochasticLocalSearch.h"
 #include "assert.h"
 #include <vector>
+#include "StripsEncoding.h"
 using namespace std;
 
 
@@ -25,54 +26,74 @@ StochasticLocalSearch::~StochasticLocalSearch() {
 
 }
 
-void StochasticLocalSearch::run() {
-	const State *current;
-	const double initial_robustness = 0;
-	double current_robustness;
-	double current_best_robustness;
-
-	int sat_result;
-	double sat_prob;
-	double running_time;
-	e->evaluate_robustness(sat_result, sat_prob, running_time, goals);
-	current_best_robustness = sat_prob;
-
-	for (int i = 0; i< max_runs; i++) {
-
-	}
-
-}
-
-// Find a plan with better robustness than a threshold
-bool StochasticLocalSearch::improve(double current_best_robustness, std::vector<int>& new_plan) {
+bool StochasticLocalSearch::run() {
 	const State *current_state;
-	double current_robustness;
-	int sat_result;
-	double sat_prob;
-	double running_time;
 
-	// We try to find a better plan in at most "max_runs" episodes
-	vector<int> applicable_actions;
-	vector<double> new_plan_robustness;
-	for (int i=0;i<max_runs;i++) {
+	best_plan.actions.clear();
+	best_plan.robustness = 0;
 
-		bool found = false;
-		current_state = init;
-		current_robustness = 0;
+	// We try to find a better plan in at most "max_restarts" restarts from the initial state
+	for (int i=0;i<max_restarts;i++) {
+
+		// When we're here: we have a current best robustness for the current best plan
+		current_state = init;	// Restart from the initial state
+		StripsEncoding *e = new StripsEncoding(init);
+
 		for (int j=0;j<max_steps;j++) {
 
-			if (current_robustness > current_best_robustness)
-				return true;
+			bool better_plan_found = false;
 
 			// (1) Get applicable actions
+			vector<int> applicable_actions;
 			get_applicable_actions(current_state, applicable_actions);
 
-			// (2) Compute robustness of all "new plan + <an applicable action>"
+			// (2) Evaluate the quality of "plan prefix + <an applicable action>"
+			vector<NeighborInfo> neighborhood;	// one for each applicable action
+			neighborhood.reserve(applicable_actions.size());
 			for (int k=0;k<applicable_actions.size();k++) {
 
+				// If the estimated robustness of "plan prefix + this action" wrt the goals is
+				// not less than the current best robustness, then we check its exact robustness
+				double lower, upper;
+				e->evaluate_action(lower, upper, applicable_actions[k], goals);
+
+				// We use lower bound to recognize a better plan
+				if (lower >= best_plan.robustness) {
+					int sat_result;
+					double sat_prob;
+					double running_time;
+
+					e->evaluate_robustness(sat_result, sat_prob, running_time, goals);
+					assert(lower < sat_prob);
+
+					// Record the new best plan
+					best_plan.actions.clear();
+					for (int l=0;l<e->get_actions().size();l++) {
+						int op = e->get_actions().at(l);
+						best_plan.actions.push_back(op);
+					}
+					best_plan.actions.push_back(applicable_actions[k]);
+					best_plan.robustness = sat_prob;
+
+					better_plan_found = true;
+					break;	// out of considering other applicable actions
+				}
+
+				//
 			}
+
+			// If we find a better plan, we are done for this improvement iteration
+			// We will restart from the initial state for finding even better plan
+			if (better_plan_found)
+				break;
+
+			// Otherwise, we need to make local move
+
 		}
 	}
+
+	if (best_plan.actions.size() > 0 && best_plan.robustness > 0)
+		return true;
 	return false;
 }
 

@@ -11,19 +11,21 @@
 #include "Search.h"
 
 class StochasticLocalSearch: public Search {
-	int max_runs;
 	int max_restarts;
 	double noise;
 	int max_steps;
+
+	struct NeighborInfo {
+		int rp_length;
+		double lower_robustness;
+		double upper_robustness;
+	};
 
 public:
 	StochasticLocalSearch(State *init, State *goals, int max_restarts, int max_steps, double noise);
 	virtual ~StochasticLocalSearch();
 
-	void run();
-
-	// Find a plan with better robustness than a threshold
-	bool improve(double current_best_robustness, std::vector<int>& new_plan);
+	bool run();
 };
 
 #endif /* STOCHASTICLOCALSEARCH_H_ */

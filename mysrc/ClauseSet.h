@@ -11,6 +11,7 @@
 #include <set>
 #include <vector>
 #include <iostream>
+#include <boost/unordered_map.hpp>
 
 typedef std::set<int> Clause;		// Note: allocating memory using "calloc" causes core dumped error.
 
@@ -34,6 +35,9 @@ class ClauseSet {
 public:
 	// Weights for boolean variables
 	static std::vector<double> weights;	// The size is equal to the number of variables
+
+	// Look-up table for individual clause's robustness
+	static boost::unordered_map<Clause, double> clause_probability;
 
 	ClauseSet();
 	ClauseSet(const ClauseSet& clauses);
@@ -80,6 +84,11 @@ public:
 	// Compute approximate robustness value
 	double estimate_robustness(const ClauseSet& cs) const;
 	double estimate_robustness(const std::vector<const ClauseSet*>& clause_sets) const;
+
+	// Compute its lower and upper bound
+	double lower_bound();
+	double upper_bound();
+
 
 	// Print out the clause set
 	friend std::ostream& operator<<(std::ostream& os, const ClauseSet& cs);

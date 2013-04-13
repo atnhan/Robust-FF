@@ -10,6 +10,7 @@
 using namespace std;
 
 vector<double> ClauseSet::weights;
+boost::unordered_map<Clause, double> ClauseSet::clause_probability;
 
 ClauseSet::ClauseSet() {
 
@@ -55,9 +56,30 @@ void ClauseSet::add_clause(const Clause& c) {
 
 void ClauseSet::add_clauses(const ClauseSet& cs) {
 	for (ClauseSet::const_iterator itr = cs.clauses.begin(); itr != cs.clauses.end(); itr++) {
-		if (itr->size())
+		if (itr->size()) {
 			add_clause(*itr);
+		}
 	}
+}
+
+double ClauseSet::lower_bound() {
+	// A simple lower bound: product of individual probability
+	double lower = 1;
+	for (ClauseSet::const_iterator itr = clauses.begin(); itr != clauses.end(); itr++) {
+		lower *= prob(*itr);
+	}
+	return lower;
+}
+
+double ClauseSet::upper_bound() {
+	// A simple upper bound: min of individual probability
+	// Better bound: product of upper bound of all connected components
+	double upper = 1;
+	for (ClauseSet::const_iterator itr = clauses.begin(); itr != clauses.end(); itr++) {
+		if (upper > prob(*itr))
+			upper = prob(*itr);
+	}
+	return upper;
 }
 
 double ClauseSet::estimate_robustness(const ClauseSet& additionals) const {
@@ -68,6 +90,7 @@ double ClauseSet::estimate_robustness(const ClauseSet& additionals) const {
 	const ClauseSet& original_clauses = *this;
 	cs.add_clauses(original_clauses);
 	cs.add_clauses(additionals);
+
 	double r = 1;
 	for (ClauseSet::const_iterator itr = cs.cbegin(); itr != cs.cend(); itr++) {
 		const Clause& c = *itr;
@@ -87,6 +110,11 @@ double ClauseSet::estimate_robustness(const std::vector<const ClauseSet*>& addit
 }
 
 double ClauseSet::prob(const Clause& c) const {
+
+	if (ClauseSet::clause_probability.find(c) != ClauseSet::clause_probability.end()) {
+		return ClauseSet::clause_probability[c];
+	}
+
 	double false_prob = 1;
 	for (Clause::const_iterator itr = c.begin(); itr != c.end(); itr++) {
 		int l = *itr;
@@ -100,6 +128,7 @@ double ClauseSet::prob(const Clause& c) const {
 		}
 	}
 
+	ClauseSet::clause_probability[c] = 1 - false_prob;
 	return 1 - false_prob;
 }
 
