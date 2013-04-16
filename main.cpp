@@ -68,6 +68,7 @@ extern void evaluate_plan_robustness(std::string filename, State *initial_state,
 extern void test_relaxed_planning_graph(string partial_sol_file, State *initial_state, State* goal_state);
 extern void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State* goal_state);
 extern void test_estimate_robustness();
+extern void test_adding_removing_clauses();
 extern int gnum_possible_annotations;
 
 /*
@@ -664,12 +665,22 @@ int main( int argc, char *argv[] )
 
 	/*
 	 * TUAN (begin)
+	 */
+//	test_adding_removing_clauses();
+//	exit(0);
+
+	/*
+	 * TUAN (end)
+	 */
+
+	/*
+	 * TUAN (begin)
 	 * Test the correctness constraints by testing plan robustness assessment
 	 */
-//	string sol_file("pfile10.sol");
-//	evaluate_plan_robustness(sol_file, &ginitial_state, &ggoal_state);
-//
-//	exit(0);
+	string sol_file("pfile10.sol");
+	evaluate_plan_robustness(sol_file, &ginitial_state, &ggoal_state);
+
+	exit(0);
 	/*
 	 * TUAN (end)
 	 */
@@ -678,13 +689,13 @@ int main( int argc, char *argv[] )
 	/*
 	 * TUAN (begin)
 	 */
-	ClauseSet::weights.resize(gnum_possible_annotations);
-	for (int i=0;i<gnum_possible_annotations;i++)
-		ClauseSet::weights[i] = 0.5;
-	string sol_file("pfile10.partial.sol");
-	test_relaxed_plan(sol_file, &ginitial_state, &ggoal_state);
-
-	exit(0);
+//	ClauseSet::weights.resize(gnum_possible_annotations);
+//	for (int i=0;i<gnum_possible_annotations;i++)
+//		ClauseSet::weights[i] = 0.5;
+//	string sol_file("pfile10.partial.sol");
+//	test_relaxed_plan(sol_file, &ginitial_state, &ggoal_state);
+//
+//	exit(0);
 	/*
 	 * TUAN (end)
 	 */

@@ -11,33 +11,17 @@
 #include <set>
 #include <vector>
 #include <iostream>
-#include <boost/unordered_map.hpp>
-
-typedef std::set<int> Clause;		// Note: allocating memory using "calloc" causes core dumped error.
+#include "Clause.h"
+#include <boost/unordered_set.hpp>
 
 class ClauseSet {
 
-	std::set<Clause> clauses;
+	boost::unordered_set<Clause, boost::hash<Clause> > clauses;
 
-	/*
-	 * Helper functions for processing clauses
-	 */
-
-	// If c1 is subset of c2
-	static bool is_subset(const Clause& c1, const Clause& c2);
-
-	// Probability that a clause is true
-	double prob(const Clause& c) const;
-
-	// Probability that a clause "c2" is true, given that "c1" is true
-	double cond_prob(const Clause& c1, const Clause& c2) const;
+	// Read the output file of Cachet
+	void read_wmc_answer_file(int& satresult,double& sat_prob, double& rtime) const;
 
 public:
-	// Weights for boolean variables
-	static std::vector<double> weights;	// The size is equal to the number of variables
-
-	// Look-up table for individual clause's robustness
-	static boost::unordered_map<Clause, double> clause_probability;
 
 	ClauseSet();
 	ClauseSet(const ClauseSet& clauses);
@@ -58,8 +42,8 @@ public:
 	}
 
 	// Iterators
-	typedef std::set<Clause>::const_iterator const_iterator;
-	typedef std::set<Clause>::iterator iterator;
+	typedef boost::unordered_set<Clause>::const_iterator const_iterator;
+	typedef boost::unordered_set<Clause>::iterator iterator;
 
 	const_iterator cbegin() const {
 		return clauses.begin();
@@ -77,21 +61,19 @@ public:
 		return clauses.end();
 	}
 
-	friend bool operator==(const ClauseSet& cs1, const ClauseSet& cs2) {
-		return (cs1.clauses == cs2.clauses);
-	}
+	// Compute its exact WMC and the two lower and upper bounds
+	void wmc(int& satresult, double& satprob, double& rtime) const;
+	double lower_wmc() const;
+	double upper_wmc() const;
 
-	// Compute approximate robustness value
-	double estimate_robustness(const ClauseSet& cs) const;
-	double estimate_robustness(const std::vector<const ClauseSet*>& clause_sets) const;
-
-	// Compute its lower and upper bound
-	double lower_bound();
-	double upper_bound();
-
+	// Write to a file
+	void write_cnf_file(const char* filename) const;
 
 	// Print out the clause set
 	friend std::ostream& operator<<(std::ostream& os, const ClauseSet& cs);
+
+	friend bool operator==(ClauseSet const& cs1, ClauseSet const& cs2);
+
 };
 
 #endif /* CLAUSESET_H_ */

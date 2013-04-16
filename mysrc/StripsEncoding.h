@@ -12,15 +12,33 @@
 #include <vector>
 #include <set>
 #include <utility>
+#include <boost/unordered_map.hpp>
 #include "ClauseSet.h"
 
 class StripsEncoding {
 
 protected:
 
+	// Sequence of actions. Only a prefix of this is the actual plan prefix.
 	std::vector<int> actions;
+
+	// Sequence of states
 	std::vector<State*> states;		// NOTE: including both the initial state and the last state. So number of states = number of actions + 1
-	ClauseSet *clauses;
+
+	// Part of the action sequence that is the current plan prefix
+	int plan_prefix_length;
+
+	// Clauses for all actions in the current plan prefix
+	ClauseSet plan_prefix_clauses;
+
+	// Clause set for preconditions and possible preconditions for each action
+	typedef boost::unordered_map<int/*proposition*/, ClauseSet> PRE_2_CLAUSE_SET;
+	typedef boost::unordered_map<int/*proposition*/, ClauseSet> POSS_PRE_2_CLAUSE_SET;
+	struct ActionClauses {
+		PRE_2_CLAUSE_SET pre_clauses;
+		POSS_PRE_2_CLAUSE_SET poss_pre_clauses;
+	};
+	std::vector<ActionClauses> action_clauses;	// same size with "actions"
 
 	// Get the latest level at which the truth value of a fact is "confirmed"
 	// NOTE: "ft" might definitely be false at the state at "level"
@@ -30,41 +48,30 @@ protected:
 	// Construct the set of clauses for TRUE truth value of a fact at a level
 	bool supporting_constraints(int ft, int level, ClauseSet& clauses) const;
 
-	// Add new clause set
-	void add_clause(const Clause& c);
-	void add_clauses(const ClauseSet& cs);
-
-	// Write the clause set into a CNF file
-	bool write_cnf_file(const char* filename, const State *goals = 0, std::vector<float> *weights = 0);
-
-	// Read answer file by the model counting (Cachet)
-	void read_weighted_model_counting_answer_file(int& satresult,double& sat_prob, double& rtime);
-
-	// Get the set of clauses for known and possible precondition of "action"
-	// if it is appended into the current plan prefix
-	void compute_applicability_clauses(int action, ClauseSet& clauses);
-
 public:
 	StripsEncoding(State *init);
 	virtual ~StripsEncoding();
 
 	// Append an action, and update the clauses
-	// Return true if succeeds.
-	bool append(int action);
+	void append(int action);
 
-	// Evaluate an action wrt the current plan prefix and the goals.
-	// This action is supposed to be appended into the current plan prefix
-	// The <plan prefix + "action"> is treated as a candidate plan
-	// Return: lower and upper bound of the robustness
-	void evaluate_action(double& lower, double& upper, int action, const State *goals = 0);
+	// Remove the last action. Return false if trying to cut the plan prefix
+	bool remove_last();
+
+	// Append an action and extend the plan prefix. Update the clause set.
+	void extend_plan_prefix(int action);
 
 	// Check the goals: return false if any goal proposition is not in the last state
 	// *New* constraints enforced on goal propositions are also returned
 	bool check_goals(const State *goals, ClauseSet& cs);
 
-	// Evaluate the robustness of the current action sequence, optionally with a goal set
+	// Collect all clauses for an action at position "i", and all actions
+	const ClauseSet& get_clauses(int i) const;
+	const ClauseSet& get_clauses() const;
+
+	// Evaluate the robustness of the current plan prefix, optionally with a goal set using weighted model counting.
 	// Note: if correctness constraints are satisfiable, then the "satresult" must be 2
-	void evaluate_robustness(int& satresult,double& sat_prob, double& rtime, const State *goals = 0);
+	void evaluate_plan_prefix(int& satresult,double& sat_prob, double& rtime, const State *goals = 0);
 
 	// Gets
 	const std::vector<int>& get_actions() const {
@@ -72,9 +79,6 @@ public:
 	}
 	const std::vector<State*>& get_states() const {
 		return states;
-	}
-	const ClauseSet& get_clauses() const {
-		return *clauses;
 	}
 
 	// The last state (after the last action)

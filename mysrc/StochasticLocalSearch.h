@@ -15,6 +15,7 @@ class StochasticLocalSearch: public Search {
 	double noise;
 	int max_steps;
 
+	// All information we need to decide next best local move
 	struct NeighborInfo {
 		int rp_length;
 		double lower_robustness;

@@ -62,10 +62,7 @@ void test_relaxed_planning_graph(string partial_sol_file, State *initial_state, 
 	StripsEncoding e(initial_state);
 	for (int i=0;i<plan_actions.size();i++) {
 		int op = find_action(plan_actions[i]);
-		if (!e.append(op)) {
-			cout<<"Action "<<plan_actions[i]<<" not found! File "<<__FILE__<<", line "<<__LINE__<<endl;
-			exit(1);
-		}
+		e.append(op);
 	}
 	const vector<int>& actions = e.get_actions();
 	const vector<State*>& states = e.get_states();
@@ -179,10 +176,7 @@ void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State
 	StripsEncoding e(initial_state);
 	for (int i=0;i<plan_actions.size();i++) {
 		int op = find_action(plan_actions[i]);
-		if (!e.append(op)) {
-			cout<<"Action "<<plan_actions[i]<<" not found! File "<<__FILE__<<", line "<<__LINE__<<endl;
-			exit(1);
-		}
+		e.append(op);
 	}
 	const vector<int>& actions = e.get_actions();
 	const vector<State*>& states = e.get_states();

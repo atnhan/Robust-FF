@@ -55,28 +55,35 @@ bool StochasticLocalSearch::run() {
 				// If the estimated robustness of "plan prefix + this action" wrt the goals is
 				// not less than the current best robustness, then we check its exact robustness
 				double lower, upper;
-				e->evaluate_action(lower, upper, applicable_actions[k], goals);
+				e->append(applicable_actions[k]);
+				ClauseSet all_clauses(e->get_clauses());
+				ClauseSet goal_clauses;
+				bool goals_present = e->check_goals(goals, goal_clauses);
+				if (goals_present) {
+					all_clauses.add_clauses(goal_clauses);
+					lower = all_clauses.lower_wmc();
+					upper = all_clauses.upper_wmc();
+					// We use lower bound to recognize a better plan. May use upper bound as well?
+					if (lower >= best_plan.robustness) {
+						int sat_result;
+						double sat_prob;
+						double running_time;
 
-				// We use lower bound to recognize a better plan
-				if (lower >= best_plan.robustness) {
-					int sat_result;
-					double sat_prob;
-					double running_time;
+						all_clauses.wmc(sat_result, sat_prob, running_time);
+						assert(lower < sat_prob);
 
-					e->evaluate_robustness(sat_result, sat_prob, running_time, goals);
-					assert(lower < sat_prob);
+						// Record the new best plan
+						best_plan.actions.clear();
+						for (int l=0;l<e->get_actions().size();l++) {
+							int op = e->get_actions().at(l);
+							best_plan.actions.push_back(op);
+						}
+						best_plan.actions.push_back(applicable_actions[k]);
+						best_plan.robustness = sat_prob;
 
-					// Record the new best plan
-					best_plan.actions.clear();
-					for (int l=0;l<e->get_actions().size();l++) {
-						int op = e->get_actions().at(l);
-						best_plan.actions.push_back(op);
+						better_plan_found = true;
+						break;	// out of considering other applicable actions
 					}
-					best_plan.actions.push_back(applicable_actions[k]);
-					best_plan.robustness = sat_prob;
-
-					better_plan_found = true;
-					break;	// out of considering other applicable actions
 				}
 
 				//

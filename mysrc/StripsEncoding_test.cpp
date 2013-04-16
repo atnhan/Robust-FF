@@ -62,31 +62,36 @@ void evaluate_plan_robustness(string filename, State *initial_state, State* goal
 	StripsEncoding e(initial_state);
 	for (int i=0;i<plan_actions.size();i++) {
 		int op = find_action(plan_actions[i]);
-		if (!e.append(op)) {
-			cout<<"Action "<<plan_actions[i]<<" not found! File "<<__FILE__<<", line "<<__LINE__<<endl;
-			exit(1);
-		}
+		e.append(op);
 	}
 
-	const vector<int> actions = e.get_actions();
-	const vector<State*> states = e.get_states();
-	cout<<"Initial State:"<<endl;
-	print_state(states[0]);
-	cout<<endl<<endl;
-	for (int i=0;i<actions.size();i++) {
-		cout<<"Action "<<actions[i]<<": ";
-		print_op_name(actions[i]);
-		cout<<endl;
-		cout<<"State ["<<i+1<<"]:"<<endl;
-		print_state(states[i+1]);
-		cout<<endl<<endl;
-	}
+//	const ClauseSet& cs = e.get_clauses();
+//	cout<<"Clause Set:"<<endl;
+//	cout<<e.get_clauses()<<endl;
 
-	if (goal_state) {
+//	const vector<int> actions = e.get_actions();
+//	const vector<State*> states = e.get_states();
+//	cout<<"Initial State:"<<endl;
+//	print_state(states[0]);
+//	cout<<endl<<endl;
+//	for (int i=0;i<actions.size();i++) {
+//		cout<<"Action "<<actions[i]<<": ";
+//		print_op_name(actions[i]);
+//		cout<<endl;
+//		cout<<"State ["<<i+1<<"]:"<<endl;
+//		print_state(states[i+1]);
+//		cout<<endl<<endl;
+//	}
+//
+//	if (goal_state) {
+//
+//	}
 
-	}
-	int satresult;
-	double sat_prob;
-	double rtime;
-	e.evaluate_robustness(satresult,sat_prob, rtime);
+//	int satresult;
+//	double sat_prob;
+//	double rtime;
+//	e.evaluate_robustness(satresult,sat_prob, rtime);
+
+
+
 }

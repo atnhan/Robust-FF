@@ -111,14 +111,6 @@ class RelaxedPlan {
 		// with a clause set derived from possible add and delete of actions in the relaxed plan
 		PRE_2_CLAUSES pre_clauses;
 		POSS_PRE_2_CLAUSES poss_pre_clauses;
-
-		// Pointers to new clause sets for (possible) preconditions
-		// created by inserting a new action into the relaxed plan
-		// We use these, instead of the current pointers above, to evaluate
-		// if an action is good or not
-		// RULE FOR USE: if these pointers is NULL, then we use the current pointers; otherwise we use these pointers
-		PRE_2_CLAUSES temp_pre_clauses;
-		POSS_PRE_2_CLAUSES temp_poss_pre_clauses;
 	};
 	typedef std::list<RP_STEP*> RELAXED_PLAN;	// NOTE: including the step containing the unique goal action
 	RELAXED_PLAN rp;

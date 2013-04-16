@@ -181,3 +181,5 @@ int get_bool_var(int ft, int action, AnnotationType t) {
 	assert(res > 0);
 	return res;
 }
+
+

@@ -23,7 +23,7 @@ StripsEncoding::StripsEncoding(State *init) {
 	init_state->max_F = gnum_ft_conn;
 	source_to_dest(init_state, init);
 	this->states.push_back(init_state);
-	this->clauses = new ClauseSet;
+//	this->clauses = new ClauseSet;
 }
 
 StripsEncoding::~StripsEncoding() {
@@ -31,14 +31,13 @@ StripsEncoding::~StripsEncoding() {
 		if (this->states[i])
 			free(this->states[i]);
 
-	if (clauses)
-		delete clauses;
+//	if (clauses)
+//		delete clauses;
 }
 
-bool StripsEncoding::append(int action) {
-	if (action < 0 || action >= gnum_op_conn) {
-		return false;
-	}
+void StripsEncoding::append(int action) {
+	assert(action >= 0 && action < gnum_op_conn);
+
 	State *current_state = this->states[this->actions.size()];
 	State *resulting_state = (State*) calloc(1, sizeof(State));
 	make_state(resulting_state, gnum_ft_conn);
@@ -46,6 +45,9 @@ bool StripsEncoding::append(int action) {
 	result_to_dest(resulting_state, current_state, action);
 	this->states.push_back(resulting_state);
 	this->actions.push_back(action);
+
+	// Clauses associated with the new action
+	ActionClauses new_action_clauses;
 
 	// Update the clause set
 	int level = this->actions.size()-1;
@@ -57,8 +59,10 @@ bool StripsEncoding::append(int action) {
 		ClauseSet cs;
 		bool success = supporting_constraints(ft, level, cs);
 		assert(success);
-		// Update the clause set by adding new clauses
-		add_clauses(cs);
+
+		// Update clauses for this precondition
+		if (cs.size())
+			new_action_clauses.pre_clauses[ft] = cs;
 	}
 
 	// Second, for possible preconditions
@@ -77,185 +81,52 @@ bool StripsEncoding::append(int action) {
 			ClauseSet temp_cs;
 			for (ClauseSet::const_iterator itr = cs.cbegin(); itr != cs.cend(); itr++) {
 				Clause c = *itr;
-				c.insert(-bvar);
+				c.add_literal(-bvar);
 				temp_cs.add_clause(c);
 			}
 
-			// Update the clause set by adding new ones
-			add_clauses(temp_cs);
+			// Update clauses for this possible precondition
+			if (temp_cs.size())
+				new_action_clauses.poss_pre_clauses[ft] = temp_cs;
 		}
 		else {	// If "ft" is false at the level, we don't need to find supporting clauses (i.e., they are empty)
 				// This action is applicable only when this possible precondition is not realized
 			Clause c;
-			c.insert(-bvar);
-			clauses->add_clause(c);
+			c.add_literal(-bvar);
+
+			// Update clauses for this possible precondition
+			ClauseSet cs;
+			cs.add_clause(c);
+			new_action_clauses.poss_pre_clauses[ft] = cs;
 		}
 	}
 
+	this->action_clauses.push_back(new_action_clauses);
+}
+
+// Remove the last action
+bool StripsEncoding::remove_last() {
+	if (plan_prefix_length >= actions.size())
+		return false;
+
+	if (actions.size() <= 0)
+		return true;
+
+	actions.pop_back();
+	action_clauses.pop_back();
+	State* last_state = states[states.size()-1];
+	free(last_state);
+	last_state = 0;
+	states.pop_back();
 	return true;
 }
 
-//
-// Get the set of clauses for known and possible precondition of "action"
-// if it is appended into the current plan prefix
-void StripsEncoding::compute_applicability_clauses(int action, ClauseSet& clauses) {
-	clauses.clear();
-	int level = this->actions.size();
-	assert(gop_conn[action].num_E == 1);
-	int n_ef = gop_conn[action].E[0];
-	// First, for known preconditions
-	for (int i=0;i<gef_conn[n_ef].num_PC;i++) {
-		int ft = gef_conn[n_ef].PC[i];
-		ClauseSet cs;
-		bool success = supporting_constraints(ft, level, cs);
-		assert(success);
-		// Update the clause set by adding new clauses
-		if (cs.size())
-			clauses.add_clauses(cs);
-	}
-
-	// Second, for possible preconditions
-	for (int i = 0; i < gef_conn[n_ef].num_poss_PC;i++) {
-		int ft = gef_conn[n_ef].poss_PC[i];
-		int bvar = get_bool_var(ft, action, POSS_PRE);
-		assert(bvar > 0);
-
-		if (is_in_state(ft, this->states[level])) {
-			ClauseSet cs;
-			bool success = supporting_constraints(ft, level, cs);
-			assert(success);
-
-			// Since "ft" is possible precondition, the above constraints need only when it is realized
-			// as a precondition of the action.
-			ClauseSet temp_cs;
-			for (ClauseSet::const_iterator itr = cs.cbegin(); itr != cs.cend(); itr++) {
-				Clause c = *itr;
-				c.insert(-bvar);
-				temp_cs.add_clause(c);
-			}
-
-			// Update the clause set by adding new ones
-			clauses.add_clauses(temp_cs);
-		}
-		else {	// If "ft" is false at the level, we don't need to find supporting clauses (i.e., they are empty)
-				// This action is applicable only when this possible precondition is not realized
-			Clause c;
-			c.insert(-bvar);
-			clauses.add_clause(c);
-		}
-	}
-}
-
-// Evaluate an action wrt the current plan prefix and the goals.
-// This action is supposed to be appended into the current plan prefix
-void StripsEncoding::evaluate_action(double& lower, double& upper, int action, const State *goals) {
-
-	// Check extreme condition: there is one goal that is for sure not supported
-	// Return 0 robustness
-	const State *last_state = get_states().at(get_states().size() - 1);
-	for (int i=0;i<goals->num_F;i++) {
-		int g = goals->F[i];
-		if (is_del(g, action)) {
-			lower = upper = 0;
-			return;
-		}
-
-		if (!is_in_state(g, last_state) && !is_add(g, action) && !is_poss_add(g, action)) {
-			lower = upper = 0;
-		}
-	}
-
-	// Get clauses for (possible) preconditions of "action"
-	ClauseSet applicability_clauses;
-	compute_applicability_clauses(action, applicability_clauses);
-
-	/*
-	 * Get clauses for the goals, assuming that this "action" is appended
-	 * into the current plan prefix
-	 */
-	vector<ClauseSet> goal_to_clauses;
-	goal_to_clauses.reserve(goals->num_F);
-	for (int i=0;i<goals->num_F;i++) {
-		int g = goals->F[i];
-
-		// If "g" is added by "action", the clause set is empty
-		if (is_add(g, action)) {
-			goal_to_clauses[i].clear();
-			continue;
-		}
-
-		// If "g" is not possible added or possible deleted by "action",
-		// get the clause set from the previous layer
-		if (!is_poss_add(g, action) && !is_poss_del(g, action)) {
-			supporting_constraints(g, get_states().size()-1, goal_to_clauses[i]);
-			continue;
-		}
-
-
-		if (is_pre(g, action)) {
-			// If "g" is a possible add of "action", the clause set is empty
-
-			// If "g" is a possible delete of "action", we have one more clause
-			if (is_poss_del(g, action)) {
-				int bvar = get_bool_var(g, action, POSS_DEL);
-				Clause c;
-				c.insert(-bvar);
-				goal_to_clauses[g].add_clause(c);
-			}
-		}
-		else {
-			int level = get_states().size() - 1;
-			int confirmed_level = get_confirmed_level(g, level);
-
-			// Establishment constraints (taking "action" into account
-			if (!is_in_state(g, this->states[confirmed_level])) {
-				Clause c;
-				int k;
-				for (k = confirmed_level; k < level; k++)
-					if (is_poss_add(g, this->actions[k])) {
-						int bvar = get_bool_var(g, this->actions[k], POSS_ADD);
-						c.insert(bvar);
-					}
-				if (is_poss_add(g, action)) {
-					int bvar = get_bool_var(g, action, POSS_ADD);
-					c.insert(bvar);
-				}
-				goal_to_clauses[g].add_clause(c);
-			}
-
-			// Protection constraints
-			for (int k = confirmed_level; k < level; k++)
-				if (is_poss_del(g, this->actions[k])) {
-					Clause c;
-					int bvar = get_bool_var(g, this->actions[k], POSS_DEL);
-					c.insert(-bvar);
-
-					for (int j=k+1;j<level;j++) {
-						if (is_poss_add(g, this->actions[j])) {
-							bvar = get_bool_var(g, this->actions[j], POSS_ADD);
-							c.insert(bvar);
-						}
-					}
-					if (is_poss_add(g, action)) {
-						int bvar = get_bool_var(g, action, POSS_ADD);
-						c.insert(bvar);
-					}
-
-					goal_to_clauses[g].add_clause(c);
-				}
-		}
-	}
-
-	ClauseSet cs = get_clauses();
-
-	cs.add_clauses(applicability_clauses);
-	for (int i=0;i<goals->num_F;i++) {
-		int g = goals->F[i];
-		cs.add_clauses(goal_to_clauses[g]);
-	}
-	lower = cs.lower_bound();
-	upper = cs.upper_bound();
-
+// Append an action and extend the plan prefix. Update the clause set.
+void StripsEncoding::extend_plan_prefix(int action) {
+	append(action);
+	plan_prefix_length++;
+	// Update the clause set for plan prefix
+	plan_prefix_clauses.add_clauses(get_clauses(actions.size()-1));
 }
 
 int StripsEncoding::get_confirmed_level(int ft,int level) const
@@ -311,7 +182,7 @@ bool StripsEncoding::supporting_constraints(int ft, int level, ClauseSet& clause
 		for (k = confirmed_level; k < level; k++)
 			if (is_poss_add(ft, this->actions[k])) {
 				int bvar = get_bool_var(ft, this->actions[k], POSS_ADD);
-				c.insert(bvar);
+				c.add_literal(bvar);
 			}
 		clauses.add_clause(c);
 	}
@@ -321,12 +192,12 @@ bool StripsEncoding::supporting_constraints(int ft, int level, ClauseSet& clause
 		if (is_poss_del(ft, this->actions[k])) {
 			Clause c;
 			int bvar = get_bool_var(ft, this->actions[k], POSS_DEL);
-			c.insert(-bvar);
+			c.add_literal(-bvar);
 
 			for (int j=k+1;j<level;j++) {
 				if (is_poss_add(ft, this->actions[j])) {
 					bvar = get_bool_var(ft, this->actions[j], POSS_ADD);
-					c.insert(bvar);
+					c.add_literal(bvar);
 				}
 			}
 			clauses.add_clause(c);
@@ -337,19 +208,20 @@ bool StripsEncoding::supporting_constraints(int ft, int level, ClauseSet& clause
 }
 
 // Add new clause or clause set
-void StripsEncoding::add_clauses(const ClauseSet& cs) {
-	clauses->add_clauses(cs);
-}
-
-void StripsEncoding::add_clause(const Clause& c) {
-	clauses->add_clause(c);
-}
+//void StripsEncoding::add_clauses(const ClauseSet& cs) {
+//	clauses->add_clauses(cs);
+//}
+//
+//void StripsEncoding::add_clause(const Clause& c) {
+//	clauses->add_clause(c);
+//}
 
 bool StripsEncoding::check_goals(const State *goals, ClauseSet& cs) {
 	if (!goals) {
 		cs.clear();
-		return false;
+		return true;
 	}
+
 	int n = this->actions.size();
 	State *current_state = this->states[n];
 	for (int i=0;i<goals->num_F;i++) {
@@ -365,151 +237,69 @@ bool StripsEncoding::check_goals(const State *goals, ClauseSet& cs) {
 		cs.add_clauses(ft_clauses);
 	}
 
-	// NOTE: if "cs" is empty here, it means that goals are certainly satisfied?
 	return true;
 }
 
-void StripsEncoding::evaluate_robustness(int& satresult, double& sat_prob, double& rtime, const State *goals) {
-	if (clauses->size() == 0) {
-		bool all_goals_satisfied = true;
-		for (int i=0;i<goals->num_F;i++) {
-			if (!is_in_state(goals->F[i], states[0])) {
-				all_goals_satisfied = false;
-				break;
+// Collection all clauses for action at position "k"
+const ClauseSet& StripsEncoding::get_clauses(int k) const {
+	assert(k >= 0 && k < actions.size());
+
+	ClauseSet clauses;
+	int op = actions[k];
+	for (int i=0;i<gop_conn[op].num_E;i++) {
+		int ef = gop_conn[op].E[i];
+
+		// Known preconditions
+		for (int j=0;j<gef_conn[ef].num_PC;j++) {
+			int p = gef_conn[ef].PC[j];
+			if (action_clauses[i].pre_clauses.find(p) != action_clauses[i].pre_clauses.end()) {
+				clauses.add_clauses(action_clauses[i].pre_clauses.at(p));
 			}
 		}
-		if (all_goals_satisfied) {
-			satresult = 1;	// is this setting correct? (2 is unsatisfiable)
-			sat_prob = 1;
-			rtime = 0;
+
+		// Possible preconditions
+		for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
+			int p = gef_conn[ef].poss_PC[j];
+			if (action_clauses[i].poss_pre_clauses.find(p) != action_clauses[i].poss_pre_clauses.end()) {
+				clauses.add_clauses(action_clauses[i].poss_pre_clauses.at(p));
+			}
 		}
-		else {
+	}
+	return clauses;
+}
+
+const ClauseSet& StripsEncoding::get_clauses() const {
+	if (plan_prefix_length == actions.size())
+		return plan_prefix_clauses;
+
+	ClauseSet cs(plan_prefix_clauses);
+	for (int i=plan_prefix_length; i<actions.size();i++) {
+		cs.add_clauses(get_clauses(i));
+	}
+	return cs;
+}
+
+
+void StripsEncoding::evaluate_plan_prefix(int& satresult, double& sat_prob, double& rtime, const State *goals) {
+	assert(actions.size() == action_clauses.size());
+	assert(states.size() == actions.size()+1);
+
+	ClauseSet clauses(plan_prefix_clauses);
+
+	// Add clauses for goals
+	ClauseSet goal_clauses;
+	if (goals) {
+		if (check_goals(goals, goal_clauses))
+			clauses.add_clauses(goal_clauses);
+		else {	// There is a goal proposition not in the last state
 			satresult = 0;
 			sat_prob = 0;
 			rtime = 0;
+			return;
 		}
 	}
-	float r = 0;
 
-	// Check the model counting file
-	FILE *f;
-	if ((f = fopen ("./cachet", "r")) == NULL)
-	{
-		printf("Model counting software not found! File %s, line %d.\n",__FILE__,__LINE__);
-		exit(1);
-	}
-	fclose(f);
-
-	string filename = "CNF.txt";
-
-	write_cnf_file(filename.c_str(), goals);	// Current implementation: ignore weights.
-	string cmd = "./cachet " + filename + " -q";
-
-	// Calling the model counting and write the answer to "A" file
-	system(cmd.c_str());
-
-	// Read the answer file to get the resulting information
-	read_weighted_model_counting_answer_file(satresult,sat_prob,rtime);
-
-	// The clause must be satisfiable
-//	if (satresult != 2)
-//	{
-//		//printf("The clause set must not be unsatisfiable! File %s, line %d.\n",__FILE__,__LINE__);
-//		//exit(1);
-//		return false;
-//	}
-
-	if (gcmd_line.display_info == 1000)
-	{
-		printf("\nMODEL COUNTING RESULT:\n");
-		printf(">> CNF file: %s\n",filename.c_str());
-		printf(">> Number of boolean variables: %d\n",gnum_possible_annotations);
-		printf(">> Robustness value: %f\n",sat_prob);
-		printf(">> Counting time: %lf\n",rtime);
-		fflush(stdout);
-	}
-
+	clauses.wmc(satresult, sat_prob, rtime);
 }
 
-bool StripsEncoding::write_cnf_file(const char* filename, const State *goals, std::vector<float> *weights) {
-	FILE *CNF;
-	if ( (CNF = fopen(filename,"w")) == NULL )
-	{
-		printf("Can not open CNF file! File %s, line %d.\n",__FILE__,__LINE__);
-		exit(1);
-	}
-
-	ClauseSet goal_clauses;
-	if (goals) {
-		bool success = check_goals(goals, goal_clauses);
-		if (!success) {
-			fclose(CNF);
-			return false;
-		}
-	}
-
-	fprintf(CNF, "c clauses representing causal proof of plan correctness\n");
-	fprintf(CNF, "p cnf %d %d\n", gnum_possible_annotations, clauses->size() + goal_clauses.size());
-
-	// Write the non-uniform weights of (positive) literals
-	if (weights)
-	{
-		if (weights->size() != gnum_possible_annotations + 1)
-		{
-			printf("ERROR: Weigh vector is wrong! File %s, line %d.\n",__FILE__,__LINE__);
-			exit(1);
-		}
-
-		for (int i=1;i<=weights->size()-1;i++)
-		{
-			// We don't need to write the weight 0.5 into the CNF file
-			if ((*weights)[i] == 0.5)
-				continue;
-			fprintf(CNF,"w %d %f\n",i,(*weights)[i]);
-		}
-	}
-
-	// Write each clause to the file, ending with 0
-	for (ClauseSet::const_iterator itr = clauses->cbegin(); itr != clauses->cend(); itr++) {
-		const Clause& c = *itr;
-		for (Clause::const_iterator itr2 = c.begin(); itr2 != c.end(); itr2++) {
-			assert(*itr2 > 0);
-			fprintf(CNF, "%d ", *itr2);
-		}
-		fprintf(CNF, "0\n");
-	}
-
-//	for (int i = 0; i < clauses->size(); i++) {
-//		Clause *c = clauses[i];
-//		if (!c) continue;
-//		for (Clause::const_iterator itr = c->begin(); itr != c->end(); itr++) {
-//			assert(*itr > 0);
-//			fprintf(CNF,"%d ",*itr);
-//		}
-//		fprintf(CNF,"0\n");
-//	}
-
-	for (ClauseSet::const_iterator itr = goal_clauses.cbegin(); itr != goal_clauses.cend(); itr++) {
-		const Clause& c = *itr;
-		for (Clause::const_iterator itr2 = c.begin(); itr2 != c.end(); itr2++) {
-			assert(*itr2 > 0);
-			fprintf(CNF, "%d ", *itr2);
-		}
-		fprintf(CNF, "0\n");
-	}
-
-	fclose(CNF);
-	return true;
-}
-
-void StripsEncoding::read_weighted_model_counting_answer_file(int& satresult,double& sat_prob, double& rtime) {
-	FILE *A;
-	if ( (A = fopen("A","r")) == NULL )
-	{
-		printf("Can't open Catchet's answer file! File %s, line %d.\n",__FILE__,__LINE__);
-		exit( 1 );
-	}
-	fscanf(A,"%d %lf %lf\n", &satresult, &sat_prob, &rtime);
-	fclose(A);
-}
 
