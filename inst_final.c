@@ -169,29 +169,33 @@ void perform_reachability_analysis( void )
 				}
 			}
 
-			if ( i < no->num_preconds ) {		/* TUAN: this action will never be applicable?*/
+			if ( i < no->num_preconds ) {		/* TUAN: this action will never be applicable, thus will be removed*/
 				t1 = t1->next;
 				continue;
 			}
 
 			/*
 			 * TUAN (begin)
+			 *
+			 * DOING THIS ANALYSIS WITH POSSIBLE PRECONDITIONS IS WRONG,
+			 * SINCE POSSIBLE PRECONDITIONS MAY NOT NEED FOR ACTION APPLICABILITY
+			 *
 			 */
-			for (i = 0; i < no->num_poss_preconds; i++) {
-				lp = no->poss_preconds[i].predicate;
-				for ( j = 0; j < garity[lp]; j++ ) {
-					largs[j] = ( no->poss_preconds[i].args[j] >= 0 ) ?
-							no->poss_preconds[i].args[j] : t1->inst_table[DECODE_VAR( no->poss_preconds[i].args[j] )];
-				}
-				if ( !lpos[lp][fact_adress()] ) {
-					break;
-				}
-			}
-
-			if ( i < no->num_poss_preconds ) {
-				t1 = t1->next;
-				continue;
-			}
+//			for (i = 0; i < no->num_poss_preconds; i++) {
+//				lp = no->poss_preconds[i].predicate;
+//				for ( j = 0; j < garity[lp]; j++ ) {
+//					largs[j] = ( no->poss_preconds[i].args[j] >= 0 ) ?
+//							no->poss_preconds[i].args[j] : t1->inst_table[DECODE_VAR( no->poss_preconds[i].args[j] )];
+//				}
+//				if ( !lpos[lp][fact_adress()] ) {
+//					break;
+//				}
+//			}
+//
+//			if ( i < no->num_poss_preconds ) {
+//				t1 = t1->next;
+//				continue;
+//			}
 			/*
 			 * TUAN (end)
 			 */
