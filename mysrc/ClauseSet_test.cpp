@@ -23,7 +23,11 @@ void test_adding_removing_clauses() {
 	cs.add_clause(c2);
 	cs.add_clause(c3);
 	cs.add_clause(c4);
-	cout<<"Clauses: "<<cs<<endl;
+	cout<<"Clauses (cs): "<<cs<<endl;
+
+	ClauseSet cs2 = cs;
+	cout<<"Clauses (cs2): "<<cs2<<endl;
+
 }
 
 void test_estimate_robustness() {

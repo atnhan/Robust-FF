@@ -69,6 +69,9 @@ public:
 	const ClauseSet& get_clauses(int i) const;
 	const ClauseSet& get_clauses() const;
 
+	//void get_clauses(int i, ClauseSet& cs) const;
+	//void get_clauses(ClauseSet& cs) const;
+
 	// Evaluate the robustness of the current plan prefix, optionally with a goal set using weighted model counting.
 	// Note: if correctness constraints are satisfiable, then the "satresult" must be 2
 	void evaluate_plan_prefix(int& satresult,double& sat_prob, double& rtime, const State *goals = 0);

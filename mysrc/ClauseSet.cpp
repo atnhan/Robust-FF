@@ -62,7 +62,7 @@ void ClauseSet::wmc(int& satresult, double& satprob, double& rtime) const {
 
 	// Check the model counting file
 	FILE *f;
-	if ((f = fopen ("./cachet", "r")) == NULL)
+	if ((f = fopen ("./cachet-wmc", "r")) == NULL)
 	{
 		printf("Model counting software not found! File %s, line %d.\n",__FILE__,__LINE__);
 		exit(1);
@@ -72,13 +72,13 @@ void ClauseSet::wmc(int& satresult, double& satprob, double& rtime) const {
 	string filename = "CNF.txt";
 
 	write_cnf_file(filename.c_str());
-	string cmd = "./cachet " + filename + " -q";
+	string cmd = "./cachet-wmc " + filename + " -q";
 
 	// Calling the model counting and write the answer to "A" file
 	system(cmd.c_str());
 
 	// Read the answer file to get the resulting information
-	read_wmc_answer_file(satresult,satprob,rtime);
+	//read_wmc_answer_file(satresult,satprob,rtime);
 }
 
 double ClauseSet::lower_wmc() const {

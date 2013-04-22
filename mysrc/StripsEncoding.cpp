@@ -18,6 +18,7 @@ extern void make_state( State *S, int n );
 extern int gnum_possible_annotations;
 
 StripsEncoding::StripsEncoding(State *init) {
+	plan_prefix_length = 0;
 	State *init_state = (State*) calloc(1, sizeof(State));
 	make_state(init_state, gnum_ft_conn);
 	init_state->max_F = gnum_ft_conn;
@@ -37,6 +38,8 @@ StripsEncoding::~StripsEncoding() {
 
 void StripsEncoding::append(int action) {
 	assert(action >= 0 && action < gnum_op_conn);
+
+	cout<<"IN APPEND..."<<endl;
 
 	State *current_state = this->states[this->actions.size()];
 	State *resulting_state = (State*) calloc(1, sizeof(State));
@@ -61,8 +64,12 @@ void StripsEncoding::append(int action) {
 		assert(success);
 
 		// Update clauses for this precondition
-		if (cs.size())
+		if (cs.size()) {
 			new_action_clauses.pre_clauses[ft] = cs;
+
+			//
+			cout<<cs<<endl;
+		}
 	}
 
 	// Second, for possible preconditions
@@ -86,8 +93,12 @@ void StripsEncoding::append(int action) {
 			}
 
 			// Update clauses for this possible precondition
-			if (temp_cs.size())
+			if (temp_cs.size()) {
 				new_action_clauses.poss_pre_clauses[ft] = temp_cs;
+
+				//
+				cout<<temp_cs<<endl;
+			}
 		}
 		else {	// If "ft" is false at the level, we don't need to find supporting clauses (i.e., they are empty)
 				// This action is applicable only when this possible precondition is not realized
@@ -98,10 +109,19 @@ void StripsEncoding::append(int action) {
 			ClauseSet cs;
 			cs.add_clause(c);
 			new_action_clauses.poss_pre_clauses[ft] = cs;
+
+			//
+			cout<<cs<<endl;
 		}
 	}
 
 	this->action_clauses.push_back(new_action_clauses);
+
+	//
+
+
+	//
+	cout<<"DONE APPEND."<<endl;
 }
 
 // Remove the last action
@@ -126,7 +146,11 @@ void StripsEncoding::extend_plan_prefix(int action) {
 	append(action);
 	plan_prefix_length++;
 	// Update the clause set for plan prefix
-	plan_prefix_clauses.add_clauses(get_clauses(actions.size()-1));
+	ClauseSet cs = get_clauses(actions.size()-1);
+
+	cout<<"The clauses: "<<get_clauses(actions.size()-1)<<endl;
+
+	//plan_prefix_clauses.add_clauses(get_clauses(actions.size()-1));
 }
 
 int StripsEncoding::get_confirmed_level(int ft,int level) const
@@ -244,29 +268,72 @@ bool StripsEncoding::check_goals(const State *goals, ClauseSet& cs) {
 const ClauseSet& StripsEncoding::get_clauses(int k) const {
 	assert(k >= 0 && k < actions.size());
 
+	//
+	cout<<"IN GET_CLAUSES..."<<endl;
+
 	ClauseSet clauses;
 	int op = actions[k];
+
 	for (int i=0;i<gop_conn[op].num_E;i++) {
 		int ef = gop_conn[op].E[i];
 
 		// Known preconditions
 		for (int j=0;j<gef_conn[ef].num_PC;j++) {
 			int p = gef_conn[ef].PC[j];
-			if (action_clauses[i].pre_clauses.find(p) != action_clauses[i].pre_clauses.end()) {
-				clauses.add_clauses(action_clauses[i].pre_clauses.at(p));
+			if (action_clauses[k].pre_clauses.find(p) != action_clauses[k].pre_clauses.end()) {
+				clauses.add_clauses(action_clauses[k].pre_clauses.at(p));
 			}
 		}
 
 		// Possible preconditions
 		for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
 			int p = gef_conn[ef].poss_PC[j];
-			if (action_clauses[i].poss_pre_clauses.find(p) != action_clauses[i].poss_pre_clauses.end()) {
-				clauses.add_clauses(action_clauses[i].poss_pre_clauses.at(p));
+			if (action_clauses[k].poss_pre_clauses.find(p) != action_clauses[k].poss_pre_clauses.end()) {
+				clauses.add_clauses(action_clauses[k].poss_pre_clauses.at(p));
 			}
 		}
 	}
+
+	//
+	cout<<clauses<<endl;
+	cout<<"DONE GET_CLAUSES."<<endl;
+
 	return clauses;
 }
+
+//void StripsEncoding::get_clauses(int k, ClauseSet& clauses) const {
+//	assert(k >= 0 && k < actions.size());
+//
+//	//
+//	cout<<"IN GET_CLAUSES..."<<endl;
+//
+//	int op = actions[k];
+//
+//	for (int i=0;i<gop_conn[op].num_E;i++) {
+//		int ef = gop_conn[op].E[i];
+//
+//		// Known preconditions
+//		for (int j=0;j<gef_conn[ef].num_PC;j++) {
+//			int p = gef_conn[ef].PC[j];
+//			if (action_clauses[k].pre_clauses.find(p) != action_clauses[k].pre_clauses.end()) {
+//				clauses.add_clauses(action_clauses[k].pre_clauses.at(p));
+//			}
+//		}
+//
+//		// Possible preconditions
+//		for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
+//			int p = gef_conn[ef].poss_PC[j];
+//			if (action_clauses[k].poss_pre_clauses.find(p) != action_clauses[k].poss_pre_clauses.end()) {
+//				clauses.add_clauses(action_clauses[k].poss_pre_clauses.at(p));
+//			}
+//		}
+//	}
+//
+//	//
+//	cout<<clauses<<endl;
+//	cout<<"DONE GET_CLAUSES."<<endl;
+//}
+
 
 const ClauseSet& StripsEncoding::get_clauses() const {
 	if (plan_prefix_length == actions.size())
@@ -278,6 +345,18 @@ const ClauseSet& StripsEncoding::get_clauses() const {
 	}
 	return cs;
 }
+
+//void StripsEncoding::get_clauses(ClauseSet& cs) const {
+//	if (plan_prefix_length == actions.size()) {
+//		cs = plan_prefix_clauses;
+//	}
+//
+//	ClauseSet cs(plan_prefix_clauses);
+//	for (int i=plan_prefix_length; i<actions.size();i++) {
+//		cs.add_clauses(get_clauses(i));
+//	}
+//	return cs;
+//}
 
 
 void StripsEncoding::evaluate_plan_prefix(int& satresult, double& sat_prob, double& rtime, const State *goals) {

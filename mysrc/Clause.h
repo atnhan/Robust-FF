@@ -30,6 +30,9 @@ public:
 	Clause();
 	virtual ~Clause();
 
+	// Assignment operator
+	Clause& operator=(const Clause& c);
+
 	// Get the weight of a boolean variable
 	static double weight(int pro);
 

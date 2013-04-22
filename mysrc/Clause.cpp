@@ -30,6 +30,12 @@ Clause::~Clause() {
 
 }
 
+// Assignment operator
+Clause& Clause::operator=(const Clause& c) {
+	this->clause = c.clause;
+	return *this;
+}
+
 // Add a new literal
 void Clause::add_literal(int l) {
 	assert(abs(l) >= 1 && abs(l) <= Clause::num_bool_vars());

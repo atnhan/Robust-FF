@@ -31,6 +31,12 @@ public:
 	void add_clause(const Clause& c);				// OPTIMIZATION POSSIBLE!!!
 	void add_clauses(const ClauseSet& cs);
 
+	// Assignment operator
+	ClauseSet& operator=(const ClauseSet& cs) {
+		this->clauses = cs.clauses;
+		return *this;
+	}
+
 	// Get size
 	int size() const {
 		return clauses.size();

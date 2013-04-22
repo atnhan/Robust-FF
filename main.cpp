@@ -677,6 +677,8 @@ int main( int argc, char *argv[] )
 	 * TUAN (begin)
 	 * Test the correctness constraints by testing plan robustness assessment
 	 */
+	vector<double> weights(gnum_possible_annotations, 0.5);
+	Clause::set_weights(weights);
 	string sol_file("pfile10.sol");
 	evaluate_plan_robustness(sol_file, &ginitial_state, &ggoal_state);
 
