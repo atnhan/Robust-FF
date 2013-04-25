@@ -16,7 +16,7 @@ using namespace std;
 /*
  * Read a solution file, and compute its robustness
  */
-void evaluate_plan_robustness(string filename, State *initial_state, State* goal_state) {
+void test_evaluate_plan_robustness(string filename, State *initial_state, State* goal_state) {
 	string file_path = string(gcmd_line.path) + filename;
 
 	ifstream f(file_path.c_str(),ifstream::in );
@@ -60,8 +60,7 @@ void evaluate_plan_robustness(string filename, State *initial_state, State* goal
 
 	/***********************************************/
 	StripsEncoding e(initial_state);
-	//for (int i=0;i<plan_actions.size();i++) {
-	for (int i=0;i<1;i++) {
+	for (int i=0;i<plan_actions.size();i++) {
 		int op = find_action(plan_actions[i]);
 		e.extend_plan_prefix(op);
 	}
@@ -85,13 +84,15 @@ void evaluate_plan_robustness(string filename, State *initial_state, State* goal
 
 	}
 
-	cout<<"Clause set:"<<endl;
-	cout<<e.get_clauses()<<endl;
+	ClauseSet clauses;
+	e.get_clauses(clauses);
+	cout<<clauses<<endl;
 
-	int satresult;
-	double sat_prob;
-	double rtime;
-	e.evaluate_plan_prefix(satresult, sat_prob, rtime, goal_state);
-	cout<<"Robustness: "<<sat_prob<<endl;
+//	CACHET_OUTPUT r;
+//	e.evaluate_plan_prefix(r, goal_state);
+//	r.print();
+//
+//	cout<<"Lower probability: "<<cs.lower_wmc()<<endl;
+//	cout<<"Upper probability: "<<cs.upper_wmc()<<endl;
 
 }

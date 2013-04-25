@@ -63,18 +63,14 @@ public:
 
 	// Check the goals: return false if any goal proposition is not in the last state
 	// *New* constraints enforced on goal propositions are also returned
-	bool check_goals(const State *goals, ClauseSet& cs);
+	bool check_goals(const State *goals, ClauseSet& clauses);
 
 	// Collect all clauses for an action at position "i", and all actions
-	const ClauseSet& get_clauses(int i) const;
-	const ClauseSet& get_clauses() const;
-
-	//void get_clauses(int i, ClauseSet& cs) const;
-	//void get_clauses(ClauseSet& cs) const;
+	void get_clauses(int i, ClauseSet& cs) const;
+	void get_clauses(ClauseSet& cs) const;
 
 	// Evaluate the robustness of the current plan prefix, optionally with a goal set using weighted model counting.
-	// Note: if correctness constraints are satisfiable, then the "satresult" must be 2
-	void evaluate_plan_prefix(int& satresult,double& sat_prob, double& rtime, const State *goals = 0);
+	void evaluate_plan_prefix(CACHET_OUTPUT& r, const State *goals = 0);
 
 	// Gets
 	const std::vector<int>& get_actions() const {
@@ -90,6 +86,10 @@ public:
 	}
 
 	friend class RelaxedPlan;
+
+	// UNIT TESTS
+	friend void test_evaluate_plan_robustness(std::string filename, State *initial_state, State* goal_state);
+	friend void test_relaxed_planning_graph(std::string partial_sol_file, State *initial_state, State* goal_state);
 };
 
 #endif /* STRIPSENCODING_H_ */

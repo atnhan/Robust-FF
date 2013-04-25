@@ -182,4 +182,10 @@ int get_bool_var(int ft, int action, AnnotationType t) {
 	return res;
 }
 
+// Get predicate of a proposition
+int get_predicate(int pro) {
+	assert(pro >=0 && pro < gnum_relevant_facts);
+	return grelevant_facts[pro].predicate;
+}
+
 

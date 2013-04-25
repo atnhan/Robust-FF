@@ -15,7 +15,6 @@ using namespace std;
 extern int result_to_dest( State *dest, State *source, int op );
 extern void source_to_dest( State *dest, State *source );
 extern void make_state( State *S, int n );
-extern int gnum_possible_annotations;
 
 StripsEncoding::StripsEncoding(State *init) {
 	plan_prefix_length = 0;
@@ -145,12 +144,9 @@ bool StripsEncoding::remove_last() {
 void StripsEncoding::extend_plan_prefix(int action) {
 	append(action);
 	plan_prefix_length++;
-	// Update the clause set for plan prefix
-	ClauseSet cs = get_clauses(actions.size()-1);
-
-	cout<<"The clauses: "<<get_clauses(actions.size()-1)<<endl;
-
-	//plan_prefix_clauses.add_clauses(get_clauses(actions.size()-1));
+	ClauseSet clauses;
+	get_clauses(actions.size()-1, clauses);
+	plan_prefix_clauses.add_clauses(clauses);
 }
 
 int StripsEncoding::get_confirmed_level(int ft,int level) const
@@ -240,9 +236,9 @@ bool StripsEncoding::supporting_constraints(int ft, int level, ClauseSet& clause
 //	clauses->add_clause(c);
 //}
 
-bool StripsEncoding::check_goals(const State *goals, ClauseSet& cs) {
+bool StripsEncoding::check_goals(const State *goals, ClauseSet& clauses) {
 	if (!goals) {
-		cs.clear();
+		clauses.clear();
 		return true;
 	}
 
@@ -251,29 +247,27 @@ bool StripsEncoding::check_goals(const State *goals, ClauseSet& cs) {
 	for (int i=0;i<goals->num_F;i++) {
 		int ft = goals->F[i];
 		if (!is_in_state(ft, current_state)) {
-			cs.clear();
+			clauses.clear();
 			return false;
 		}
 		ClauseSet ft_clauses;
 		bool success = supporting_constraints(ft, n, ft_clauses);
 		assert(success);
-		// Add new clauses into "cs"
-		cs.add_clauses(ft_clauses);
+
+		// Add new clauses
+		clauses.add_clauses(ft_clauses);
 	}
 
 	return true;
 }
 
-// Collection all clauses for action at position "k"
-const ClauseSet& StripsEncoding::get_clauses(int k) const {
+void StripsEncoding::get_clauses(int k, ClauseSet& clauses) const {
 	assert(k >= 0 && k < actions.size());
 
 	//
 	cout<<"IN GET_CLAUSES..."<<endl;
 
-	ClauseSet clauses;
 	int op = actions[k];
-
 	for (int i=0;i<gop_conn[op].num_E;i++) {
 		int ef = gop_conn[op].E[i];
 
@@ -295,90 +289,39 @@ const ClauseSet& StripsEncoding::get_clauses(int k) const {
 	}
 
 	//
-	cout<<clauses<<endl;
+	cout<<clauses;
 	cout<<"DONE GET_CLAUSES."<<endl;
-
-	return clauses;
 }
 
-//void StripsEncoding::get_clauses(int k, ClauseSet& clauses) const {
-//	assert(k >= 0 && k < actions.size());
-//
-//	//
-//	cout<<"IN GET_CLAUSES..."<<endl;
-//
-//	int op = actions[k];
-//
-//	for (int i=0;i<gop_conn[op].num_E;i++) {
-//		int ef = gop_conn[op].E[i];
-//
-//		// Known preconditions
-//		for (int j=0;j<gef_conn[ef].num_PC;j++) {
-//			int p = gef_conn[ef].PC[j];
-//			if (action_clauses[k].pre_clauses.find(p) != action_clauses[k].pre_clauses.end()) {
-//				clauses.add_clauses(action_clauses[k].pre_clauses.at(p));
-//			}
-//		}
-//
-//		// Possible preconditions
-//		for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
-//			int p = gef_conn[ef].poss_PC[j];
-//			if (action_clauses[k].poss_pre_clauses.find(p) != action_clauses[k].poss_pre_clauses.end()) {
-//				clauses.add_clauses(action_clauses[k].poss_pre_clauses.at(p));
-//			}
-//		}
-//	}
-//
-//	//
-//	cout<<clauses<<endl;
-//	cout<<"DONE GET_CLAUSES."<<endl;
-//}
-
-
-const ClauseSet& StripsEncoding::get_clauses() const {
-	if (plan_prefix_length == actions.size())
-		return plan_prefix_clauses;
-
-	ClauseSet cs(plan_prefix_clauses);
-	for (int i=plan_prefix_length; i<actions.size();i++) {
-		cs.add_clauses(get_clauses(i));
+void StripsEncoding::get_clauses(ClauseSet& clauses) const {
+	if (plan_prefix_length == actions.size()) {
+		clauses = plan_prefix_clauses;
+		return;
 	}
-	return cs;
+
+	clauses = plan_prefix_clauses;
+	for (int k=plan_prefix_length; k<actions.size(); k++) {
+		ClauseSet s;
+		get_clauses(k, s);
+		clauses.add_clauses(s);
+	}
 }
 
-//void StripsEncoding::get_clauses(ClauseSet& cs) const {
-//	if (plan_prefix_length == actions.size()) {
-//		cs = plan_prefix_clauses;
-//	}
-//
-//	ClauseSet cs(plan_prefix_clauses);
-//	for (int i=plan_prefix_length; i<actions.size();i++) {
-//		cs.add_clauses(get_clauses(i));
-//	}
-//	return cs;
-//}
 
-
-void StripsEncoding::evaluate_plan_prefix(int& satresult, double& sat_prob, double& rtime, const State *goals) {
+void StripsEncoding::evaluate_plan_prefix(CACHET_OUTPUT& r, const State *goals) {
 	assert(actions.size() == action_clauses.size());
 	assert(states.size() == actions.size()+1);
-
-	ClauseSet clauses(plan_prefix_clauses);
 
 	// Add clauses for goals
 	ClauseSet goal_clauses;
 	if (goals) {
-		if (check_goals(goals, goal_clauses))
-			clauses.add_clauses(goal_clauses);
-		else {	// There is a goal proposition not in the last state
-			satresult = 0;
-			sat_prob = 0;
-			rtime = 0;
+		if (!check_goals(goals, goal_clauses)) {
+			r.prob = 0;
+			r.time = 0;
 			return;
 		}
 	}
 
-	clauses.wmc(satresult, sat_prob, rtime);
 }
 
 

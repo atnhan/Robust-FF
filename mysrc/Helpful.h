@@ -37,6 +37,9 @@ void print_state(const State& s);
 // Valid boolean variable must be POSITIVE
 int get_bool_var(int ft, int action, AnnotationType t);
 
+// Get predicate of a proposition
+int get_predicate(int pro);
+
 // Read WMC output file
 void read_wmc_answer_file(int& satresult,double& sat_prob, double& rtime);
 

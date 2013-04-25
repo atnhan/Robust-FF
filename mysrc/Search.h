@@ -10,6 +10,7 @@
 #include "../ff.h"
 #include <vector>
 #include "StripsEncoding.h"
+#include "RelaxedPlan.h"
 
 class Search {
 protected:
@@ -29,13 +30,17 @@ protected:
 	 */
 
 	// Get applicable actions for a given state
-	void get_applicable_actions(const State* state, std::vector<int>& actions);
+	void get_applicable_actions(const State* state, std::vector<int>& actions, const RelaxedPlan* rp = 0, bool helpful_actions = true);
 
 public:
 	Search(State* init, State* goals);
 	virtual ~Search();
 
 	virtual bool run() = 0;
+
+	// If we are using FF-helpful action
+	static bool FF_helpful_actions;
+
 };
 
 #endif /* SEARCH_H_ */

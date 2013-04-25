@@ -27,6 +27,7 @@ public:
 	virtual ~StochasticLocalSearch();
 
 	bool run();
+
 };
 
 #endif /* STOCHASTICLOCALSEARCH_H_ */

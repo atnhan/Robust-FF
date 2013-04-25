@@ -64,12 +64,15 @@
 #include "mysrc/ClauseSet.h"
 using namespace std;
 
-extern void evaluate_plan_robustness(std::string filename, State *initial_state, State *goal_state);
-extern void test_relaxed_planning_graph(string partial_sol_file, State *initial_state, State* goal_state);
-extern void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State* goal_state);
+extern void test_evaluate_plan_robustness(std::string filename, State *initial_state, State *goal_state);
+//extern void test_relaxed_planning_graph(string partial_sol_file, State *initial_state, State* goal_state);
+//extern void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State* goal_state);
 extern void test_estimate_robustness();
 extern void test_adding_removing_clauses();
 extern int gnum_possible_annotations;
+
+// Problem file
+string gproblem_file;
 
 /*
  * TUAN (end)
@@ -677,10 +680,11 @@ int main( int argc, char *argv[] )
 	 * TUAN (begin)
 	 * Test the correctness constraints by testing plan robustness assessment
 	 */
-	vector<double> weights(gnum_possible_annotations, 0.5);
+	gproblem_file = string(gcmd_line.fct_file_name);
+	vector<double> weights(gnum_possible_annotations, 0.75);
 	Clause::set_weights(weights);
 	string sol_file("pfile10.sol");
-	evaluate_plan_robustness(sol_file, &ginitial_state, &ggoal_state);
+	test_evaluate_plan_robustness(sol_file, &ginitial_state, &ggoal_state);
 
 	exit(0);
 	/*

@@ -47,7 +47,7 @@ class RelaxedPlan {
 		ClauseSet best_clauses;		// Clause set derived from the best supporting action
 		double best_robustness;		// Best robustness computed from the best supporting action, including NOOP
 
-		bool in_rp; // TRUE if this action node is selected
+		bool in_rp; // TRUE if this fact node is selected
 	};
 
 	struct ActionNode {
@@ -116,6 +116,9 @@ class RelaxedPlan {
 	RELAXED_PLAN rp;
 	std::vector<int> num_chosen_actions;	// Number of chosen actions in the relaxed plan at each layer
 
+	// Set of facts added or possibly added by actions in the first action layer, who has been selected into the relaxed plan
+	boost::unordered_set<int> possibly_supported_facts_at_1st_fact_layer;
+
 	// Unsupported actions chosen during the relaxed plan extraction are stored in a queue
 	struct UnsupportedAction {
 		int a;	// action
@@ -175,7 +178,7 @@ public:
 	void extract(std::pair<int, double>& result);
 
 	// Get FF-style helpful actions
-	void get_FF_helpful_actions(std::vector<int>& helpful_actions);
+	void get_FF_helpful_actions(std::vector<int>& helpful_actions) const;
 
 	// Gets
 	int length() {

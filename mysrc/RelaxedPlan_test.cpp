@@ -88,7 +88,9 @@ void test_relaxed_planning_graph(string partial_sol_file, State *initial_state, 
 		print_state(current);
 
 		cout<<endl;
-		cout<<"Encoding: "<<e.get_clauses()<<endl;
+		ClauseSet clauses;
+		e.get_clauses(clauses);
+		cout<<clauses<<endl;
 
 		int style = 1;
 		rp.initialize_fact_layer();
@@ -111,7 +113,9 @@ void test_relaxed_planning_graph(string partial_sol_file, State *initial_state, 
 		print_state(current);
 
 		cout<<endl;
-		cout<<"Encoding: "<<e.get_clauses()<<endl;
+		ClauseSet clauses;
+		e.get_clauses(clauses);
+		cout<<clauses<<endl;
 
 		rp.build_relaxed_planning_graph();
 		print_relaxed_planning_graph(rp, 2, 3);
@@ -124,7 +128,10 @@ void test_relaxed_planning_graph(string partial_sol_file, State *initial_state, 
 		print_state(current);
 
 		cout<<endl;
-		cout<<"Encoding: "<<e.get_clauses()<<endl;
+		ClauseSet clauses;
+		e.get_clauses(clauses);
+		cout<<clauses<<endl;
+
 		rp.build_relaxed_planning_graph();
 		print_action_through_layers(rp, 1037, 3);
 	}
@@ -198,7 +205,10 @@ void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State
 	print_state(current);
 
 	cout<<endl;
-	cout<<"Correctness encoding for plan prefix: "<<e.get_clauses()<<endl;
+	ClauseSet clauses;
+	e.get_clauses(clauses);
+	cout<<clauses<<endl;
+
 
 	cout<<"Building relaxed planning graph..."<<endl;
 	rp.build_relaxed_planning_graph();
