@@ -63,6 +63,7 @@
 
 // AT: Begin adding code
 #include <string.h>
+#include <assert.h>
 // AT: End adding code
 
 /*
@@ -147,6 +148,7 @@ void encode_domain_in_integers( void )
 		printf("\n\n");
 	}
 
+
 	create_integer_representation();
 
 	if ( gcmd_line.display_info == 104 ) {
@@ -164,6 +166,7 @@ void encode_domain_in_integers( void )
 
 		printf("\n\nfirst step goal is:\n");
 		print_Wff( ggoal, 0 );
+
 	}
 
 }
@@ -1049,16 +1052,22 @@ void normalize_all_wffs( void )
 	Effect *e;
 
 	simplify_wff( &ggoal );
+
 	remove_unused_vars_in_wff( &ggoal );
+
 	expand_quantifiers_in_wff( &ggoal, -1, -1 );
+
 	NOTs_down_in_wff( &ggoal );
+
 	cleanup_wff( &ggoal );
+
 	if ( ggoal->connective == TRU ) {
 		printf("\nff: goal can be simplified to TRUE. The empty plan solves it\n\n");
 		exit( 1 );
 	}
+
 	if ( ggoal->connective == FAL ) {
-		printf("\nff: goal can be simplified to FALSE. No plan will solve it\n\n");
+		printf("\nff: goal can be simplified to FALSE. No plan will solve it. File %s, line %d.\n\n", __FILE__, __LINE__);
 		exit( 1 );
 	}
 	/* put goal into DNF right away: fully instantiated already
@@ -1076,13 +1085,14 @@ void normalize_all_wffs( void )
 
 		/*
 		 * TUAN (begin)
+		 * These are not necessary!
 		 */
 
-//		simplify_wff( &(goperators[i]->poss_preconds) );
-//		remove_unused_vars_in_wff( &(goperators[i]->poss_preconds) );
-//		expand_quantifiers_in_wff( &(goperators[i]->poss_preconds), -1, -1 );
-//		NOTs_down_in_wff( &(goperators[i]->poss_preconds) );
-//		cleanup_wff( &(goperators[i]->poss_preconds) );
+		simplify_wff( &(goperators[i]->poss_preconds) );
+		remove_unused_vars_in_wff( &(goperators[i]->poss_preconds) );
+		expand_quantifiers_in_wff( &(goperators[i]->poss_preconds), -1, -1 );
+		NOTs_down_in_wff( &(goperators[i]->poss_preconds) );
+		cleanup_wff( &(goperators[i]->poss_preconds) );
 
 		/*
 		 * TUAN (end)
@@ -1098,14 +1108,15 @@ void normalize_all_wffs( void )
 
 		/*
 		 * TUAN (begin)
+		 * These are not necessary!
 		 */
-//		for ( e = goperators[i]->poss_effects; e; e = e->next ) {
-//			simplify_wff( &(e->conditions) );
-//			remove_unused_vars_in_wff( &(e->conditions) );
-//			expand_quantifiers_in_wff( &(e->conditions), -1, -1 );
-//			NOTs_down_in_wff( &(e->conditions) );
-//			cleanup_wff( &(e->conditions) );
-//		}
+		for ( e = goperators[i]->poss_effects; e; e = e->next ) {
+			simplify_wff( &(e->conditions) );
+			remove_unused_vars_in_wff( &(e->conditions) );
+			expand_quantifiers_in_wff( &(e->conditions), -1, -1 );
+			NOTs_down_in_wff( &(e->conditions) );
+			cleanup_wff( &(e->conditions) );
+		}
 		/*
 		 * TUAN (end)
 		 */
@@ -1320,11 +1331,13 @@ void simplify_wff( WffNode **w )
 			i = i->next;
 			m++;
 		}
+
 		if ( m == 0 ) {
 			(*w)->connective = TRU;
 			free_WffNode( (*w)->sons );
 			(*w)->sons = NULL;
 		}
+
 		if ( m == 1 ) {
 			(*w)->connective = (*w)->sons->connective;
 			(*w)->var = (*w)->sons->var;
@@ -1595,7 +1608,7 @@ Bool possibly_positive( Fact *f )
 
 	int i;
 
-	if ( gis_added[f->predicate] ) {
+	if ( gis_added[f->predicate] || /*TUAN (begin)*/ gis_poss_added[f->predicate] /*TUAN (end)*/ ) {
 		return TRUE;
 	}
 
@@ -1617,7 +1630,7 @@ Bool possibly_negative( Fact *f )
 
 	int i;
 
-	if ( gis_deleted[f->predicate] ) {
+	if ( gis_deleted[f->predicate] || /*TUAN (begin)*/ gis_poss_deleted[f->predicate] /*TUAN (end)*/) {
 		return TRUE;
 	}
 
@@ -2039,6 +2052,17 @@ Bool translate_one_negative_cond( WffNode *w )
 	}
 	gis_added[gnum_predicates] = FALSE;
 	gis_deleted[gnum_predicates] = FALSE;
+
+	/*
+	 * TUAN (begin)
+	 */
+	gis_poss_added[gnum_predicates] = FALSE;
+	gis_poss_deleted[gnum_predicates] = FALSE;
+
+	/*
+	 * TUAN (end)
+	 */
+
 	m = 1;
 	for ( j = 0; j < garity[gnum_predicates]; j++ ) {
 		m *= gtype_size[gpredicates_args_type[gnum_predicates][j]];
@@ -2054,13 +2078,16 @@ Bool translate_one_negative_cond( WffNode *w )
 				&(goperators[j]->preconds) );
 
 		for ( e = goperators[j]->effects; e; e = e->next ) {
-			replace_not_p_with_n_in_wff( p, gnum_predicates - 1,
-					&(e->conditions) );
+
+			replace_not_p_with_n_in_wff( p, gnum_predicates - 1, &(e->conditions) );
+
 			for ( l = e->effects; l; l = l->next ) {
 				if ( l->fact.predicate != p ) {
 					continue;
 				}
+
 				tmp = new_Literal();
+
 				if ( l->negated ) {
 					tmp->negated = FALSE;
 					gis_added[gnum_predicates - 1] = TRUE;
@@ -2068,7 +2095,9 @@ Bool translate_one_negative_cond( WffNode *w )
 					tmp->negated = TRUE;
 					gis_deleted[gnum_predicates - 1] = TRUE;
 				}
+
 				tmp->fact.predicate = gnum_predicates - 1;
+
 				for ( k = 0; k < garity[p]; k++ ) {
 					tmp->fact.args[k] = l->fact.args[k];
 				}
@@ -2082,6 +2111,50 @@ Bool translate_one_negative_cond( WffNode *w )
 				l->prev = tmp;
 			}
 		}
+
+		/*
+		 * TUAN (begin)
+		 */
+		for ( e = goperators[j]->poss_effects; e; e = e->next ) {
+
+			replace_not_p_with_n_in_wff( p, gnum_predicates - 1, &(e->conditions) );
+
+			for ( l = e->effects; l; l = l->next ) {
+				if ( l->fact.predicate != p ) {
+					continue;
+				}
+
+				tmp = new_Literal();
+
+				if ( l->negated ) {
+					tmp->negated = FALSE;
+
+					gis_poss_added[gnum_predicates - 1] = TRUE;
+
+				} else {
+					tmp->negated = TRUE;
+					gis_poss_deleted[gnum_predicates - 1] = TRUE;
+				}
+
+				tmp->fact.predicate = gnum_predicates - 1;
+
+				for ( k = 0; k < garity[p]; k++ ) {
+					tmp->fact.args[k] = l->fact.args[k];
+				}
+				if ( l->prev ) {
+					tmp->prev = l->prev;
+					tmp->prev->next = tmp;
+				} else {
+					e->effects = tmp;
+				}
+				tmp->next = l;
+				l->prev = tmp;
+			}
+		}
+		/*
+		 * TUAN (end)
+		 */
+
 	}
 
 	add_to_initial_state( p, gnum_predicates - 1, 0 );
@@ -2165,8 +2238,7 @@ void add_to_initial_state( int p, int n, int index )
 		}
 		gnum_initial_predicate[n]++;
 
-		if ( !gis_added[n] &&
-				!gis_deleted[n] ) {
+		if ( !gis_added[n] && !gis_deleted[n] && /*TUAN (begin)*/!gis_poss_added[n] && !gis_poss_deleted[n] /*TUAN (end)*/) {
 			return;
 		}
 
@@ -2244,12 +2316,34 @@ void split_domain( void )
 
 	for ( i = 0; i < gnum_operators; i++ ) {
 		if ( goperators[i]->hard ) {
+
+			/*
+			 * TUAN (begin)
+			 */
+			printf("Assumption wrong! File %s, line %d\n", __FILE__, __LINE__);
+			exit(1);
+			/*
+			 * TUAN (end)
+			 */
+
 			ghard_operators[gnum_hard_operators++] = goperators[i];
 			continue;
 		}
+
 		w = goperators[i]->preconds;
+
 		switch ( w->connective ) {
 		case OR:
+
+			/*
+			 * TUAN (begin)
+			 */
+			printf("Assumption wrong! File %s, line %d\n", __FILE__, __LINE__);
+			exit(1);
+			/*
+			 * TUAN (end)
+			 */
+
 			for ( ww = w->sons; ww; ww = ww->next ) {
 				tmp_op = new_NormOperator( goperators[i] );
 				if ( ww->connective == AND ) {
@@ -2294,6 +2388,7 @@ void split_domain( void )
 			m = 0;
 			for ( ww = w->sons; ww; ww = ww->next ) m++;
 			tmp_op->preconds = ( Fact * ) calloc( m, sizeof( Fact ) );
+
 			for ( ww = w->sons; ww; ww = ww->next ) {
 				tmp_ft = &(tmp_op->preconds[tmp_op->num_preconds]);
 				tmp_ft->predicate = ww->fact->predicate;
@@ -2361,15 +2456,23 @@ void split_domain( void )
 		}
 	}
 
+	/*
+	 * TUAN (begin)
+	 */
+	assert(gnum_hard_operators == 0);
+	/*
+	 * TUAN (end)
+	 */
+
 	if ( gcmd_line.display_info == 109 ) {
 		printf("\n\nsplitted operators are:\n");
 
-		printf("\nEASY:\n");
+		printf("\nEASY (%d OPERATORS):\n", gnum_easy_operators);
 		for ( i = 0; i < gnum_easy_operators; i++ ) {
 			print_NormOperator( geasy_operators[i] );
 		}
 
-		printf("\n\n\nHARD:\n");
+		printf("\n\n\nHARD (%d OPERATORS):\n", gnum_hard_operators);
 		for ( i = 0; i < gnum_hard_operators; i++ ) {
 			print_Operator( ghard_operators[i] );
 		}

@@ -13,6 +13,8 @@
 #include <iostream>
 using namespace std;
 
+extern void print_op_name( int index );
+
 /*
  * Read a solution file, and compute its robustness
  */
@@ -61,6 +63,9 @@ void test_evaluate_plan_robustness(string filename, State *initial_state, State*
 	/***********************************************/
 	StripsEncoding e(initial_state);
 	for (int i=0;i<plan_actions.size();i++) {
+
+		//cout<<plan_actions[i]<<endl;
+
 		int op = find_action(plan_actions[i]);
 		e.extend_plan_prefix(op);
 	}
@@ -86,7 +91,8 @@ void test_evaluate_plan_robustness(string filename, State *initial_state, State*
 
 	ClauseSet clauses;
 	e.get_clauses(clauses);
-	cout<<clauses<<endl;
+	cout<<"Clauses: "<<clauses<<endl;
+	cout<<"Size: "<<clauses.size()<<endl;
 
 //	CACHET_OUTPUT r;
 //	e.evaluate_plan_prefix(r, goal_state);

@@ -685,7 +685,7 @@ Bool full_possibly_positive( Fact *f )
 
   int adr;
 
-  if ( gis_added[f->predicate] ) {
+  if ( gis_added[f->predicate] || /*TUAN (begin)*/gis_poss_added[f->predicate] /*TUAN (end)*/) {
     return TRUE;
   }
 
@@ -707,7 +707,7 @@ Bool full_possibly_negative( Fact *f )
 
   int adr;
 
-  if ( gis_deleted[f->predicate] ) {
+  if ( gis_deleted[f->predicate] || /*TUAN (begin)*/gis_poss_deleted[f->predicate] /*TUAN (end)*/) {
     return TRUE;
   }
 

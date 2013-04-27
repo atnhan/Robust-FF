@@ -354,6 +354,39 @@ void remove_unused_easy_parameters( void )
 			}
 		}
 
+
+		/*
+		 * TUAN (begin)
+		 */
+		for ( i1 = 0; i1 < o->num_poss_preconds; i1++ ) {
+			for ( i2 = 0; i2 < garity[o->poss_preconds[i1].predicate]; i2++ ) {
+				if ( o->poss_preconds[i1].args[i2] < 0 ) {
+					used[DECODE_VAR( o->poss_preconds[i1].args[i2] )] = TRUE;
+				}
+			}
+		}
+
+		for ( i1 = 0; i1 < o->num_poss_adds; i1++ ) {
+			for ( i2 = 0; i2 < garity[o->poss_adds[i1].predicate]; i2++ ) {
+				if ( o->poss_adds[i1].args[i2] < 0 ) {
+					used[DECODE_VAR( o->poss_adds[i1].args[i2] )] = TRUE;
+				}
+			}
+		}
+
+		for ( i1 = 0; i1 < o->num_poss_dels; i1++ ) {
+			for ( i2 = 0; i2 < garity[o->poss_dels[i1].predicate]; i2++ ) {
+				if ( o->poss_dels[i1].args[i2] < 0 ) {
+					used[DECODE_VAR( o->poss_dels[i1].args[i2] )] = TRUE;
+				}
+			}
+		}
+
+		/*
+		 * TUAN (end)
+		 */
+
+
 		for ( e = o->effects; e; e = e->next ) {
 			for ( i1 = 0; i1 < e->num_conditions; i1++ ) {
 				a = garity[e->conditions[i1].predicate];
@@ -377,39 +410,8 @@ void remove_unused_easy_parameters( void )
 					}
 				}
 			}
-
-			/*
-			 * TUAN (begin)
-			 */
-			for ( i1 = 0; i1 < o->num_poss_preconds; i1++ ) {
-				for ( i2 = 0; i2 < garity[o->poss_preconds[i1].predicate]; i2++ ) {
-					if ( o->poss_preconds[i1].args[i2] < 0 ) {
-						used[DECODE_VAR( o->poss_preconds[i1].args[i2] )] = TRUE;
-					}
-				}
-			}
-
-			for ( i1 = 0; i1 < o->num_poss_adds; i1++ ) {
-				for ( i2 = 0; i2 < garity[o->poss_adds[i1].predicate]; i2++ ) {
-					if ( o->poss_adds[i1].args[i2] < 0 ) {
-						used[DECODE_VAR( o->poss_adds[i1].args[i2] )] = TRUE;
-					}
-				}
-			}
-
-			for ( i1 = 0; i1 < o->num_poss_dels; i1++ ) {
-				for ( i2 = 0; i2 < garity[o->poss_dels[i1].predicate]; i2++ ) {
-					if ( o->poss_dels[i1].args[i2] < 0 ) {
-						used[DECODE_VAR( o->poss_dels[i1].args[i2] )] = TRUE;
-					}
-				}
-			}
-
-			/*
-			 * TUAN (end)
-			 */
-
 			
+
 			remove_unused_easy_effect_parameters( o, e );
 		}
 
@@ -491,6 +493,7 @@ void remove_unused_easy_effect_parameters( NormOperator *o, NormEffect *e )
 	for ( i1 = 0; i1 < MAX_VARS; i1++ ) {
 		used[i1] = FALSE;
 	}
+
 	for ( i1 = 0; i1 < e->num_conditions; i1++ ) {
 		a = garity[e->conditions[i1].predicate];
 		for ( i2 = 0; i2 < a; i2++ ) {
@@ -961,8 +964,11 @@ void multiply_easy_effect_parameters( void )
 					 */
 					continue;
 				}
-				if ( !gis_added[e->conditions[j].predicate] &&
-						!gis_deleted[e->conditions[j].predicate] ) {
+				if ( !gis_added[e->conditions[j].predicate] && !gis_deleted[e->conditions[j].predicate] &&
+
+					/*TUAN (begin)*/!gis_poss_added[e->conditions[j].predicate] && !gis_poss_deleted[e->conditions[j].predicate] /*TUAN (end)*/
+
+					) {
 					linertia_conds[lnum_inertia_conds++] = j;
 				}
 			}
@@ -1100,8 +1106,7 @@ void multiply_easy_non_constrained_effect_parameters( int curr_parameter )
 		while ( i < tmp->num_conditions ) {
 			rem = FALSE;
 			p = tmp->conditions[i].predicate;
-			if ( !gis_added[p] &&
-					!gis_deleted[p] ) {
+			if ( !gis_added[p] && !gis_deleted[p] && /*TUAN (begin)*/ !gis_poss_added[p] && !gis_poss_deleted[p] /*TUAN (end)*/) {
 				for ( j = 0; j < garity[p]; j++ ) {
 					if ( tmp->conditions[i].args[j] < 0 &&
 							DECODE_VAR( tmp->conditions[i].args[j] < lo->num_vars ) ) {
@@ -1204,7 +1209,11 @@ void multiply_easy_op_parameters( void )
 		lnum_inertia_conds = 0;
 		for ( j = 0; j < lo->num_preconds; j++ ) {
 			if ( !gis_added[lo->preconds[j].predicate] &&
-					!gis_deleted[lo->preconds[j].predicate] ) {
+					!gis_deleted[lo->preconds[j].predicate] &&
+
+					/*TUAN (begin)*/!gis_poss_added[lo->preconds[j].predicate] &&
+										!gis_poss_deleted[lo->preconds[j].predicate] /*TUAN (end)*/) {
+
 				linertia_conds[lnum_inertia_conds++] = j;
 			}
 		}
@@ -1240,7 +1249,10 @@ void multiply_easy_op_parameters( void )
 		j = 0;
 		while ( j < o->num_preconds ) {
 			if ( !gis_added[o->preconds[j].predicate] &&
-					!gis_deleted[o->preconds[j].predicate] ) {
+					!gis_deleted[o->preconds[j].predicate] &&
+
+					/*TUAN (begin)*/!gis_poss_added[o->preconds[j].predicate] &&
+										!gis_poss_deleted[o->preconds[j].predicate] /*TUAN (end)*/) {
 				for ( k = j; k < o->num_preconds - 1; k++ ) {
 					o->preconds[k].predicate = o->preconds[k+1].predicate;
 					for ( l = 0; l < garity[o->preconds[k].predicate]; l++ ) {

@@ -591,7 +591,9 @@ int main( int argc, char *argv[] )
 	/* start by collecting all strings and thereby encoding
 	 * the domain in integers.
 	 */
-	encode_domain_in_integers();		// TUAN: "goperators" created inside. Core dumped with -i 104!!!
+	encode_domain_in_integers();		// TUAN: "goperators" created inside.
+
+	// TUAN: OK until now
 
 	/* inertia preprocessing, first step:
 	 *   - collect inertia information
@@ -643,6 +645,8 @@ int main( int argc, char *argv[] )
 	 */
 	perform_reachability_analysis();		/*TUAN: possibly positive relevant facts are created*/
 
+	// TUAN: OK until now
+
 	times( &end );
 	TIME( greach_time );
 
@@ -653,6 +657,8 @@ int main( int argc, char *argv[] )
 	 */
 	collect_relevant_facts();				/*TUAN: possibly negative relevant facts created; Is it true: relevant facts do not include those in initial state?
 											initial state, goals, instantiated actions created.*/
+
+	// TUAN: OK until now
 
 	times( &end );
 	TIME( grelev_time );

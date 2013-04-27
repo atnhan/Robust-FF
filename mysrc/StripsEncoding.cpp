@@ -38,7 +38,7 @@ StripsEncoding::~StripsEncoding() {
 void StripsEncoding::append(int action) {
 	assert(action >= 0 && action < gnum_op_conn);
 
-	cout<<"IN APPEND..."<<endl;
+//	cout<<"IN APPEND..."<<endl;
 
 	State *current_state = this->states[this->actions.size()];
 	State *resulting_state = (State*) calloc(1, sizeof(State));
@@ -53,6 +53,15 @@ void StripsEncoding::append(int action) {
 
 	// Update the clause set
 	int level = this->actions.size()-1;
+	//
+	cout<<endl<<"Action "<<action<<": ";
+	print_op_name(action);
+	cout<<endl;
+	if (action==1009) {
+		cout<<"Num_E: "<<gop_conn[action].num_E<<endl;
+
+	}
+	//
 	assert(gop_conn[action].num_E == 1);
 	int n_ef = gop_conn[action].E[0];
 	// First, for known preconditions
@@ -67,7 +76,7 @@ void StripsEncoding::append(int action) {
 			new_action_clauses.pre_clauses[ft] = cs;
 
 			//
-			cout<<cs<<endl;
+//			cout<<cs<<endl;
 		}
 	}
 
@@ -96,7 +105,7 @@ void StripsEncoding::append(int action) {
 				new_action_clauses.poss_pre_clauses[ft] = temp_cs;
 
 				//
-				cout<<temp_cs<<endl;
+//				cout<<temp_cs<<endl;
 			}
 		}
 		else {	// If "ft" is false at the level, we don't need to find supporting clauses (i.e., they are empty)
@@ -110,7 +119,7 @@ void StripsEncoding::append(int action) {
 			new_action_clauses.poss_pre_clauses[ft] = cs;
 
 			//
-			cout<<cs<<endl;
+//			cout<<cs<<endl;
 		}
 	}
 
@@ -120,7 +129,7 @@ void StripsEncoding::append(int action) {
 
 
 	//
-	cout<<"DONE APPEND."<<endl;
+//	cout<<"DONE APPEND."<<endl;
 }
 
 // Remove the last action
@@ -265,7 +274,7 @@ void StripsEncoding::get_clauses(int k, ClauseSet& clauses) const {
 	assert(k >= 0 && k < actions.size());
 
 	//
-	cout<<"IN GET_CLAUSES..."<<endl;
+//	cout<<"IN GET_CLAUSES..."<<endl;
 
 	int op = actions[k];
 	for (int i=0;i<gop_conn[op].num_E;i++) {
@@ -289,8 +298,8 @@ void StripsEncoding::get_clauses(int k, ClauseSet& clauses) const {
 	}
 
 	//
-	cout<<clauses;
-	cout<<"DONE GET_CLAUSES."<<endl;
+//	cout<<clauses;
+//	cout<<"DONE GET_CLAUSES."<<endl;
 }
 
 void StripsEncoding::get_clauses(ClauseSet& clauses) const {

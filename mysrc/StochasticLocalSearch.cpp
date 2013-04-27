@@ -8,9 +8,11 @@
 #include "StochasticLocalSearch.h"
 #include "assert.h"
 #include <vector>
+#include <ctime>
 #include "StripsEncoding.h"
-using namespace std;
 
+
+using namespace std;
 
 StochasticLocalSearch::StochasticLocalSearch(State *init, State *goals, int max_restarts, int max_steps, double noise):
 	Search(init, goals) {
@@ -27,6 +29,14 @@ StochasticLocalSearch::~StochasticLocalSearch() {
 }
 
 bool StochasticLocalSearch::run() {
+	// Set up seed for the generator
+	generator.seed(static_cast<unsigned int>(std::time(0)));		// Initialize seed using the current time
+
+	// The two distribution for random number generation
+	boost::random::uniform_int_distribution<> int_dist;		// The range can change
+	boost::random::uniform_real_distribution<> real_dist;	// By default: [0, 1)
+
+	// Current state
 	const State *current_state;
 
 	best_plan.actions.clear();
@@ -63,36 +73,41 @@ bool StochasticLocalSearch::run() {
 				// not less than the current best robustness, then we check its exact robustness
 				double lower, upper;
 				e->append(applicable_actions[k]);
+
 				ClauseSet all_clauses;
 				e->get_clauses(all_clauses);
 
+				// Check if the goals present in the last state, and get its clause set
 				ClauseSet goal_clauses;
 				bool goals_present = e->check_goals(goals, goal_clauses);
+				if (!goals_present) {
+					e->remove_last();
+					continue;
+				}
 
-				if (goals_present) {
-					all_clauses.add_clauses(goal_clauses);
-					lower = all_clauses.lower_wmc();
-					upper = all_clauses.upper_wmc();
+				// Add goal clauses into the set of all clauses
+				all_clauses.add_clauses(goal_clauses);
 
-					// We use lower bound to recognize a better plan.
-					// If we use the upper bound, then we can guarantee completeness
-					if (lower >= best_plan.robustness) {
+				// Evaluate its lower and upper bound
+				lower = all_clauses.lower_wmc();
+				upper = all_clauses.upper_wmc();
 
-						all_clauses.wmc(r);
-						assert(lower < r.prob);
+				// We use lower bound to recognize a better plan.
+				// If we use the upper bound, then we can guarantee completeness
+				if (lower >= best_plan.robustness) {
 
-						// Record the new best plan
-						best_plan.actions.clear();
-						for (int l=0;l<e->get_actions().size();l++) {
-							int op = e->get_actions().at(l);
-							best_plan.actions.push_back(op);
-						}
-						best_plan.actions.push_back(applicable_actions[k]);
-						best_plan.robustness = r.prob;
+					all_clauses.wmc(r);
+					assert(lower < r.prob);
 
-						better_plan_found = true;
-						break;	// out of considering other applicable actions
-					}
+					// Extend the plan prefix
+					e->extend_plan_prefix(applicable_actions[k]);
+
+					// Record the new best plan
+					best_plan.actions = e->get_actions();	// Note: plan_prefix = all actions!
+					best_plan.robustness = r.prob;
+
+					better_plan_found = true;
+					break;	// out of considering other applicable actions
 				}
 			}
 
@@ -103,11 +118,8 @@ bool StochasticLocalSearch::run() {
 
 			// (3) If we're here, none of the helpful action gives better plan
 			// Evaluate the neighbor actions
-			vector<NeighborInfo> neighborhood;	// one for each applicable action
-			neighborhood.reserve(applicable_actions.size());
 			int best_action;
 			double best_robustness = 0;
-
 			for (int k=0;k<applicable_actions.size();k++) {
 				// Extract the relaxed plan
 				RelaxedPlan rp2(e, e->get_last_state(), goals);
@@ -121,21 +133,27 @@ bool StochasticLocalSearch::run() {
 					best_robustness = rp2_info.second;
 				}
 
-				// Store the information for this "neighbor"
-				NeighborInfo info;
-				info.rp_length = rp2_info.first;
-				info.upper_robustness = rp2_info.second;
-				info.lower_robustness = rp2_info.second;
-				neighborhood.push_back(info);
-
 				// Remove this action to consider the next one
 				e->remove_last();
 			}
 
 			// (4) Toss the coin to make local move
-			// if "random < p" then move to a random neighbor
+			// if "random < noise" then move to a random neighbor
 			// otherwise, move to the best one
+			int next_action;
+			double random = real_dist(generator);
+			if (random < noise) {
+				// Now we randomly select on neighbor
+				int selected_neighbor = int_dist(generator,
+						boost::random::uniform_int_distribution<>::param_type(0, applicable_actions.size()-1));
+				next_action = applicable_actions[selected_neighbor];
+			}
+			else {
+				next_action = best_action;
+			}
 
+			// (5) Extend the plan prefix with the next action
+			e->extend_plan_prefix(next_action);
 		}
 
 		// Release memory
@@ -144,6 +162,7 @@ bool StochasticLocalSearch::run() {
 
 	if (best_plan.actions.size() > 0 && best_plan.robustness > 0)
 		return true;
+
 	return false;
 }
 

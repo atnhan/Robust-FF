@@ -9,18 +9,20 @@
 #define STOCHASTICLOCALSEARCH_H_
 
 #include "Search.h"
+#include <boost/random/uniform_int_distribution.hpp>
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/random/mersenne_twister.hpp>
 
 class StochasticLocalSearch: public Search {
+
+	// Random generator
+	typedef boost::mt19937 base_generator_type;
+	base_generator_type generator;
+
+	// Search parameters
 	int max_restarts;
 	double noise;
 	int max_steps;
-
-	// All information we need to decide next best local move
-	struct NeighborInfo {
-		int rp_length;
-		double lower_robustness;
-		double upper_robustness;
-	};
 
 public:
 	StochasticLocalSearch(State *init, State *goals, int max_restarts, int max_steps, double noise);
