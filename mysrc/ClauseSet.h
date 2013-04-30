@@ -12,6 +12,7 @@
 #include <vector>
 #include <iostream>
 #include "Clause.h"
+#include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 
 // The information output by Cachet that we want to have
@@ -31,10 +32,18 @@ struct CACHET_OUTPUT {
 	}
 };
 
-
 class ClauseSet {
 
+	// The set of clauses
 	boost::unordered_set<Clause, boost::hash<Clause> > clauses;
+
+	// Each clause is associated with a component id.
+	typedef int COMPONENT_ID;
+	typedef boost::unordered_map<Clause, COMPONENT_ID, boost::hash<Clause> > ClauseComponentMap;
+	ClauseComponentMap clause_components;
+
+	// The maximal component of the current set of clauses
+	int max_component_id;
 
 	// Read the output file of Cachet
 	void read_wmc_answer_file(std::string result_file, CACHET_OUTPUT& r) const;
@@ -58,27 +67,16 @@ public:
 	}
 
 	// Empty the set
-	void clear() {
-		clauses.clear();
-	}
+	void clear();
 
 	// Iterators
-	typedef boost::unordered_set<Clause>::const_iterator const_iterator;
-	typedef boost::unordered_set<Clause>::iterator iterator;
+	typedef boost::unordered_set<Clause, boost::hash<Clause> >::const_iterator const_iterator;
 
 	const_iterator cbegin() const {
 		return clauses.begin();
 	}
 
 	const_iterator cend() const {
-		return clauses.end();
-	}
-
-	iterator begin() {
-		return clauses.begin();
-	}
-
-	iterator end() {
 		return clauses.end();
 	}
 

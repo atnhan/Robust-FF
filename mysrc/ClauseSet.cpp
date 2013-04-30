@@ -17,55 +17,90 @@ using namespace std;
 extern string gproblem_file;
 
 ClauseSet::ClauseSet() {
-
+	max_component_id = 0;
 }
 
 ClauseSet::ClauseSet(const ClauseSet& cs) {
-	this->clauses = cs.clauses;
+	*this = cs;
 }
 
 ClauseSet::~ClauseSet() {
-	clauses.clear();
+
 }
 
 // Assignment operator
 ClauseSet& ClauseSet::operator=(const ClauseSet& cs) {
 	this->clauses = cs.clauses;
+	this->max_component_id = cs.max_component_id;
 	return *this;
 }
 
 void ClauseSet::add_clause(const Clause& c) {
-	if (c.size() == 0)
+	if (c.size() == 0 || clauses.find(c) != clauses.end())
 		return;
 
-	// If "c" is superset of any other sets, ignore it
-	for (ClauseSet::const_iterator itr = this->cbegin(); itr != this->cend(); itr++)
+	// If "c" is a superset of any other sets, ignore it
+	for (const_iterator itr = cbegin(); itr != cend(); itr++) {
 		if (itr->subset(c))
 			return;
-
-	// If any clause "c'" is a superset of "c", we remove "c'"
-	ClauseSet::iterator itr = this->begin();
-	while (itr != this->end()) {
-		if (c.subset(*itr)) {
-			itr = clauses.erase(itr);
-		}
-		else
-			itr++;
 	}
 
-	clauses.insert(c);
+	// Remove any clause "c'" that is a superset of "c"
+	// Also record components that must be merged
+	boost::unordered_set<int> components_to_be_merged;
+	ClauseComponentMap::const_iterator itr = clause_components.cbegin();
+	while (itr != clause_components.cend()) {
+		if (c.subset(itr->first)) {
+			// Erase this superset clause from the clause set
+			clauses.erase(itr->first);
+
+			// Erase this clause from the mapping, and move to the next one
+			itr = clause_components.erase(itr);
+		}
+		else {
+			// If "c" is not subset of this clause, but they share common literals
+			// then all clauses in the same components with this clause (including itself)
+			// will be put into the same component with "c"
+			if (c.share_literals(itr->first))
+				components_to_be_merged.insert(itr->second);
+
+			// Move to the next node
+			itr++;
+		}
+	}
+
+	// Add the new clause "c", and reorganize the connected components
+	if (components_to_be_merged.size() == 0) {
+		clauses.insert(c);
+		clause_components[c] = ++max_component_id;
+	}
+	else {
+		int component = *(components_to_be_merged.begin());
+		for (ClauseComponentMap::const_iterator itr = clause_components.cbegin(); itr != clause_components.cend(); itr++) {
+			if (components_to_be_merged.find(itr->second) != components_to_be_merged.end()) {
+				clause_components[itr->first] = component;
+			}
+		}
+		clauses.insert(c);
+		clause_components[c] = component;
+	}
 }
 
 void ClauseSet::add_clauses(const ClauseSet& cs) {
-	for (ClauseSet::const_iterator itr = cs.clauses.begin(); itr != cs.clauses.end(); itr++) {
+	for (const_iterator itr = cs.cbegin(); itr != cs.cend(); itr++) {
 		if (itr->size()) {
 			add_clause(*itr);
 		}
 	}
 }
 
+void ClauseSet::clear() {
+	clauses.clear();
+	max_component_id = 0;
+}
+
 void ClauseSet::wmc(CACHET_OUTPUT& r) const {
-	if (clauses.size() <= 0) {
+	if (size() <= 0) {
 		r.prob = 1;
 		r.time = 0;
 		return;
@@ -97,29 +132,42 @@ void ClauseSet::wmc(CACHET_OUTPUT& r) const {
 double ClauseSet::lower_wmc() const {
 	// A simple lower bound: product of individual probability
 	double lower = 1;
-	for (ClauseSet::const_iterator itr = clauses.begin(); itr != clauses.end(); itr++) {
+	for (const_iterator itr = cbegin(); itr != cend(); itr++) {
 		lower *= itr->prob();
 	}
 	return lower;
 }
 
+// An upper bound for the probability:
+// (1) for each connected component, get the minimal probability of clauses
+// (2) take the product of these mins
 double ClauseSet::upper_wmc() const{
-	// A simple upper bound: min of individual probability
-	// Better bound: product of upper bound of all connected components
-	double upper = 1;
-	double prob;
-	for (ClauseSet::const_iterator itr = clauses.begin(); itr != clauses.end(); itr++) {
-		prob = itr->prob();
-		if (upper > prob)
-			upper = prob;
+
+	// First, compute the minimal probability of clauses in each connected components
+	boost::unordered_map<int, double> min_probs;
+	for (ClauseComponentMap::const_iterator itr = clause_components.cbegin(); itr != clause_components.cend(); itr++) {
+		if (min_probs.find(itr->second) == min_probs.end()) {
+			min_probs[itr->second] = itr->first.prob();
+		}
+		else if (min_probs[itr->second] > itr->first.prob()) {
+			min_probs[itr->second] = itr->first.prob();
+		}
 	}
-	return upper;
+
+	// Second, take the product of these mins
+	double r = 1.0;
+	for (boost::unordered_map<int, double>::const_iterator itr = min_probs.cbegin();
+			itr != min_probs.cend(); itr++) {
+		r *= itr->second;
+	}
+
+	return r;
+
 }
 
 ostream& operator<<(ostream& os, const ClauseSet& cs) {
 	for (ClauseSet::const_iterator itr = cs.cbegin(); itr != cs.cend(); itr++) {
-		const Clause& c = *itr;
-		os<<c<<" ";
+		os<<*itr<<" ";
 	}
 	return os;
 }
@@ -157,7 +205,7 @@ void ClauseSet::write_cnf_file(const char* filename) const {
 	}
 
 	// Write each clause to the file, ending with 0
-	for (ClauseSet::const_iterator itr = clauses.begin(); itr != clauses.end(); itr++) {
+	for (ClauseSet::const_iterator itr = cbegin(); itr != cend(); itr++) {
 		const Clause& c = *itr;
 		for (Clause::const_iterator itr2 = c.cbegin(); itr2 != c.cend(); itr2++) {
 			fprintf(CNF, "%d ", *itr2);
@@ -228,9 +276,6 @@ void ClauseSet::read_wmc_answer_file(std::string result_file, CACHET_OUTPUT& r) 
 bool operator==(ClauseSet const& cs1, ClauseSet const& cs2) {
 	return (cs1.clauses == cs2.clauses);
 }
-
-
-
 
 
 

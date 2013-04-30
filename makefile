@@ -22,6 +22,8 @@ MY_LIBS = mysrc/mysrc.a
 
 SUB_DIRS =	mysrc
 
+BOOST_HEADER = /usr/local/boost_1_51_0
+
 ####### Files
 
 
@@ -55,7 +57,7 @@ OBJECTS 	= $(SOURCES:.c=.o)
 
 
 ff: COMPILE_SUB $(OBJECTS) $(PDDL_PARSER_OBJ)
-	$(CC) -o ff $(OBJECTS) $(PDDL_PARSER_OBJ) $(MY_LIBS) $(LIBS) $(CFLAGS)
+	$(CC) -o ff $(OBJECTS) $(PDDL_PARSER_OBJ) $(MY_LIBS) $(LIBS) $(CFLAGS) -I$(BOOST_HEADER)
 COMPILE_SUB:
 	@ for i in $(SUB_DIRS); do $(MAKE) -C $$i; done
 

@@ -556,6 +556,11 @@ int main( int argc, char *argv[] )
 	 * reading the problem
 	 */
 	load_ops_file( ops_file );
+
+
+
+
+
 	/* problem file (facts)
 	 */
 	if ( gcmd_line.display_info >= 1 ) {

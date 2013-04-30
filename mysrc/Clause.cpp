@@ -86,6 +86,7 @@ bool Clause::contain(int l) const {
 
 
 // Test if a "subset" of another clause
+// Note: a set is also a subset of itself
 bool Clause::subset(const Clause& c) const {
 	if (clause.size()==0) return true;
 	if (clause.size() > c.size()) return false;
@@ -95,6 +96,15 @@ bool Clause::subset(const Clause& c) const {
 			return false;
 	}
 	return true;
+}
+
+// Test if a clause shares literals with the other
+bool Clause::share_literals(const Clause& c) const {
+	for (Clause::const_iterator itr = c.cbegin(); itr != c.cend(); itr++) {
+		if (contain(*itr))
+			return true;
+	}
+	return false;
 }
 
 // Probability

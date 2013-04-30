@@ -58,6 +58,9 @@ public:
 	// Test if a "subset" of another clause
 	bool subset(const Clause& c) const;
 
+	// Test if a clause shares literals with the other
+	bool share_literals(const Clause& c) const;
+
 	// Number of literals
 	int size() const {
 		return clause.size();
