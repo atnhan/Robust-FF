@@ -62,7 +62,14 @@
 
 
 
-
+/*
+ * TUAN (begin)
+ */
+#include "mysrc/Helpful.h"
+#include <assert.h>
+/*
+ * TUAN (end)
+ */
 
 
 
@@ -1032,8 +1039,12 @@ Bool bfs_state_hashed( State *S )
 int result_to_dest( State *dest, State *source, int op )
 {
 
+#ifndef NDEBUG
+	assert(applicable_action(op, source));
+#endif
+
 	static Bool first_call = TRUE;
-	static Bool *in_source, *in_dest, *in_del, *true_ef;
+	static Bool *in_source, *in_dest, *in_del;
 	static int *del, num_del;
 
 	int i, j, ef;
@@ -1043,49 +1054,34 @@ int result_to_dest( State *dest, State *source, int op )
 		in_source = ( Bool * ) calloc( gnum_ft_conn, sizeof( Bool ) );
 		in_dest = ( Bool * ) calloc( gnum_ft_conn, sizeof( Bool ) );
 		in_del = ( Bool * ) calloc( gnum_ft_conn, sizeof( Bool ) );
-		true_ef = ( Bool * ) calloc( gnum_ef_conn, sizeof( Bool ) );
 		del = ( int * ) calloc( gnum_ft_conn, sizeof( int ) );
 		for ( i = 0; i < gnum_ft_conn; i++ ) {
 			in_source[i] = FALSE;
 			in_dest[i] = FALSE;
 			in_del[i] = FALSE;
 		}
-		for ( i = 0; i < gnum_ef_conn; i++ ) {
-			true_ef[i] = FALSE;
-		}
 		first_call = FALSE;
 	}
 
-	/* setup true facts for effect cond evaluation
-	 */
+	// Mark facts in source
 	for ( i = 0; i < source->num_F; i++ ) {
 		in_source[source->F[i]] = TRUE;
 	}
 
-	/* setup deleted facts
-	 */
+	// Mark facts that must be deleted
 	num_del = 0;
-	for ( i = 0; i < gop_conn[op].num_E; i++ ) {
+	assert(gop_conn[op].num_E == 1);
+	ef = gop_conn[op].E[0];
+	for ( j = 0; j < gef_conn[ef].num_D; j++ ) {
 
-		ef = gop_conn[op].E[i];
-		for ( j = 0; j < gef_conn[ef].num_PC; j++ ) {
-			if ( !in_source[gef_conn[ef].PC[j]] ) break;
-		}
-		if ( j < gef_conn[ef].num_PC ) continue;				/*TUAN: first, find the conditional effect of "op" applicable in "source"*/
+		if ( in_del[gef_conn[ef].D[j]] )
+			continue;
 
-		true_ef[i] = TRUE;
-		for ( j = 0; j < gef_conn[ef].num_D; j++ ) {
-			if ( in_del[gef_conn[ef].D[j]] ) continue;
-			in_del[gef_conn[ef].D[j]] = TRUE;					/*TUAN: now, mark facts to be deleted*/
-			del[num_del++] = gef_conn[ef].D[j];
-		}
+		in_del[gef_conn[ef].D[j]] = TRUE;
+		del[num_del++] = gef_conn[ef].D[j];
 	}
 
-	/* put all non-deleted facts from source into dest.
-	 * need not check for put-in facts here,
-	 * as initial state is made doubles-free, and invariant keeps
-	 * true through the transition procedure
-	 */
+	// First put facts in the source, not in the delete list, to the destination
 	dest->num_F = 0;
 	for ( i = 0; i < source->num_F; i++ ) {
 		if ( in_del[source->F[i]] ) {
@@ -1095,41 +1091,61 @@ int result_to_dest( State *dest, State *source, int op )
 		in_dest[source->F[i]] = TRUE;
 	}
 
-	/* now, finally, add all fullfilled effect adds to dest;
-	 * each fact at most once!
-	 */
-	for ( i = 0; i < gop_conn[op].num_E; i++ ) {
-		if ( !true_ef[i] ) continue;
-		ef = gop_conn[op].E[i];
-		for ( j = 0; j < gef_conn[ef].num_A; j++ ) {
-			if ( in_dest[gef_conn[ef].A[j]] ) {
-				continue;
-			}
-			dest->F[dest->num_F++] = gef_conn[ef].A[j];
-			in_dest[gef_conn[ef].A[j]] = TRUE;
-			if ( gft_conn[gef_conn[ef].A[j]].is_global_goal ) {
-				r = gef_conn[ef].A[j];
-			}
+	// Second put known and possible add effects into the destination
+	for ( j = 0; j < gef_conn[ef].num_A; j++ ) {
+		if ( in_dest[gef_conn[ef].A[j]] ) {
+			continue;
 		}
 
-		/*
-		 * TUAN (begin)
-		 */
-		for ( j = 0; j < gef_conn[ef].num_poss_A; j++ ) {
-			if ( in_dest[gef_conn[ef].poss_A[j]] ) {
-				continue;
-			}
-			dest->F[dest->num_F++] = gef_conn[ef].poss_A[j];
-			in_dest[gef_conn[ef].poss_A[j]] = TRUE;
-
-			if ( gft_conn[gef_conn[ef].poss_A[j]].is_global_goal ) {		/*Be careful with this!*/
-				r = gef_conn[ef].poss_A[j];
-			}
+		dest->F[dest->num_F++] = gef_conn[ef].A[j];
+		in_dest[gef_conn[ef].A[j]] = TRUE;
+		if ( gft_conn[gef_conn[ef].A[j]].is_global_goal ) {
+			r = gef_conn[ef].A[j];
 		}
-		/*
-		 * TUAN (end)
-		 */
 	}
+
+	for ( j = 0; j < gef_conn[ef].num_poss_A; j++ ) {
+		if ( in_dest[gef_conn[ef].poss_A[j]] ) {
+			continue;
+		}
+
+		if (in_del[gef_conn[ef].poss_A[j]])	// This should not happen in the model: possible add not intersect with known delete
+			continue;
+
+		dest->F[dest->num_F++] = gef_conn[ef].poss_A[j];
+		in_dest[gef_conn[ef].poss_A[j]] = TRUE;
+
+		if ( gft_conn[gef_conn[ef].poss_A[j]].is_global_goal ) {		/*Be careful with this!*/
+			r = gef_conn[ef].poss_A[j];
+		}
+	}
+
+/*
+ * TUAN (begin)
+ */
+#ifndef NDEBUG
+	// Check the correctness of the resulting state
+	for (int ft=0;ft<gnum_ft_conn;ft++) {
+		bool in_current = is_in_state(ft, source);
+		bool in_next = is_in_state(ft, dest);
+		// For cases
+		if (in_current && in_next) {
+			assert(!is_del(ft, op));
+		}
+		else if (in_current && !in_next) {
+			assert(is_del(ft, op));
+		}
+		else if (!in_current && in_next) {
+			assert(is_add(ft, op) || is_poss_add(ft, op));
+		}
+		else if (!in_current && !in_next) {
+			assert(!is_add(ft, op) && !is_poss_add(ft, op));
+		}
+	}
+#endif
+/*
+ * TUAN (end)
+ */
 
 	/* unset infos
 	 */
@@ -1141,9 +1157,6 @@ int result_to_dest( State *dest, State *source, int op )
 	}
 	for ( i = 0; i < num_del; i++ ) {
 		in_del[del[i]] = FALSE;
-	}
-	for ( i = 0; i < gop_conn[op].num_E; i++ ) {
-		true_ef[i] = FALSE;
 	}
 
 	return r;
