@@ -24,8 +24,6 @@
 	fl4 - flevel
 	fl5 - flevel
 	fl6 - flevel
-	
-	v - dummy_type
 )
 (:init
 	(at plane1 city0)

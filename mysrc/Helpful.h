@@ -30,7 +30,6 @@ bool is_in_state(int ft, const State *s);
 int find_action(std::string action_name);
 
 // Print state
-void print_state(State *s);
 void print_state(const State& s);
 
 // Get boolean variable for a possible precondition and effect
@@ -42,5 +41,12 @@ int get_predicate(int pro);
 
 // Read WMC output file
 void read_wmc_answer_file(int& satresult,double& sat_prob, double& rtime);
+
+// Check if an action is applicable in a state
+// (all its known preconditions must present in the state)
+bool applicable_action(int action, const State* s);
+
+// Check if two states are the same
+bool same_state(const State& s1, const State& s2);
 
 #endif /* HELPFUL_H_ */

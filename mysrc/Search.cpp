@@ -8,8 +8,21 @@
 #include "Search.h"
 #include "Helpful.h"
 
+extern void source_to_dest( State *dest, State *source );
+extern void make_state( State *S, int n );
+
+bool Search::FF_helpful_actions = true;
+
 Search::Search(State* init, State* goals) {
-	this->goals = goals;
+	this->init = (State*) calloc(1, sizeof(State));
+	make_state(this->init, gnum_ft_conn);
+	this->init->max_F = gnum_ft_conn;
+	source_to_dest(this->init, init);
+
+	this->goals = (State*) calloc(1, sizeof(State));
+	make_state(this->goals, gnum_ft_conn);
+	this->goals->max_F = gnum_ft_conn;
+	source_to_dest(this->goals, goals);
 }
 
 Search::~Search() {
@@ -23,25 +36,14 @@ Search::~Search() {
 	}
 }
 
-
 // Get applicable actions for a given state
 void Search::get_applicable_actions(const State* state, std::vector<int>& actions,
 		const RelaxedPlan* rp, bool helpful_actions) {
 
 	if (!helpful_actions) {
 		for (int op=0;op<gnum_op_conn;op++) {
-			bool applicable = true;
-			for (int i=0;i<gop_conn[op].num_E;i++) {
-				int ef = gop_conn[op].E[i];
-				for (int j=0;j<gef_conn[ef].num_PC;j++) {
-					int p = gef_conn[ef].PC[j];
-					if (!is_in_state(p, state)) {
-						applicable = false;
-						break;
-					}
-				}
-			}
-			if (applicable) actions.push_back(op);
+			if (applicable_action(op, state))
+				actions.push_back(op);
 		}
 	}
 	else {
@@ -49,4 +51,11 @@ void Search::get_applicable_actions(const State* state, std::vector<int>& action
 		assert(rp != 0);
 		rp->get_FF_helpful_actions(actions);
 	}
+
+#ifndef NDEBUG
+	for (int i=0;i<actions.size();i++) {
+		assert(applicable_action(actions[i], state));
+	}
+#endif
 }
+

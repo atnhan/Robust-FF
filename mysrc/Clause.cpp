@@ -59,7 +59,7 @@ double Clause::weight(int p) {
 }
 
 // Set the weights
-void Clause::set_weights(std::vector<double> weights) {
+void Clause::set_weights(const vector<double>& weights) {
 	Clause::weights = weights;
 }
 

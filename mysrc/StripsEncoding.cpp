@@ -40,7 +40,7 @@ void StripsEncoding::append(int action) {
 
 //	cout<<"IN APPEND..."<<endl;
 
-	State *current_state = this->states[this->actions.size()];
+	State *current_state = this->get_last_state();
 	State *resulting_state = (State*) calloc(1, sizeof(State));
 	make_state(resulting_state, gnum_ft_conn);
 	resulting_state->max_F = gnum_ft_conn;
@@ -53,17 +53,10 @@ void StripsEncoding::append(int action) {
 
 	// Update the clause set
 	int level = this->actions.size()-1;
-	//
-	cout<<endl<<"Action "<<action<<": ";
-	print_op_name(action);
-	cout<<endl;
-	if (action==1009) {
-		cout<<"Num_E: "<<gop_conn[action].num_E<<endl;
 
-	}
-	//
 	assert(gop_conn[action].num_E == 1);
 	int n_ef = gop_conn[action].E[0];
+
 	// First, for known preconditions
 	for (int i=0;i<gef_conn[n_ef].num_PC;i++) {
 		int ft = gef_conn[n_ef].PC[i];
@@ -134,12 +127,13 @@ void StripsEncoding::append(int action) {
 
 // Remove the last action
 bool StripsEncoding::remove_last() {
-	if (plan_prefix_length >= actions.size())
-		return false;
+	// Action in plan prefix cannot be removed!
+	assert(plan_prefix_length < actions.size());
 
-	if (actions.size() <= 0)
-		return true;
+	// Cannot remove action from an empty plan
+	assert(actions.size() > 0);
 
+	// Remove the last action, and the last state.
 	actions.pop_back();
 	action_clauses.pop_back();
 	State* last_state = states[states.size()-1];
@@ -161,6 +155,9 @@ void StripsEncoding::extend_plan_prefix(int action) {
 int StripsEncoding::get_confirmed_level(int ft,int level) const
 {
 	int n = actions.size();
+	if (n == 0)
+		return 0;
+
 	if (level < 0 && level > n)
 	{
 		return -1;
@@ -168,6 +165,7 @@ int StripsEncoding::get_confirmed_level(int ft,int level) const
 
 	// If "ft" is after the last action, then we only check if it is add or delete effect of the last action
 	if (level == n) {
+
 		if (is_add(ft, actions[n-1]) || is_del(ft, actions[n-1]))
 			return n;
 
@@ -252,7 +250,7 @@ bool StripsEncoding::check_goals(const State *goals, ClauseSet& clauses) {
 	}
 
 	int n = this->actions.size();
-	State *current_state = this->states[n];
+	State *current_state = this->get_last_state();
 	for (int i=0;i<goals->num_F;i++) {
 		int ft = goals->F[i];
 		if (!is_in_state(ft, current_state)) {

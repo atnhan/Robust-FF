@@ -9,8 +9,9 @@
 #include "assert.h"
 #include <vector>
 #include <ctime>
+#include "Helpful.h"
 #include "StripsEncoding.h"
-
+#include <climits>
 
 using namespace std;
 
@@ -36,9 +37,6 @@ bool StochasticLocalSearch::run() {
 	boost::random::uniform_int_distribution<> int_dist;		// The range can change
 	boost::random::uniform_real_distribution<> real_dist;	// By default: [0, 1)
 
-	// Current state
-	const State *current_state;
-
 	best_plan.actions.clear();
 	best_plan.robustness = 0;
 
@@ -48,10 +46,22 @@ bool StochasticLocalSearch::run() {
 	for (int i=0;i<max_restarts;i++) {
 
 		// When we're here: we have a current best robustness for the current best plan
-		current_state = init;	// Restart from the initial state
+		// Restart from the initial state
 		StripsEncoding *e = new StripsEncoding(init);
 
+//		//
+//		cout<<"RESTART: i = "<<i<<endl;
+//		//
+
 		for (int j=0;j<max_steps;j++) {
+
+//			//
+//			cout<<"\nMAX STEPS: j = "<<j<<endl;
+//
+//			cout<<"\nCURRENT STATE:"<<endl;
+//			print_state(*e->get_last_state());
+//			cout<<endl;
+//			//
 
 			bool better_plan_found = false;
 
@@ -64,24 +74,57 @@ bool StochasticLocalSearch::run() {
 			pair<int, double> rp_info;
 			rp.extract(rp_info);
 
-			get_applicable_actions(current_state, applicable_actions, &rp, Search::FF_helpful_actions);
+			get_applicable_actions(e->get_last_state(), applicable_actions, &rp, Search::FF_helpful_actions);
+
+			// If there is no applicable action, we're done with this iteration
+			// Restart from the initial state
+			if (applicable_actions.size() <= 0)
+				break;
+
+//			//
+//			cout<<"\nAPPLICABLE ACTIONS:"<<endl;
+//			for (int k=0;k<applicable_actions.size();k++) {
+//				print_op_name(applicable_actions[k]);
+//				cout<<endl;
+//			}
+//			//
+
+#ifndef NDEBUG
+		const State& s0 = *e->get_last_state();
+#endif
 
 			// (2) Quickly check if we find a better plan
 			for (int k=0;k<applicable_actions.size();k++) {
+
+				assert(same_state(s0, *e->get_last_state()));
+
+//				//
+//				cout<<"\n>>>>> k = "<<k<<": ";
+//				print_op_name(applicable_actions[k]);
+//				cout<<endl;
+//
+//				cout<<"\nState:"<<endl;
+//				print_state(*e->get_last_state());
+//				//
 
 				// If the estimated robustness of "plan prefix + this action" wrt the goals is
 				// not less than the current best robustness, then we check its exact robustness
 				double lower, upper;
 				e->append(applicable_actions[k]);
-
 				ClauseSet all_clauses;
 				e->get_clauses(all_clauses);
 
 				// Check if the goals present in the last state, and get its clause set
 				ClauseSet goal_clauses;
 				bool goals_present = e->check_goals(goals, goal_clauses);
+
+				// We no longer need the appended action
+				e->remove_last();
+
+				// If there exists a goal not present in the last state, then this extended plan
+				// prefix cannot be a solution (since the robustness must be 0)
+				// Remove the action just appended, and continue with the next candidate action.
 				if (!goals_present) {
-					e->remove_last();
 					continue;
 				}
 
@@ -97,7 +140,7 @@ bool StochasticLocalSearch::run() {
 				if (lower >= best_plan.robustness) {
 
 					all_clauses.wmc(r);
-					assert(lower < r.prob);
+					assert(lower <= r.prob);
 
 					// Extend the plan prefix
 					e->extend_plan_prefix(applicable_actions[k]);
@@ -114,13 +157,18 @@ bool StochasticLocalSearch::run() {
 			// If we find a better plan, we are done for this improvement iteration
 			// We will restart from the initial state for finding even better plan
 			if (better_plan_found)
-				break;
+				break; // out of "max_steps" loop
 
-			// (3) If we're here, none of the helpful action gives better plan
-			// Evaluate the neighbor actions
+			// (3) If we're here, none of the candidate actions gives better plan
+			// Evaluate the neighbor actions to make local move
 			int best_action;
 			double best_robustness = 0;
+			int best_length = INT_MAX;
 			for (int k=0;k<applicable_actions.size();k++) {
+
+				// Append the action
+				e->append(applicable_actions[k]);
+
 				// Extract the relaxed plan
 				RelaxedPlan rp2(e, e->get_last_state(), goals);
 				rp2.build_relaxed_planning_graph();
@@ -128,20 +176,36 @@ bool StochasticLocalSearch::run() {
 				rp2.extract(rp2_info);
 
 				// Record the best action
-				if (best_robustness < rp2_info.second) {
+//				if (best_robustness < rp2_info.second) {
+//					best_action = applicable_actions[k];
+//					best_robustness = rp2_info.second;
+//				}
+
+				if (best_length > rp2_info.first) {
 					best_action = applicable_actions[k];
-					best_robustness = rp2_info.second;
+					best_length = rp2_info.first;
 				}
 
 				// Remove this action to consider the next one
 				e->remove_last();
 			}
 
+//			//
+//			cout<<"\n\nBEST ACTION: ";
+//			print_op_name(best_action);
+//			cout<<endl;
+//			//
+
 			// (4) Toss the coin to make local move
 			// if "random < noise" then move to a random neighbor
 			// otherwise, move to the best one
 			int next_action;
 			double random = real_dist(generator);
+
+//			//
+//			cout<<endl<<"Random: "<<random<<endl;
+//			//
+
 			if (random < noise) {
 				// Now we randomly select on neighbor
 				int selected_neighbor = int_dist(generator,
@@ -152,8 +216,21 @@ bool StochasticLocalSearch::run() {
 				next_action = best_action;
 			}
 
+//			//
+//			cout<<"*** NEXT ACTION: ";
+//			print_op_name(next_action);
+//			cout<<endl;
+//			//
+
 			// (5) Extend the plan prefix with the next action
 			e->extend_plan_prefix(next_action);
+
+//			//
+//			cout<<"NEW STATE:"<<endl;
+//			print_state(*e->get_last_state());
+//			cout<<endl;
+//			cout<<"END OF j = "<<j<<endl;
+//			//
 		}
 
 		// Release memory
@@ -169,6 +246,9 @@ bool StochasticLocalSearch::run() {
 		}
 		cout<<"ROBUSTNESS: "<<best_plan.robustness<<endl;
 		return true;
+	}
+	else {
+		cout<<"PLAN NOT FOUND!"<<endl;
 	}
 
 	return false;

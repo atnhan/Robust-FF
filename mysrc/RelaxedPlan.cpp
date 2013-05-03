@@ -288,34 +288,20 @@ void RelaxedPlan::extract(pair<int, double>& result) {
 void RelaxedPlan::get_FF_helpful_actions(std::vector<int>& helpful_actions) const {
 
 	for (int op=0;op<gnum_op_conn;op++) {
+		if (!applicable_action(op, current))
+			continue;
 
-		bool applicable = true;
-
-		for (int i=0;i<gop_conn[op].num_E;i++) {
-			int ef = gop_conn[op].E[i];
-			for (int j=0;j<gef_conn[ef].num_PC;j++) {
-				int p = gef_conn[ef].PC[j];
-				if (!is_in_state(p, current)) {
-					applicable = false;
-					break;
-				}
+		// We check if it (possibly) adds any propositions in the first fact layer that
+		// has been selected during the relaxed plan extraction
+		for (int ft = 0; ft < gnum_ft_conn; ft++) {
+			if (possibly_supported_facts_at_1st_fact_layer.find(ft) == possibly_supported_facts_at_1st_fact_layer.end())
+				continue;
+			if (is_add(ft, op) || is_poss_add(ft, op)) {
+				helpful_actions.push_back(op);
 			}
 		}
 
-		// Now this action is applicable
-		if (applicable) {
-			// We check if it (possibly) adds any propositions in the first fact layer that
-			// has been selected during the relaxed plan extraction
-			for (int ft = 0; ft < gnum_ft_conn; ft++) {
-				if (possibly_supported_facts_at_1st_fact_layer.find(ft) == possibly_supported_facts_at_1st_fact_layer.end())
-					continue;
-				if (is_add(ft, op) || is_poss_add(ft, op)) {
-					helpful_actions.push_back(op);
-				}
-			}
-		}
 	}
-
 }
 
 // Evaluate a candidate "action", which is at "layer" of the RPG, wrt the current relaxed plan.
@@ -353,8 +339,17 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 
 	// Collect clause sets for (possible) preconditions of actions before "action" in the relaxed plan
 	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != new_itr; itr++) {
+
+		// Known preconditions
 		for (PRE_2_CLAUSES::iterator itr2 = (*itr)->pre_clauses.begin(); itr2 != (*itr)->pre_clauses.end(); itr2++) {
-			all_clauses.add_clauses(*(itr2->second));
+			if (itr2->second)
+				all_clauses.add_clauses(*(itr2->second));
+		}
+
+		// Possible preconditions
+		for (POSS_PRE_2_CLAUSES::iterator itr2 = (*itr)->poss_pre_clauses.begin(); itr2 != (*itr)->poss_pre_clauses.end(); itr2++) {
+			if (itr2->second)
+				all_clauses.add_clauses(*(itr2->second));
 		}
 	}
 
@@ -1212,7 +1207,10 @@ void RelaxedPlan::initialize_fact_layer() {
 		node.best_robustness = all_clauses.upper_wmc();
 
 		// The supporting action is the last one of the plan prefix
-		node.best_supporting_action = e->get_actions()[e->get_actions().size()-1];
+		if (n == 0)
+			node.best_supporting_action = INIT_ACTION;
+		else
+			node.best_supporting_action = e->get_actions()[e->get_actions().size()-1];
 		node.in_rp = true;		// Is this correct?
 		node.first_layer = 0;
 		(*first_fact_layer)[ft] = node;

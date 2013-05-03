@@ -12,10 +12,10 @@
  :parameters (?p - person ?a - aircraft ?c - city)
  
  :precondition (and 
-                 
+                 (at ?p ?c)
                  )
                  
- :possprecondition (and (at ?p ?c) (at ?a ?c)) 
+ :possprecondition (and (at ?a ?c)) 
                  
  :effect (and (not (at ?p ?c))
               (in ?p ?a))
@@ -31,11 +31,11 @@
                  
  :possprecondition (and )
   
- :effect (and )
+ :effect (and 	(not (in ?p ?a))
+              		(at ?p ?c))
 
  :posseffect (and 
- 					(not (in ?p ?a))
-              		(at ?p ?c)
+ 				
  				)              
 )
 
@@ -48,12 +48,14 @@
  
  :possprecondition (and )
  
- :effect (and (not (at ?a ?c1)))
+ :effect (and (not (at ?a ?c1))
+ 				(at ?a ?c2)
+              (not (fuel-level ?a ?l1))
+              (fuel-level ?a ?l2)
+ 		)
               
  :posseffect (and  
-              (at ?a ?c2)
-              (not (fuel-level ?a ?l1))
-              (fuel-level ?a ?l2))              
+              )              
 )
                                   
 (:action zoom
@@ -68,12 +70,13 @@
  :possprecondition (and )
  
  :effect (and 
-	)
- :posseffect (and
  				(not (at ?a ?c1))
               	(at ?a ?c2)
               	(not (fuel-level ?a ?l1))
-              	(fuel-level ?a ?l3) 
+              	(fuel-level ?a ?l3)
+	)
+ :posseffect (and
+ 				 
  				)
 ) 
 

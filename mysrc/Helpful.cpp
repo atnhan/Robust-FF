@@ -95,7 +95,7 @@ bool is_del(int ft, int action) {
 }
 
 bool is_in_state(int ft, const State *s) {
-	if (!s) return false;
+	assert(s);
 	for (int i = 0; i < s->num_F; i++)
 		if (ft == s->F[i])
 			return true;
@@ -120,21 +120,23 @@ int find_action(string action_name) {
 	return -1;
 }
 
-void print_state(State *s) {
-	if (!s) return;
-	for (int i=0;i<s->num_F;i++) {
-		int ft = s->F[i];
-		print_ft_name(ft);
-		cout<<endl;
-	}
-}
-
 void print_state(const State& s) {
 	for (int i=0;i<s.num_F;i++) {
 		int ft = s.F[i];
 		print_ft_name(ft);
-		cout<<endl;
+		if (i < s.num_F-1)
+			cout<<endl;
 	}
+}
+
+// Check if two states are the same
+bool same_state(const State& s1, const State& s2) {
+	if (s1.num_F != s2.num_F)
+		return false;
+	for (int i=0; i<s1.num_F;i++)
+		if (!is_in_state(s1.F[i], &s2))
+			return false;
+	return true;
 }
 
 int get_bool_var(int ft, int action, AnnotationType t) {
@@ -187,5 +189,23 @@ int get_predicate(int pro) {
 	assert(pro >=0 && pro < gnum_relevant_facts);
 	return grelevant_facts[pro].predicate;
 }
+
+bool applicable_action(int action, const State* s) {
+	assert(s);
+	assert(action >=0 && action < gnum_op_conn);
+	assert(gop_conn[action].num_E == 1);
+	int ef = gop_conn[action].E[0];
+
+	// Only check if all known preconditions present in the state
+	for (int j=0;j<gef_conn[ef].num_PC;j++) {
+		int p = gef_conn[ef].PC[j];
+		if (!is_in_state(p, s)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 
 

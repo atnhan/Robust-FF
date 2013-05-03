@@ -40,7 +40,7 @@ public:
 	static int num_bool_vars() { return Clause::weights.size(); }
 
 	// Set the weights
-	static void set_weights(std::vector<double> weights);
+	static void set_weights(const std::vector<double>& weights);
 
 	// Equality
 	friend bool operator==(Clause const& c1, Clause const& c2);

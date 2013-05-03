@@ -143,6 +143,10 @@ double ClauseSet::lower_wmc() const {
 // (2) take the product of these mins
 double ClauseSet::upper_wmc() const{
 
+	// Empty clause set
+	if (size() == 0)
+		return 1;
+
 	// First, compute the minimal probability of clauses in each connected components
 	boost::unordered_map<int, double> min_probs;
 	for (ClauseComponentMap::const_iterator itr = clause_components.cbegin(); itr != clause_components.cend(); itr++) {
@@ -277,7 +281,12 @@ bool operator==(ClauseSet const& cs1, ClauseSet const& cs2) {
 	return (cs1.clauses == cs2.clauses);
 }
 
-
+// Print out components
+void ClauseSet::print_components() {
+	for (ClauseComponentMap::const_iterator itr = clause_components.cbegin(); itr != clause_components.cend(); itr++) {
+		cout<<itr->first<<": "<<itr->second<<endl;
+	}
+}
 
 
 

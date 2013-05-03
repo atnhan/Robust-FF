@@ -16,12 +16,12 @@
                  (at ?a ?c)
                  )
                  
- :possprecondition (and ) 
+ :possprecondition (and (dummy_pred ?v)) 
                  
  :effect (and (not (at ?p ?c))
               (in ?p ?a))
               
- :posseffect (and (not (dummy_pred ?v)))
+ :posseffect (and )
 )
 
 (:action debark
@@ -52,7 +52,7 @@
               (at ?a ?c2)
               (not (fuel-level ?a ?l1))
               (fuel-level ?a ?l2))
- :posseffect (and )              
+ :posseffect (and (not (dummy_pred ?v)))              
 )
                                   
 (:action zoom

@@ -21,7 +21,7 @@ protected:
 	};
 
 	State *init;
-	const State *goals;
+	State *goals;
 	std::vector<Plan> plans;
 	Plan best_plan;
 

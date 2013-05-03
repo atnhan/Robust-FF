@@ -48,6 +48,9 @@ class ClauseSet {
 	// Read the output file of Cachet
 	void read_wmc_answer_file(std::string result_file, CACHET_OUTPUT& r) const;
 
+	// Print out components
+	void print_components();
+
 public:
 
 	ClauseSet();
@@ -94,6 +97,10 @@ public:
 	// Equality comparison
 	friend bool operator==(ClauseSet const& cs1, ClauseSet const& cs2);
 
+	/*
+	 * TEST
+	 */
+	friend void test_estimate_robustness();
 };
 
 #endif /* CLAUSESET_H_ */

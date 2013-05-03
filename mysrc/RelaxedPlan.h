@@ -24,6 +24,7 @@
 class RelaxedPlan {
 
 #define NOOP -1
+#define INIT_ACTION		-1
 #define GOAL_ACTION		-1
 #define MAX_RELAXED_PLAN_LENGTH		200
 #define MAX_RPG_LENGTH	500
