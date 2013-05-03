@@ -808,7 +808,13 @@ void print_Fact( Fact *f )
 void print_ft_name( int index )
 
 {
-
+	/*
+	 * TUAN (begin)
+	 */
+	printf("[%d]\t", index);
+	/*
+	 * TUAN (end)
+	 */
 	print_Fact( &(grelevant_facts[index]) );
 
 }

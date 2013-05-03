@@ -1369,6 +1369,14 @@ typedef enum _Connective{TRU,
 	extern Bool gis_added[MAX_PREDICATES];
 	extern Bool gis_deleted[MAX_PREDICATES];
 
+	/*
+	 * TUAN (begin)
+	 */
+	extern Bool gis_poss_added[MAX_PREDICATES];
+	extern Bool gis_poss_deleted[MAX_PREDICATES];
+	/*
+	 * TUAN (end)
+	 */
 
 
 	/* splitted initial state:
