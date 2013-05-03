@@ -62,6 +62,8 @@
 #include "mysrc/StripsEncoding.h"
 #include "mysrc/RelaxedPlan.h"
 #include "mysrc/ClauseSet.h"
+#include "mysrc/StochasticLocalSearch.h"
+
 using namespace std;
 
 extern void test_evaluate_plan_robustness(std::string filename, State *initial_state, State *goal_state);
@@ -680,7 +682,25 @@ int main( int argc, char *argv[] )
 	/*
 	 * TUAN (begin)
 	 */
-//	test_adding_removing_clauses();
+	vector<double> weights(gnum_possible_annotations, 0.5);
+	Clause::set_weights(weights);
+	Search::FF_helpful_actions = false;
+	int max_restarts = 50;
+	int max_steps = 50;
+	double noise = 0.1;
+	StochasticLocalSearch search(&ginitial_state, &ggoal_state, max_restarts, max_steps, noise);
+	search.run();
+	return 0;
+
+	/*
+	 * TUAN (end)
+	 */
+
+	/*
+	 * TUAN (begin)
+	 */
+	//test_adding_removing_clauses();
+//	test_estimate_robustness();
 //	exit(0);
 
 	/*
@@ -691,13 +711,13 @@ int main( int argc, char *argv[] )
 	 * TUAN (begin)
 	 * Test the correctness constraints by testing plan robustness assessment
 	 */
-	gproblem_file = string(gcmd_line.fct_file_name);
-	vector<double> weights(gnum_possible_annotations, 0.75);
-	Clause::set_weights(weights);
-	string sol_file("pfile10.sol");
-	test_evaluate_plan_robustness(sol_file, &ginitial_state, &ggoal_state);
-
-	exit(0);
+//	gproblem_file = string(gcmd_line.fct_file_name);
+//	vector<double> weights(gnum_possible_annotations, 0.75);
+//	Clause::set_weights(weights);
+//	string sol_file("pfile10.sol");
+//	test_evaluate_plan_robustness(sol_file, &ginitial_state, &ggoal_state);
+//
+//	exit(0);
 	/*
 	 * TUAN (end)
 	 */
