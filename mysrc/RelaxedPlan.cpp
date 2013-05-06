@@ -12,9 +12,15 @@
 #include <boost/foreach.hpp>
 using namespace std;
 
-bool RelaxedPlan::poss_del_in_rp = false;
+// By default, possible delete effects are ignored in the relaxed plan
+bool RelaxedPlan::ignore_poss_del_in_rp = true;
 
-RelaxedPlan::RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals) {
+bool RelaxedPlan::use_lower_bound_in_rp = true;
+bool RelaxedPlan::use_upper_bound_in_rp = false;
+
+bool RelaxedPlan::use_robustness_threshold = true;
+
+RelaxedPlan::RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals, double robustness_threshold) {
 	assert(e && goals);
 
 	this->current = init;
@@ -22,6 +28,7 @@ RelaxedPlan::RelaxedPlan(const StripsEncoding *e, const State *init, const State
 	this->e = e;
 	this->facts_in_rpg = new vector<bool>(gnum_ft_conn, false);
 	this->actions_in_rpg = new vector<bool>(gnum_op_conn, false);
+	this->robustness_threshold = robustness_threshold;
 
 }
 
@@ -76,12 +83,24 @@ bool RelaxedPlan::build_relaxed_planning_graph() {
 		FactLayer& current_fact_layer = *(P[n]);
 		FactLayer& previous_fact_layer = *(P[n-1]);
 
-		if (!same_fact_layers(current_fact_layer, previous_fact_layer))
-			continue;
-		else if (!goals_present())
-			return false;
-		else
-			break;	// Two fact layers are exactly the same, and all goals are present
+		// If we want to find a plan with more than a robustness threshold
+		// stop as soon as the (estimate) goal probability is more than expected
+		if (RelaxedPlan::use_robustness_threshold) {
+			if (goals_prob_in_rpg() > robustness_threshold)
+				break;
+		}
+		// Otherwise, we stop only when the last two fact layers are the same
+		// In that case, if all goals present then the RPG is built successfully;
+		// otherwise, its construction fails
+		else {
+			if (!same_fact_layers(current_fact_layer, previous_fact_layer)) {
+				continue;
+			}
+			else if (!goals_present())	// same fact layers, but there exists a goals not present
+				return false;
+			else
+				break;	// Two fact layers are exactly the same, and all goals are present
+		}
 	}
 
 	return true;
@@ -454,7 +473,6 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 			}
 		}
 
-
 		// Possible preconditions
 		// Unlike known preconditions, there 3 cases for possible preconditions
 		// (1) in the state before "action"
@@ -548,7 +566,7 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 				// If the precondition is not affected, or possibly affected, at all by the new action
 				// then we simply take its associated clause set
 				if (!is_add(p, action) && !is_poss_add(p, action) &&
-					(!RelaxedPlan::poss_del_in_rp || !is_poss_del(p, action))) {
+					(!RelaxedPlan::ignore_poss_del_in_rp || !is_poss_del(p, action))) {
 
 					if (step.pre_clauses[p]) {
 						all_clauses.add_clauses(*(step.pre_clauses[p]));
@@ -588,7 +606,7 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 				int bvar = get_bool_var(p, action, POSS_PRE);
 
 				if (!is_add(p, action) && !is_poss_add(p, action) &&
-					(!RelaxedPlan::poss_del_in_rp || !is_poss_del(p, action))) {
+					(!RelaxedPlan::ignore_poss_del_in_rp || !is_poss_del(p, action))) {
 
 					if (step.poss_pre_clauses[p]) {
 						//clause_sets_for_rp.push_back((*itr)->poss_pre_clauses[p]);
@@ -938,7 +956,7 @@ void RelaxedPlan::insert_action_into_relaxed_plan(int action, int layer) {
 				// If the precondition is not affected, or possibly affected, at all by the new action
 				// then the clause set won't change
 				if (!is_add(p, action) && !is_poss_add(p, action) &&
-					(!RelaxedPlan::poss_del_in_rp || !is_poss_del(p, action))) {
+					(!RelaxedPlan::ignore_poss_del_in_rp || !is_poss_del(p, action))) {
 					continue;
 				}
 				else {
@@ -972,7 +990,7 @@ void RelaxedPlan::insert_action_into_relaxed_plan(int action, int layer) {
 
 				// If "p" is not affected by the new action, do nothing
 				if (!is_add(p, action) && !is_poss_add(p, action) &&
-					(!RelaxedPlan::poss_del_in_rp || !is_poss_del(p, action))) {
+					(!RelaxedPlan::ignore_poss_del_in_rp || !is_poss_del(p, action))) {
 					continue;
 				}
 				// If "p" is added or possibly added by "action", all states before actions between "action" and "a" might change
@@ -1136,7 +1154,7 @@ bool RelaxedPlan::supporting_constraints(int p, RELAXED_PLAN::iterator& the_step
 				clauses.add_clause(c);
 			}
 
-			if (RelaxedPlan::poss_del_in_rp) {
+			if (RelaxedPlan::ignore_poss_del_in_rp) {
 				cout<<"Not been implemented! File "<<__FILE__<<", line "<<__LINE__<<endl;
 				exit(1);
 			}
@@ -1195,28 +1213,36 @@ void RelaxedPlan::initialize_fact_layer() {
 	for (int i=0;i<current->num_F;i++) {
 		int ft = current->F[i];
 		FactNode node;
-		ClauseSet clauses;
-		bool success = e->supporting_constraints(ft, n, node.best_clauses);
+		e->supporting_constraints(ft, n, node.best_clauses);
 
 		// Clause sets of all actions in the plan prefix
 		ClauseSet all_clauses;
 		e->get_clauses(all_clauses);
 		all_clauses.add_clauses(node.best_clauses);
 
-		// Estimating robustness
-		node.best_robustness = all_clauses.upper_wmc();
+
+		// WE DON'T NEED THIS PART
+//		// Estimating robustness
+//		if (RelaxedPlan::use_lower_bound_in_rp)
+//			node.best_robustness = all_clauses.lower_wmc();
+//		else
+//			node.best_robustness = all_clauses.upper_wmc();
+
 
 		// The supporting action is the last one of the plan prefix
 		if (n == 0)
-			node.best_supporting_action = INIT_ACTION;
+			node.best_supporting_action = INIT_ACTION;	// If the plan prefix if empty, the INIT_ACTION
 		else
-			node.best_supporting_action = e->get_actions()[e->get_actions().size()-1];
+			node.best_supporting_action = e->get_actions()[n-1];
+
 		node.in_rp = true;		// Is this correct?
 		node.first_layer = 0;
 		(*first_fact_layer)[ft] = node;
+
 		// Mark this fact as being present in the RPG
 		(*facts_in_rpg)[ft] = true;
 	}
+
 	P.push_back(first_fact_layer);
 }
 
@@ -1240,6 +1266,20 @@ bool RelaxedPlan::action_present(int a, int l) {
 		return (A[l]->find(a) != A[l]->end());
 }
 
+// Check if an action is applicable wrt a fact layer
+bool RelaxedPlan::applicable_action_in_rpg(int op, int l) {
+	assert(op >=0 && op < gnum_op_conn);
+	assert(gop_conn[op].num_E == 1);
+	int ef = gop_conn[op].E[0];
+
+	for (int i=0;i<gef_conn[ef].num_PC;i++) {
+		int p = gef_conn[ef].PC[i];
+		if (!fact_present(p, l))
+			return false;
+	}
+	return true;
+}
+
 bool RelaxedPlan::grow_action_layer() {
 	// We cannot grow action layer if:
 	// + There is no fact layer, or
@@ -1261,84 +1301,85 @@ bool RelaxedPlan::grow_action_layer() {
 	}
 
 	for (int op = 0; op < gnum_op_conn; op++) {
-		for (int i = 0; i < gop_conn[op].num_E;i++)
-		{
-			int ef = gop_conn[op].E[i];
 
-			// Check if this action is applicable in the current fact layers
-			// Possible preconditions ignored.
-			bool applicable = true;
+		assert(gop_conn[op].num_E == 1);
+		int ef = gop_conn[op].E[0];
 
-			// We only need to check applicability
-			// when action "op" has not been present in the previous layer
-			if (!(*actions_in_rpg)[op]) {
-				// An action is applicable if all its known preconditions are present in the previous fact layer
-				for (int i=0;i<gef_conn[ef].num_PC;i++) {
-					int ft = gef_conn[ef].PC[i];
-					applicable = fact_present(ft, n);
-					if (!applicable) break;
-				}
-			}
+		// Ignore actions that are not applicable. Only need to check those not in the relaxed planning graph.
+		if (!(*actions_in_rpg)[op] && !applicable_action_in_rpg(op, n))
+			continue;
 
-			if (!applicable) continue;
+		// Information node for this action
+		ActionNode node;
 
-			// Information node for this action
-			ActionNode node;
+		// First, clause sets for known preconditions
+		for (int i=0;i<gef_conn[ef].num_PC;i++) {
+			int ft = gef_conn[ef].PC[i];
+			// "ft" must be in the fact layer, due to the applicability condition
+			node.clauses.add_clauses(current_fact_layer.at(ft).best_clauses);
+		}
 
-			// First, clause sets for known preconditions
-			for (int i=0;i<gef_conn[ef].num_PC;i++) {
-				int ft = gef_conn[ef].PC[i];
-				// "ft" must be in the fact layer, due to the applicability condition
-				node.clauses.add_clauses(current_fact_layer.at(ft).best_clauses);
-			}
+		// Second, clause sets for possible preconditions
+		for (int i=0;i<gef_conn[ef].num_poss_PC;i++) {
+			int ft = gef_conn[ef].poss_PC[i];
+			int bvar = get_bool_var(ft, op, POSS_PRE);
 
-			// Second, clause sets for possible preconditions
-			for (int i=0;i<gef_conn[ef].num_poss_PC;i++) {
-				int ft = gef_conn[ef].poss_PC[i];
-				int bvar = get_bool_var(ft, op, POSS_PRE);
-
-				// TWO CASES
-				// (1) this fact is in the current fact layer
-				if (current_fact_layer.find(ft) != current_fact_layer.end()) {
-					const ClauseSet& ft_cs = current_fact_layer.at(ft).best_clauses;
-					ClauseSet temp_ft_cs;
-					for (ClauseSet::const_iterator itr = ft_cs.cbegin(); itr != ft_cs.cend(); itr++) {
-						Clause c = *itr;
-						c.add_literal(-bvar);
-						temp_ft_cs.add_clause(c);
-					}
-					node.clauses.add_clauses(temp_ft_cs);
-				}
-				// (2) it is not: then it means that this proposition is for sure to be FALSE
-				// Thus, if this action were selected, it must not realized this proposition as its precondition
-				else {
-					ClauseSet cs;
-					Clause c;
+			// TWO CASES
+			// (1) this fact is in the current fact layer
+			if (current_fact_layer.find(ft) != current_fact_layer.end()) {
+				const ClauseSet& ft_cs = current_fact_layer.at(ft).best_clauses;
+				ClauseSet temp_ft_cs;
+				for (ClauseSet::const_iterator itr = ft_cs.cbegin(); itr != ft_cs.cend(); itr++) {
+					Clause c = *itr;
 					c.add_literal(-bvar);
-					cs.add_clause(c);
-					node.clauses.add_clauses(cs);
+					temp_ft_cs.add_clause(c);
 				}
+				node.clauses.add_clauses(temp_ft_cs);
 			}
-			ClauseSet cs;
-			e->get_clauses(cs);
-			//ClauseSet cs(e->get_clauses());
+			// (2) it is not: then it means that this proposition is for sure to be FALSE
+			// Thus, if this action were selected, it must not realized this proposition as its precondition
+			else {
+				ClauseSet cs;
+				Clause c;
+				c.add_literal(-bvar);
+				cs.add_clause(c);
+				node.clauses.add_clauses(cs);
+			}
+		}
 
-			cs.add_clauses(node.clauses);
+		// Get the clause set for the current plan
+		ClauseSet cs;
+		e->get_clauses(cs);
+
+		// Merge it with the clause set for this action
+		cs.add_clauses(node.clauses);
+
+		// Evaluate them all
+		if (RelaxedPlan::use_lower_bound_in_rp)
+			node.robustness = cs.lower_wmc();
+		else if (RelaxedPlan::use_upper_bound_in_rp)
 			node.robustness = cs.upper_wmc();
-			node.in_rp = false;
+		else {
+			// Exact computation
+			CACHET_OUTPUT o;
+			cs.wmc(o);
+			node.robustness = o.prob;
+		}
 
-			// Add this node into the layer action and its clause set into the action layer
-			(*new_action_layer)[op] = node;
+		node.in_rp = false;
 
-			// Mark this action being present in the relaxed planning graph
-			(*actions_in_rpg)[op] = true;
+		// Add this node into the layer action and its clause set into the action layer
+		(*new_action_layer)[op] = node;
+
+		// Mark this action being present in the relaxed planning graph
+		(*actions_in_rpg)[op] = true;
 
 #ifndef NDEBUG
-			for (int i=0;i<gef_conn[ef].num_PC;i++) {
-				all_known_PCs.insert(gef_conn[ef].PC[i]);
-			}
-#endif
+		for (int i=0;i<gef_conn[ef].num_PC;i++) {
+			all_known_PCs.insert(gef_conn[ef].PC[i]);
 		}
+#endif
+
 	}
 
 #ifndef NDEBUG
@@ -1371,12 +1412,24 @@ bool RelaxedPlan::grow_fact_layer() {
 	}
 	for (int ft = 0; ft < gnum_ft_conn; ft++) {
 
-		bool will_be_added = false;	// Whether this fact will be added into the RPG at this iteration
+		bool will_be_added;	// Whether this fact will be added into the RPG at this iteration
 		int best_supporting_action;
 		ClauseSet best_clauses;
-		double best_robustness = -1;
+		double best_robustness;
 
-		// Collect actions certainly/possibly supporting this fact
+		// If this fact has been present already, establish NOOP action
+		if (current_fact_layer.find(ft) != current_fact_layer.end()) {
+			will_be_added = true;
+			best_clauses = current_fact_layer[ft].best_clauses;
+			best_robustness = current_fact_layer[ft].best_robustness;
+			best_supporting_action = NOOP;
+		}
+		else {
+			will_be_added = false;
+			best_robustness = 0;
+		}
+
+		// Collect non-NOOP actions certainly/possibly supporting this fact
 		vector<int> certainly_supporting_actions;
 		vector<int> possibly_supporting_actions;
 		for (int i = 0; i < gft_conn[ft].num_A; i++) {
@@ -1395,7 +1448,6 @@ bool RelaxedPlan::grow_fact_layer() {
 		}
 
 		// Now find the best supporter for this fact (including NOOP)
-		// First, non-NOOP action
 		if (certainly_supporting_actions.size() || possibly_supporting_actions.size()) {
 			will_be_added = true;
 
@@ -1421,9 +1473,18 @@ bool RelaxedPlan::grow_fact_layer() {
 				ClauseSet tmp;
 				e->get_clauses(tmp);
 				cs.add_clauses(tmp);
-				//cs.add_clauses(e->get_clauses());
 
-				double r = cs.upper_wmc();
+				double r;
+				if (RelaxedPlan::use_lower_bound_in_rp)
+					r = cs.lower_wmc();
+				else if (RelaxedPlan::use_upper_bound_in_rp)
+					r = cs.upper_wmc();
+				else {
+					CACHET_OUTPUT o;
+					cs.wmc(o);
+					r = o.prob;
+				}
+
 				if (r > best_robustness) {
 					best_robustness = r;
 					best_supporting_action = op;
@@ -1432,22 +1493,13 @@ bool RelaxedPlan::grow_fact_layer() {
 			}
 		}
 
-		// Second, NOOP action
-		if (current_fact_layer.find(ft) != current_fact_layer.end()) {
-			will_be_added = true;
-			if (best_robustness <= current_fact_layer[ft].best_robustness) {	// NOTE: using "<=" makes NOOP preferable
-				best_clauses = current_fact_layer[ft].best_clauses;
-				best_robustness = current_fact_layer[ft].best_robustness;
-				best_supporting_action = NOOP;
-			}
-		}
 
 		// Create new fact node for the newly added fact
 		if (will_be_added) {
 			FactNode node;
 			node.best_clauses = best_clauses;
 			node.best_robustness = best_robustness;
-			node.best_supporting_action = best_supporting_action;
+			node.best_supporting_action = best_supporting_action;	// Including NOOP
 			node.in_rp = false;
 			// Update its first layer if necessary
 			if (!(*facts_in_rpg)[ft])
@@ -1501,6 +1553,35 @@ bool RelaxedPlan::goals_present(FactLayer& fact_layer) {
 		if (fact_layer.find(ft) == fact_layer.end()) return false;
 	}
 	return true;
+}
+
+// Estimate probability of goals in the RPG
+double RelaxedPlan::goals_prob_in_rpg() {
+	int n = P.size()-1;
+	const FactLayer& current_fact_layer = *(P[n]);
+
+	// Collect all clause sets for goals
+	ClauseSet all_goal_clauses;
+	for (int i=0;i<goals->num_F;i++) {
+		int g = goals->F[i];
+		if (current_fact_layer.find(g) == current_fact_layer.end())
+			return 0;
+		all_goal_clauses.add_clauses(current_fact_layer.at(g).best_clauses);
+	}
+
+	double r;
+	if (RelaxedPlan::use_lower_bound_in_rp) {
+		r = all_goal_clauses.lower_wmc();
+	}
+	else if (RelaxedPlan::use_upper_bound_in_rp) {
+		r = all_goal_clauses.upper_wmc();
+	}
+	else {
+		CACHET_OUTPUT o;
+		all_goal_clauses.wmc(o);
+		r = o.prob;
+	}
+	return r;
 }
 
 bool RelaxedPlan::same_fact_layers(FactLayer& factlayer_1, FactLayer& factlayer_2) {

@@ -80,6 +80,9 @@ class RelaxedPlan {
 	bool fact_present(int ft, int l);
 	bool action_present(int a, int l);
 
+	// Check if an action "op" at layer "l" is applicable (wrt the fact layer before it)
+	inline bool applicable_action_in_rpg(int op, int l);
+
 	// "Grow" the next action/fact layer. Return "false" if no new actions/facts added
 	bool grow_action_layer();
 	bool grow_fact_layer();
@@ -90,6 +93,9 @@ class RelaxedPlan {
 
 	// Check if two fact layers are the same
 	bool same_fact_layers(FactLayer& factlayer_1, FactLayer& factlayer_2);
+
+	// Estimate probability of goals in the RPG
+	double goals_prob_in_rpg();
 
 	/**************************************************************************************************
 	 * RELAXED PLAN
@@ -161,12 +167,22 @@ class RelaxedPlan {
 	// Check if a proposition is in a RP-STATE
 	bool in_rp_state(int p, const RP_STATE& s) const;
 
+	// The robustness threshold: we want to find a plan with more than this robustness
+	double robustness_threshold;
+
 public:
 	// If possible delete effects should be considered in evaluating robustness during
 	// RPG construction and RP extraction
-	static bool poss_del_in_rp;
+	static bool ignore_poss_del_in_rp;
 
-	RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals);
+	// If lower bound or upper bound on probability of clause sets should be used
+	static bool use_lower_bound_in_rp;
+	static bool use_upper_bound_in_rp;
+
+	// If we are searching for a plan with more than a robustness threshold
+	static bool use_robustness_threshold;
+
+	RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals, double robustness_threshold = 0);
 	virtual ~RelaxedPlan();
 
 	// Create relaxed planning graph.
