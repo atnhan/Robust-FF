@@ -21,7 +21,7 @@ struct CACHET_OUTPUT {
 	int clauses;		// number of clauses
 	double time;		// running time
 	double prob;		// satisfying probability
-	int solutions;		// number of solution
+	int solutions;		// number of solutionRP_STEP
 
 	void print() {
 		std::cout<<"Number of variables: "<<vars<<std::endl;
@@ -87,6 +87,16 @@ public:
 	void wmc(CACHET_OUTPUT& r) const;
 	double lower_wmc() const;
 	double upper_wmc() const;
+
+	// Compare two clause sets "cs1" and "cs2" w.r.t the current "cs" (i.e., "this->clauses")
+	// according to lower, upper or exact WMC
+	// Return:
+	// Negative if the probability of (cs AND cs1) < that of (cs AND cs1)
+	// Positive if the probability of (cs AND cs1) > that of (cs AND cs1)
+	// Zero otherwise
+	int compare_lower_wmc(const ClauseSet& cs1, const ClauseSet& cs2) const;
+	int compare_upper_wmc(const ClauseSet& cs1, const ClauseSet& cs2) const;
+	int compare_wmc(const ClauseSet& cs1, const ClauseSet& cs2) const;
 
 	// Write to a file
 	void write_cnf_file(const char* filename) const;

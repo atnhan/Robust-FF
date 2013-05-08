@@ -31,6 +31,7 @@ ClauseSet::~ClauseSet() {
 // Assignment operator
 ClauseSet& ClauseSet::operator=(const ClauseSet& cs) {
 	this->clauses = cs.clauses;
+	this->clause_components = cs.clause_components;
 	this->max_component_id = cs.max_component_id;
 	return *this;
 }
@@ -167,6 +168,48 @@ double ClauseSet::upper_wmc() const{
 
 	return r;
 
+}
+
+int ClauseSet::compare_lower_wmc(const ClauseSet& cs1, const ClauseSet& cs2) const {
+	ClauseSet clauses_1(*this);
+	clauses_1.add_clauses(cs1);
+	ClauseSet clauses_2(*this);
+	clauses_2.add_clauses(cs2);
+
+	double prob1 = clauses_1.lower_wmc();
+	double prob2 = clauses_2.lower_wmc();
+	if (prob1 < prob2) return -1;
+	else if (prob1 > prob2) return 1;
+	else return 0;
+}
+
+int ClauseSet::compare_upper_wmc(const ClauseSet& cs1, const ClauseSet& cs2) const {
+	ClauseSet clauses_1(*this);
+	clauses_1.add_clauses(cs1);
+	ClauseSet clauses_2(*this);
+	clauses_2.add_clauses(cs2);
+
+	double prob1 = clauses_1.upper_wmc();
+	double prob2 = clauses_2.upper_wmc();
+	if (prob1 < prob2) return -1;
+	else if (prob1 > prob2) return 1;
+	else return 0;
+}
+
+int ClauseSet::compare_wmc(const ClauseSet& cs1, const ClauseSet& cs2) const {
+	ClauseSet clauses_1(*this);
+	clauses_1.add_clauses(cs1);
+	ClauseSet clauses_2(*this);
+	clauses_2.add_clauses(cs2);
+
+	CACHET_OUTPUT o1, o2;
+	clauses_1.wmc(o1);
+	clauses_2.wmc(o2);
+	double prob1 = o1.prob;
+	double prob2 = o2.prob;
+	if (prob1 < prob2) return -1;
+	else if (prob1 > prob2) return 1;
+	else return 0;
 }
 
 ostream& operator<<(ostream& os, const ClauseSet& cs) {

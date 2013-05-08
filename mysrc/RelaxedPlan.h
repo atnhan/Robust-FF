@@ -24,8 +24,9 @@
 class RelaxedPlan {
 
 #define NOOP -1
-#define INIT_ACTION		-1
-#define GOAL_ACTION		-1
+#define INIT_ACTION		-2
+#define GOAL_ACTION		-3
+
 #define MAX_RELAXED_PLAN_LENGTH		200
 #define MAX_RPG_LENGTH	500
 
@@ -123,9 +124,14 @@ class RelaxedPlan {
 	RELAXED_PLAN rp;
 	std::vector<int> num_chosen_actions;	// Number of chosen actions in the relaxed plan at each layer
 
+	// The clauses derived from actions in the relaxed plan
+	// This multiset is updated when an action is inserted into the relaxed plan
+	boost::unordered_multiset<Clause, boost::hash<Clause> > rp_clauses;
+
 	// Set of facts added or possibly added by actions in the first action layer, who has been selected into the relaxed plan
 	boost::unordered_set<int> possibly_supported_facts_at_1st_fact_layer;
 
+	//-------
 	// Unsupported actions chosen during the relaxed plan extraction are stored in a queue
 	struct UnsupportedAction {
 		int a;	// action
@@ -146,12 +152,43 @@ class RelaxedPlan {
 	};
 
 	typedef std::priority_queue<UnsupportedAction, std::vector<UnsupportedAction>, unsupported_action_comparison> UNSUPPORTED_ACTION_QUEUE;
+	//-------
+
+	// Each subgoal is attached with one particular action, at a specific layer of the RPG
+	// and whether it is known or possible precondition of the action
+	struct SubGoal {
+		int g;	// the subgoal
+		int op;	// the action
+		int l;	// the layer of the RPG
+		bool possible_precondition;		// whether it is a possible precondition
+		RP_STATE *state_before_op;		// State before the action in the relaxed plan
+
+		SubGoal(int g, int op, int l, bool possible_precondition, RP_STATE* s_ptr);
+	};
+
+	class SubGoalComparison {
+	public:
+		// Return TRUE if "g1 < g2". The queue's top is the largest element.
+		bool operator() (const SubGoal& g1, const SubGoal& g2) const;
+	};
+	typedef std::priority_queue<SubGoal, std::vector<SubGoal>, SubGoalComparison> SubGoalQueue;
+	//-------
 
 	// Evaluate a candidate action "a", which is at layer "l" of the RPG, wrt the current relaxed plan.
 	double evaluate_candidate_action(int a, int l);
 
+	// Update state before an RP_STEP
+	void update_rp_state(RELAXED_PLAN::iterator& rp_step_itr);
+
+	// Update states of all steps after a particular step
+	void update_all_rp_states_after(RELAXED_PLAN::iterator& rp_step_itr);
+
+	// Update all clauses for a new RP_STEP
+	void update_rp_step_clauses(RELAXED_PLAN::iterator& rp_step_itr);
+
 	// Insert an action "a" at layer "l" into a relaxed plan
-	void insert_action_into_relaxed_plan(int a, int l);
+	// Return the new RP_STEP
+	RP_STEP *insert_action_into_relaxed_plan(int a, int l);
 
 	// Get confirmed step in the relaxed plan OR the confirmed level in the current plan prefix
 	// for proposition "p" in the rp-state contained in the iterator "itr"
@@ -167,10 +204,18 @@ class RelaxedPlan {
 	// Check if a proposition is in a RP-STATE
 	bool in_rp_state(int p, const RP_STATE& s) const;
 
+	// Estimate the robustness of the plan prefix + the current relaxed plan
+	double estimate_robustness();
+
 	// The robustness threshold: we want to find a plan with more than this robustness
 	double robustness_threshold;
 
 public:
+
+	/*********************************************************************************************
+	 * DESIGN CHOICES IN THE RELAXED PLAN EXTRACTION
+	 *********************************************************************************************/
+
 	// If possible delete effects should be considered in evaluating robustness during
 	// RPG construction and RP extraction
 	static bool ignore_poss_del_in_rp;
@@ -179,9 +224,17 @@ public:
 	static bool use_lower_bound_in_rp;
 	static bool use_upper_bound_in_rp;
 
+	// When we evaluate a candidate action, whether we consider how the current actions affect
+	// it, and how it affects the current actions in the relaxed plan
+	static bool candidate_actions_affect_current_actions;
+	static bool current_actions_affect_candidate_action;
+
+	/*********************************************************************************************/
+
 	// If we are searching for a plan with more than a robustness threshold
 	static bool use_robustness_threshold;
 
+	// Constructors
 	RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals, double robustness_threshold = 0);
 	virtual ~RelaxedPlan();
 
@@ -193,6 +246,11 @@ public:
 	// Extract the relaxed plan.
 	// Return the length of the relaxed plan, and the robustness of {the plan prefix + the relaxed plan}
 	void extract(std::pair<int, double>& result);
+
+	// Extract the relaxed plan
+	// Return true if a relaxed plan is found. The "result" pair contains its length and
+	// the approximate robustness of the plan prefix + the relaxed plan
+	bool extract_01(std::pair<int, double>& result);
 
 	// Get FF-style helpful actions
 	void get_FF_helpful_actions(std::vector<int>& helpful_actions) const;
