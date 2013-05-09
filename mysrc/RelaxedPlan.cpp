@@ -20,6 +20,8 @@ bool RelaxedPlan::use_upper_bound_in_rp = true;
 
 bool RelaxedPlan::use_robustness_threshold = false;
 
+bool RelaxedPlan::clauses_from_rpg_for_false_preconditions = true;
+
 RelaxedPlan::RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals, double robustness_threshold) {
 	assert(e && goals);
 
@@ -489,11 +491,9 @@ void RelaxedPlan::get_FF_helpful_actions(std::vector<int>& helpful_actions) cons
 
 // Estimate the robustness of the plan prefix + the current relaxed plan
 double RelaxedPlan::estimate_robustness() {
-	ClauseSet all_clauses;
-	e->get_clauses(all_clauses);
 
+	// Check if any know precondition is not in the corresponding state
 	for (RELAXED_PLAN::iterator rp_itr = rp.begin(); rp_itr != rp.end(); rp_itr++) {
-
 		int this_op = (*rp_itr)->a;
 		assert(gop_conn[this_op].num_E == 1);
 		int ef = gop_conn[this_op].E[0];
@@ -504,8 +504,36 @@ double RelaxedPlan::estimate_robustness() {
 
 			// If this known precondition is not in the state before the action
 			// then the robustness is 0
-			if (!in_rp_state(p, (*rp_itr)->s))
-				return 0;
+			if (!in_rp_state(p, (*rp_itr)->s)) {
+
+				// If clauses from the RPG are not used for unsupported known preconditions,
+				// then simply return 0
+				if (!RelaxedPlan::clauses_from_rpg_for_false_preconditions)
+					return 0;
+			}
+		}
+	}
+
+	// Now collect the clauses of the plan prefix + relaxed plan
+	ClauseSet all_clauses;
+	e->get_clauses(all_clauses);
+
+	for (RELAXED_PLAN::iterator rp_itr = rp.begin(); rp_itr != rp.end(); rp_itr++) {
+
+		int this_op = (*rp_itr)->a;
+		int layer = (*rp_itr)->layer;
+		assert(gop_conn[this_op].num_E == 1);
+		int ef = gop_conn[this_op].E[0];
+
+		// Consider known preconditions of "this_op"
+		for (int i=0;i<gef_conn[ef].num_PC;i++) {
+			int p = gef_conn[ef].PC[i];
+
+			// If this known precondition is not in the state before the action
+			if (!in_rp_state(p, (*rp_itr)->s) && RelaxedPlan::clauses_from_rpg_for_false_preconditions) {
+				all_clauses.add_clauses((*P[layer]).at(p).best_clauses);
+				continue;
+			}
 
 			if ((*rp_itr)->pre_clauses.find(p) == (*rp_itr)->pre_clauses.end() ||
 				(*rp_itr)->pre_clauses.at(p)->size() <= 0)
@@ -1435,7 +1463,6 @@ void RelaxedPlan::update_all_rp_states_after(RELAXED_PLAN::iterator& rp_step_itr
 				itr++;
 			}
 		}
-
 	}
 }
 
@@ -1454,7 +1481,7 @@ void RelaxedPlan::update_rp_step_clauses(RELAXED_PLAN::iterator& rp_step_itr) {
 	for (int j=0;j<gef_conn[ef].num_PC;j++) {
 		int p = gef_conn[ef].PC[j];
 
-		// CASE 1: If "p" is present in the state before "action", then we can construct correctness constraints for it
+		// If "p" is present in the state before "action", then we can construct correctness constraints for it
 		// So this clause set encodes how current actions before "action" in the plan prefix and the relaxed plan affect it.
 		if ((*rp_step_itr)->s.find(p) != (*rp_step_itr)->s.end()) {
 			ClauseSet cs;
@@ -1465,17 +1492,20 @@ void RelaxedPlan::update_rp_step_clauses(RELAXED_PLAN::iterator& rp_step_itr) {
 				(*rp_step_itr)->pre_clauses[p] = new ClauseSet(cs);
 			}
 		}
-		// CASE 2: Otherwise, use the clause set established during RPG construction
+		// Otherwise, we may attach clauses from the RPG to this known precondition
 		else {
-			// "p" must be present in the fact layer of the RPG
-			assert(current_fact_layer.find(p) != current_fact_layer.end());
 
-			if (current_fact_layer.at(p).best_clauses.size()) {
-				(*rp_step_itr)->pre_clauses[p] = new ClauseSet(current_fact_layer.at(p).best_clauses);
+			if (RelaxedPlan::clauses_from_rpg_for_false_preconditions) {
+				// "p" must be present in the fact layer of the RPG
+				assert(current_fact_layer.find(p) != current_fact_layer.end());
+
+				if (current_fact_layer.at(p).best_clauses.size()) {
+					(*rp_step_itr)->pre_clauses[p] = new ClauseSet(current_fact_layer.at(p).best_clauses);
+				}
 			}
+
 		}
 	}
-
 
 	// Possible preconditions
 	// Unlike known preconditions, there 3 cases for possible preconditions
@@ -1513,24 +1543,27 @@ void RelaxedPlan::update_rp_step_clauses(RELAXED_PLAN::iterator& rp_step_itr) {
 
 		// CASE 2: "p" is not in the state before "action", but in the current fact layer
 		else if (current_fact_layer.find(p) != current_fact_layer.end()) {
-			const ClauseSet& cs = current_fact_layer.at(p).best_clauses;
 
-			// These clauses are needed only if the possible precondition is realized
-			ClauseSet temp_cs;
-			if (cs.size()) {
-				for (ClauseSet::const_iterator itr = cs.cbegin(); itr != cs.cend(); itr++) {
-					Clause c = *itr;
+			if (RelaxedPlan::clauses_from_rpg_for_false_preconditions) {
+				const ClauseSet& cs = current_fact_layer.at(p).best_clauses;
+
+				// These clauses are needed only if the possible precondition is realized
+				ClauseSet temp_cs;
+				if (cs.size()) {
+					for (ClauseSet::const_iterator itr = cs.cbegin(); itr != cs.cend(); itr++) {
+						Clause c = *itr;
+						c.add_literal(-bvar);
+						temp_cs.add_clause(c);
+					}
+				}
+				else {
+					Clause c;
 					c.add_literal(-bvar);
 					temp_cs.add_clause(c);
 				}
-			}
-			else {
-				Clause c;
-				c.add_literal(-bvar);
-				temp_cs.add_clause(c);
-			}
 
-			(*rp_step_itr)->poss_pre_clauses[p] = new ClauseSet(temp_cs);
+				(*rp_step_itr)->poss_pre_clauses[p] = new ClauseSet(temp_cs);
+			}
 		}
 
 		// CASE 3: "p" is not in the fact layer of the RPG, so for sure it has empty clause set
@@ -1541,6 +1574,115 @@ void RelaxedPlan::update_rp_step_clauses(RELAXED_PLAN::iterator& rp_step_itr) {
 			temp_cs.add_clause(c);
 			(*rp_step_itr)->poss_pre_clauses[p] = new ClauseSet(temp_cs);
 		}
+	}
+}
+
+// Update all clauses for steps after a particular step
+void RelaxedPlan::update_rp_step_clauses_after(RELAXED_PLAN::iterator& rp_step_itr) {
+	int action = (*rp_step_itr)->a;
+	RELAXED_PLAN::iterator itr = rp_step_itr;
+
+	// Move to the next step
+	itr++;
+
+	while (itr != rp.end()) {
+		RP_STEP& step = **itr;
+		int a = step.a;
+		if (a == GOAL_ACTION) break;
+		const FactLayer& fact_layer = *(P[step.layer]);
+
+		assert(gop_conn[a].num_E == 1);
+		int ef = gop_conn[a].E[0];
+
+		////////////////////////////
+		// Known preconditions
+		for (int k = 0; k < gef_conn[ef].num_PC; k++) {
+			int p = gef_conn[ef].PC[k];
+
+			// If the precondition is not affected, or possibly affected, at all by the new action
+			// then the clause set won't change
+			if (!is_add(p, action) && !is_poss_add(p, action) &&
+					(RelaxedPlan::ignore_poss_del_in_rp || !is_poss_del(p, action))) {
+				continue;
+			}
+			else {
+
+				// TWO CASES: (1) it is or (2) is not present in the state before "a".
+				// The clause sets can only change in the first case!
+				// CASE 1
+				if (step.s.find(p) != step.s.end()) {
+
+					// Recompute the clause set for this known precondition
+					ClauseSet cs;
+					bool success = supporting_constraints(p, itr, cs);
+					assert(success);
+
+					if (cs.size()) {
+
+						// Release memory
+						if (step.pre_clauses.find(p) != step.pre_clauses.end() && step.pre_clauses[p])
+							delete step.pre_clauses[p];
+
+						// Update with the new clause set
+						step.pre_clauses[p] = new ClauseSet(cs);
+					}
+				}
+				// CASE 2
+				else {
+				}
+			}
+		}
+
+		////////////////////////////
+		// Possible preconditions
+		for (int k = 0; k < gef_conn[ef].num_poss_PC; k++) {
+			int p = gef_conn[ef].poss_PC[k];
+			int bvar = get_bool_var(p, action, POSS_PRE);
+
+			// If "p" is not affected by the new action, do nothing
+			if (!is_add(p, action) && !is_poss_add(p, action) &&
+					(RelaxedPlan::ignore_poss_del_in_rp || !is_poss_del(p, action))) {
+				continue;
+			}
+			// If "p" is added or possibly added by "action", the clause sets may change
+			else {
+				// If "p" is in the state before "a"
+				if (step.s.find(p) != step.s.end()) {
+
+					if (step.poss_pre_clauses.find(p) != step.poss_pre_clauses.end() && step.poss_pre_clauses[p])
+						delete step.poss_pre_clauses[p];
+
+					// Recompute the clause set
+					ClauseSet cs;
+					bool success = supporting_constraints(p, itr, cs);
+					assert(success);
+
+					// These clauses are needed only if the possible precondition is realized
+					ClauseSet temp_cs;
+					if (cs.size()) {
+						for (ClauseSet::const_iterator itr2 = cs.cbegin(); itr2 != cs.cend(); itr2++) {
+							Clause c = *itr2;
+							c.add_literal(-bvar);
+							temp_cs.add_clause(c);
+						}
+					}
+					else {
+						Clause c;
+						c.add_literal(-bvar);
+						temp_cs.add_clause(c);
+
+					}
+					step.poss_pre_clauses[p] = new ClauseSet(temp_cs);
+				}
+				// Otherwise, the clause sets won't change
+				else {
+
+				}
+			}
+		}
+
+		// Next action after "action"
+		itr++;
 	}
 }
 
@@ -1587,197 +1729,8 @@ RelaxedPlan::RP_STEP *RelaxedPlan::insert_action_into_relaxed_plan(int action, i
 	// Update clauses for known and possible preconditions of "action"
 	update_rp_step_clauses(new_itr);
 
-	for (int i=0;i<gop_conn[action].num_E;i++) {
-		int ef = gop_conn[action].E[i];
-
-		// Known preconditions
-		// Two cases: it is or is not present in the state before "action"
-		for (int j=0;j<gef_conn[ef].num_PC;j++) {
-			int p = gef_conn[ef].PC[j];
-
-			// CASE 1: If "p" is present in the state before "action", then we can construct correctness constraints for it
-			// So this clause set encodes how current actions before "action" in the plan prefix and the relaxed plan affect it.
-			if (new_step->s.find(p) != new_step->s.end()) {
-				ClauseSet cs;
-				bool success = supporting_constraints(p, new_itr, cs);
-				assert(success);
-
-				if (cs.size()) {
-					(*new_itr)->pre_clauses[p] = new ClauseSet(cs);
-				}
-			}
-			// CASE 2: Otherwise, use the clause set established during RPG construction
-			else {
-				// "p" must be present in the fact layer of the RPG
-				assert(current_fact_layer.find(p) != current_fact_layer.end());
-
-				if (current_fact_layer.at(p).best_clauses.size()) {
-					(*new_itr)->pre_clauses[p] = new ClauseSet(current_fact_layer.at(p).best_clauses);
-				}
-			}
-		}
-
-
-		// Possible preconditions
-		// Unlike known preconditions, there 3 cases for possible preconditions
-		// (1) in the state before "action"
-		// (2) not in the state, but in the fact layer of the RPG
-		// (3) not in the state or the fact layer
-
-		for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
-			int p = gef_conn[ef].poss_PC[j];
-			int bvar = get_bool_var(p, action, POSS_PRE);
-
-			// CASE 1: If "p" is present in the state before "action", then we can construct correctness constraints for it
-			if (new_step->s.find(p) != new_step->s.end()) {
-				ClauseSet cs;
-				bool success = supporting_constraints(p, new_itr, cs);
-				assert(success);
-
-				// These clauses are needed only if the possible precondition is realized
-				ClauseSet temp_cs;
-				if (cs.size()) {
-					for (ClauseSet::const_iterator itr = cs.cbegin(); itr != cs.cend(); itr++) {
-						Clause c = *itr;
-						c.add_literal(-bvar);
-						temp_cs.add_clause(c);
-					}
-				}
-				else {
-					Clause c;
-					c.add_literal(-bvar);
-					temp_cs.add_clause(c);
-				}
-
-				(*new_itr)->poss_pre_clauses[p] = new ClauseSet(temp_cs);	// "temp_cs" always non-empty
-			}
-
-			// CASE 2: "p" is not in the state before "action", but in the current fact layer
-			else if (current_fact_layer.find(p) != current_fact_layer.end()) {
-				const ClauseSet& cs = current_fact_layer.at(p).best_clauses;
-
-				// These clauses are needed only if the possible precondition is realized
-				ClauseSet temp_cs;
-				if (cs.size()) {
-					for (ClauseSet::const_iterator itr = cs.cbegin(); itr != cs.cend(); itr++) {
-						Clause c = *itr;
-						c.add_literal(-bvar);
-						temp_cs.add_clause(c);
-					}
-				}
-				else {
-					Clause c;
-					c.add_literal(-bvar);
-					temp_cs.add_clause(c);
-				}
-
-				(*new_itr)->poss_pre_clauses[p] = new ClauseSet(temp_cs);
-			}
-
-			// CASE 3: "p" is not in the fact layer of the RPG, so for sure it has empty clause set
-			else {
-				ClauseSet temp_cs;
-				Clause c;
-				c.add_literal(-bvar);
-				temp_cs.add_clause(c);
-				(*new_itr)->poss_pre_clauses[p] = new ClauseSet(temp_cs);
-			}
-		}
-	}
-
-	/*
-	 * Collect clauses for known and possible preconditions of actions "a" after "action" in the relaxed plan
-	 */
-	RELAXED_PLAN::iterator itr = new_itr;
-	itr++;
-	while (itr != rp.end()) {
-		RP_STEP& step = **itr;
-		int a = step.a;
-		if (a == GOAL_ACTION) break;
-		const FactLayer& fact_layer = *(P[step.layer]);
-
-		for (int j = 0; j < gop_conn[a].num_E; j++) {
-			int ef = gop_conn[a].E[j];
-
-			////////////////////////////
-			// Known preconditions
-			for (int k = 0; k < gef_conn[ef].num_PC; k++) {
-				int p = gef_conn[ef].PC[k];
-
-				// If the precondition is not affected, or possibly affected, at all by the new action
-				// then the clause set won't change
-				if (!is_add(p, action) && !is_poss_add(p, action) &&
-					(!RelaxedPlan::ignore_poss_del_in_rp || !is_poss_del(p, action))) {
-					continue;
-				}
-				else {
-					// TWO CASES: (1) it is or (2) is not present in the state before "a".
-					// The clause sets can only change in the first case!
-					// CASE 1
-					if (step.s.find(p) != step.s.end()) {
-
-						ClauseSet cs;
-						bool success = supporting_constraints(p, itr, cs);
-						assert(success);
-
-						if (cs.size()) {
-							if (step.pre_clauses.find(p) != step.pre_clauses.end() && step.pre_clauses[p])
-								delete step.pre_clauses[p];
-
-							step.pre_clauses[p] = new ClauseSet(cs);
-						}
-					}
-					// CASE 2
-					else {
-					}
-				}
-			}
-
-			////////////////////////////
-			// Possible preconditions
-			for (int k = 0; k < gef_conn[ef].num_poss_PC; k++) {
-				int p = gef_conn[ef].poss_PC[k];
-				int bvar = get_bool_var(p, action, POSS_PRE);
-
-				// If "p" is not affected by the new action, do nothing
-				if (!is_add(p, action) && !is_poss_add(p, action) &&
-					(!RelaxedPlan::ignore_poss_del_in_rp || !is_poss_del(p, action))) {
-					continue;
-				}
-				// If "p" is added or possibly added by "action", all states before actions between "action" and "a" might change
-				else {
-
-					// If "p" is in the state before "a"
-					if (step.s.find(p) != step.s.end()) {
-						ClauseSet cs;
-						bool success = supporting_constraints(p, itr, cs);
-						assert(success);
-
-						// These clauses are needed only if the possible precondition is realized
-						if (cs.size()) {
-							if (step.poss_pre_clauses.find(p) != step.poss_pre_clauses.end() && step.poss_pre_clauses[p])
-								delete step.poss_pre_clauses[p];
-
-							ClauseSet temp_cs;
-							for (ClauseSet::const_iterator itr2 = cs.cbegin(); itr2 != cs.cend(); itr2++) {
-								Clause c = *itr2;
-								c.add_literal(-bvar);
-								temp_cs.add_clause(c);
-							}
-							step.poss_pre_clauses[p] = new ClauseSet(temp_cs);
-						}
-					}
-					// Otherwise, the clause sets won't change
-					else {
-
-					}
-				}
-			}
-		}
-
-		// Next action after "action"
-		itr++;
-	}
+	// Update clauses for known and possible preconditions of actions after "action"
+	update_all_rp_states_after(new_itr);
 
 	return new_step;
 }

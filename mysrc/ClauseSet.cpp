@@ -97,6 +97,7 @@ void ClauseSet::add_clauses(const ClauseSet& cs) {
 
 void ClauseSet::clear() {
 	clauses.clear();
+	clause_components.clear();
 	max_component_id = 0;
 }
 

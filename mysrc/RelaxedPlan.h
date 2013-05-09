@@ -177,6 +177,10 @@ class RelaxedPlan {
 	// Evaluate a candidate action "a", which is at layer "l" of the RPG, wrt the current relaxed plan.
 	double evaluate_candidate_action(int a, int l);
 
+
+	//-------
+	// FUNCTIONS THAT HELP INSERTING AN ACTION INTO THE RELAXED PLAN
+
 	// Update state before an RP_STEP
 	void update_rp_state(RELAXED_PLAN::iterator& rp_step_itr);
 
@@ -186,9 +190,13 @@ class RelaxedPlan {
 	// Update all clauses for a new RP_STEP
 	void update_rp_step_clauses(RELAXED_PLAN::iterator& rp_step_itr);
 
+	// Update all clauses for steps after a particular step
+	void update_rp_step_clauses_after(RELAXED_PLAN::iterator& rp_step_itr);
+
 	// Insert an action "a" at layer "l" into a relaxed plan
 	// Return the new RP_STEP
 	RP_STEP *insert_action_into_relaxed_plan(int a, int l);
+	//-------
 
 	// Get confirmed step in the relaxed plan OR the confirmed level in the current plan prefix
 	// for proposition "p" in the rp-state contained in the iterator "itr"
@@ -228,6 +236,11 @@ public:
 	// it, and how it affects the current actions in the relaxed plan
 	static bool candidate_actions_affect_current_actions;
 	static bool current_actions_affect_candidate_action;
+
+	// Whether clauses from the RPG are attached to FALSE known/possible preconditions of
+	// of actions in the relaxed plan (i.e., the known preconditions that are not present in the
+	// state before it)
+	static bool clauses_from_rpg_for_false_preconditions;
 
 	/*********************************************************************************************/
 
