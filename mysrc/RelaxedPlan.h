@@ -177,6 +177,17 @@ class RelaxedPlan {
 	// Evaluate a candidate action "a", which is at layer "l" of the RPG, wrt the current relaxed plan.
 	double evaluate_candidate_action(int a, int l);
 
+	// Collect all clauses for steps before a new RP_STEP
+	void collect_rp_step_clauses_before(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clause_set_collection);
+
+	// Collect clauses for a new RP_STEP
+	void collect_rp_step_clauses(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clause_set_collection);
+
+	// Collect all clauses for steps after a new RP_STEP
+	void collect_rp_step_clauses_after(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clause_set_collection);
+
+	// Evaluate a candidate action "a", which is at layer "l" of the RPG, wrt the current relaxed plan.
+	double evaluate_candidate_action_01(int a, int l);
 
 	//-------
 	// FUNCTIONS THAT HELP INSERTING AN ACTION INTO THE RELAXED PLAN
@@ -185,7 +196,7 @@ class RelaxedPlan {
 	void update_rp_state(RELAXED_PLAN::iterator& rp_step_itr);
 
 	// Update states of all steps after a particular step
-	void update_all_rp_states_after(RELAXED_PLAN::iterator& rp_step_itr);
+	void update_rp_states_after(RELAXED_PLAN::iterator& rp_step_itr);
 
 	// Update all clauses for a new RP_STEP
 	void update_rp_step_clauses(RELAXED_PLAN::iterator& rp_step_itr);
@@ -197,6 +208,9 @@ class RelaxedPlan {
 	// Return the new RP_STEP
 	RP_STEP *insert_action_into_relaxed_plan(int a, int l);
 	//-------
+
+	// Create an RP_STEP containing the goal action
+	RP_STEP *create_rp_step_for_goals();
 
 	// Get confirmed step in the relaxed plan OR the confirmed level in the current plan prefix
 	// for proposition "p" in the rp-state contained in the iterator "itr"
