@@ -183,7 +183,15 @@ class RelaxedPlan {
 	double evaluate_candidate_action(int a, int l);
 
 	// Collect all clauses for steps before a new RP_STEP
-	void collect_rp_step_clauses_before(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clause_set_collection);
+	void collect_rp_step_clauses_before(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clause_set_collection,
+			bool use_potential_clauses = true);
+
+	// Collect all clauses associated with rp_steps in [begin, end)
+	// Note that for preconditions not supported in the rp_states, we (optionally) use clause sets
+	// constructed in the RPG.
+	// Modified: "clause_set_collection" (initially may not be empty) will be added with these potential clauses
+	void collect_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator& begin, RELAXED_PLAN::iterator& end,
+			ClauseSet& clause_set_collection);
 
 	// Collect clauses for a new RP_STEP. Optionally, preconditions not present in rp_states
 	// are associated with clause sets constructed in the RPG
@@ -199,6 +207,10 @@ class RelaxedPlan {
 
 	// Evaluate a candidate action "a", which is at layer "l" of the RPG, wrt the current relaxed plan.
 	double evaluate_candidate_action_01(int a, int l);
+
+	// Collect potential clauses for the relaxed plan
+	// This does not include the clause set of the current plan prefix
+	void collect_potential_clauses(ClauseSet& clauses);
 
 	//-------
 	// FUNCTIONS THAT HELP INSERTING AN ACTION INTO THE RELAXED PLAN
