@@ -1047,6 +1047,15 @@ int result_to_dest( State *dest, State *source, int op )
 	static Bool *in_source, *in_dest, *in_del;
 	static int *del, num_del;
 
+	/*
+	 * TUAN (begin)
+	 */
+	static Bool *known_facts_in_source, *known_facts_in_dest, *in_poss_del;
+	/*
+	 * TUAN (end)
+	 */
+
+
 	int i, j, ef;
 	int r = -1;
 
@@ -1055,10 +1064,31 @@ int result_to_dest( State *dest, State *source, int op )
 		in_dest = ( Bool * ) calloc( gnum_ft_conn, sizeof( Bool ) );
 		in_del = ( Bool * ) calloc( gnum_ft_conn, sizeof( Bool ) );
 		del = ( int * ) calloc( gnum_ft_conn, sizeof( int ) );
+
+		/*
+		 * TUAN (begin)
+		 */
+		known_facts_in_source = ( Bool * ) calloc( gnum_ft_conn, sizeof( Bool ) );
+		known_facts_in_dest = ( Bool * ) calloc( gnum_ft_conn, sizeof( Bool ) );
+		in_poss_del = ( Bool * ) calloc( gnum_ft_conn, sizeof( Bool ) );
+		/*
+		 * TUAN (end)
+		 */
+
 		for ( i = 0; i < gnum_ft_conn; i++ ) {
 			in_source[i] = FALSE;
 			in_dest[i] = FALSE;
 			in_del[i] = FALSE;
+
+			/*
+			 * TUAN (begin)
+			 */
+			known_facts_in_source[i] = FALSE;
+			known_facts_in_dest[i] = FALSE;
+			in_poss_del[i] = FALSE;
+			/*
+			 * TUAN (end)
+			 */
 		}
 		first_call = FALSE;
 	}
@@ -1067,6 +1097,17 @@ int result_to_dest( State *dest, State *source, int op )
 	for ( i = 0; i < source->num_F; i++ ) {
 		in_source[source->F[i]] = TRUE;
 	}
+
+	/*
+	 * TUAN (begin)
+	 * Mark known facts in source
+	 */
+	for ( i = 0; i < source->num_known_F; i++ ) {
+		known_facts_in_source[source->known_F[i]] = TRUE;
+	}
+	/*
+	 * TUAN (end)
+	 */
 
 	// Mark facts that must be deleted
 	num_del = 0;
@@ -1081,6 +1122,17 @@ int result_to_dest( State *dest, State *source, int op )
 		del[num_del++] = gef_conn[ef].D[j];
 	}
 
+	/*
+	 * TUAN (begin)
+	 * Mark facts that are possibly deleted
+	 */
+	for ( j = 0; j < gef_conn[ef].num_poss_D; j++ ) {
+		in_poss_del[gef_conn[ef].poss_D[j]] = TRUE;
+	}
+	/*
+	 * TUAN (end)
+	 */
+
 	// First put facts in the source, not in the delete list, to the destination
 	dest->num_F = 0;
 	for ( i = 0; i < source->num_F; i++ ) {
@@ -1090,6 +1142,25 @@ int result_to_dest( State *dest, State *source, int op )
 		dest->F[dest->num_F++] = source->F[i];
 		in_dest[source->F[i]] = TRUE;
 	}
+
+	/*
+	 * TUAN (begin)
+	 * Facts that are known in source, not in delete nor possible delete list, are known
+	 * in the destination
+	 */
+	dest->num_known_F = 0;
+	for ( i = 0; i < source->num_known_F; i++ ) {
+		if ( in_del[source->known_F[i]] || in_poss_del[source->known_F[i]]) {
+			continue;
+		}
+		if (!known_facts_in_dest[source->known_F[i]]) {
+			dest->known_F[dest->num_known_F++] = source->known_F[i];
+			known_facts_in_dest[source->known_F[i]] = TRUE;
+		}
+	}
+	/*
+	 * TUAN (end)
+	 */
 
 	// Second put known and possible add effects into the destination
 	for ( j = 0; j < gef_conn[ef].num_A; j++ ) {
@@ -1102,6 +1173,18 @@ int result_to_dest( State *dest, State *source, int op )
 		if ( gft_conn[gef_conn[ef].A[j]].is_global_goal ) {
 			r = gef_conn[ef].A[j];
 		}
+
+		/*
+		 * TUAN (begin)
+		 * Put this fact into the known fact list of the destination (if it has not been)
+		 */
+		if (!known_facts_in_dest[gef_conn[ef].A[j]]) {
+			dest->known_F[dest->num_known_F++] = gef_conn[ef].A[j];
+			known_facts_in_dest[gef_conn[ef].A[j]] = TRUE;
+		}
+		/*
+		 * TUAN (end)
+		 */
 	}
 
 	for ( j = 0; j < gef_conn[ef].num_poss_A; j++ ) {
@@ -1126,9 +1209,9 @@ int result_to_dest( State *dest, State *source, int op )
 #ifndef NDEBUG
 	// Check the correctness of the resulting state
 	for (int ft=0;ft<gnum_ft_conn;ft++) {
-		bool in_current = is_in_state(ft, source);
-		bool in_next = is_in_state(ft, dest);
-		// For cases
+		Bool in_current = is_in_state(ft, source);
+		Bool in_next = is_in_state(ft, dest);
+		// Four cases
 		if (in_current && in_next) {
 			assert(!is_del(ft, op));
 		}
@@ -1141,6 +1224,28 @@ int result_to_dest( State *dest, State *source, int op )
 		else if (!in_current && !in_next) {
 			assert(!is_add(ft, op) && !is_poss_add(ft, op));
 		}
+
+		Bool is_known_in_source = is_known_in_state(ft, source);
+		Bool is_known_in_dest = is_known_in_state(ft, dest);
+		// Four cases
+		if (is_known_in_source && is_known_in_dest) {
+			assert(!is_del(ft, op) && !is_poss_del(ft, op));
+		}
+		else if (is_known_in_source && !is_known_in_dest) {
+			assert(is_del(ft, op) || is_poss_del(ft, op));
+		}
+		else if (!is_known_in_source && is_known_in_dest) {
+			assert(is_add(ft, op));
+		}
+		else if (!is_known_in_source && !is_known_in_dest) {
+			assert(!is_add(ft, op));
+		}
+
+		// The set of known facts must be subset of all facts in the state
+		if (is_known_in_source)
+			assert(in_current);
+		if (is_known_in_dest)
+			assert(in_next);
 	}
 #endif
 /*
@@ -1158,6 +1263,25 @@ int result_to_dest( State *dest, State *source, int op )
 	for ( i = 0; i < num_del; i++ ) {
 		in_del[del[i]] = FALSE;
 	}
+
+	/*
+	 * TUAN (begin)
+	 */
+	for (i=0;i<source->num_known_F;i++) {
+		known_facts_in_source[source->known_F[i]] = FALSE;
+	}
+
+	for (i=0;i<dest->num_known_F;i++) {
+		known_facts_in_dest[dest->known_F[i]] = FALSE;
+	}
+
+	for (i=0;i<gnum_ft_conn;i++) {
+		in_poss_del[i] = FALSE;
+	}
+
+	/*
+	 * TUAN (end)
+	 */
 
 	return r;
 

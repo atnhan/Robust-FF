@@ -638,6 +638,15 @@ void make_state( State *S, int n )
 
 	S->F = ( int * ) calloc( n, sizeof( int ) );
 	S->num_F = 0;
+
+	/*
+	 * TUAN (begin)
+	 */
+	S->known_F = ( int * ) calloc( n, sizeof( int ) );
+	S->num_known_F = 0;
+	/*
+	 * TUAN (end)
+	 */
 }
 
 

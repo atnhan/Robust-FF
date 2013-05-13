@@ -10,6 +10,7 @@
 
 #include "../ff.h"
 #include "../output.h"
+#include <iostream>
 #include <string>
 
 enum AnnotationType {POSS_PRE, POSS_ADD, POSS_DEL};
@@ -24,6 +25,9 @@ bool is_del(int ft, int action);
 
 // Check if a fact is in a state. Faster implementation may be needed.
 bool is_in_state(int ft, const State *s);
+
+// Check if a fact is certainly known in a state
+bool is_known_in_state(int ft, const State *s);
 
 // Find the index of an action from its name. Action name is assumed to be in upper case,
 // parameters are separated by white spaces: "DEBARK PERSON4 PLANE2 CITY1"
@@ -48,5 +52,8 @@ bool applicable_action(int action, const State* s);
 
 // Check if two states are the same
 bool same_state(const State& s1, const State& s2);
+
+// Print TAB
+void TAB(int n);
 
 #endif /* HELPFUL_H_ */

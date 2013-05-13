@@ -102,6 +102,14 @@ bool is_in_state(int ft, const State *s) {
 	return false;
 }
 
+bool is_known_in_state(int ft, const State *s) {
+	assert(s);
+	for (int i = 0; i < s->num_known_F; i++)
+		if (ft == s->known_F[i])
+			return true;
+	return false;
+}
+
 int find_action(string action_name) {
 	string s;
 	for (int op = 0; op < gnum_op_conn; op++) {
@@ -207,5 +215,10 @@ bool applicable_action(int action, const State* s) {
 	return true;
 }
 
+// Print TAB
+void TAB(int n) {
+	for (int i=0;i<n;i++)
+		std::cout<<"\t";
+}
 
 

@@ -1058,6 +1058,12 @@ typedef enum _Connective{TRU,
 
 		int max_F;
 
+		/*TUAN (Begin): facts that are certainly TRUE.
+		 * This is the subset of F above*/
+		int *known_F;
+		int num_known_F;
+		/*TUAN (End)*/
+
 	} State, *State_pointer;
 
 

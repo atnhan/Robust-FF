@@ -42,7 +42,10 @@ bool StochasticLocalSearch::run() {
 
 	CACHET_OUTPUT r;
 
-	// We try to find a better plan in at most "max_restarts" restarts from the initial state
+	// Number of plans found
+	int num_plans = 0;
+
+	// We try to find better plans in at most "max_restarts" restarts from the initial state
 	for (int i=0;i<max_restarts;i++) {
 
 		// When we're here: we have a current best robustness for the current best plan
@@ -69,10 +72,18 @@ bool StochasticLocalSearch::run() {
 			vector<int> applicable_actions;
 
 			// Build the relaxed plan from the current state, and get the set of applicable actions
-			RelaxedPlan rp(e, init, goals);
-			rp.build_relaxed_planning_graph();
+			double robustness_threshold;
+			if (RelaxedPlan::use_robustness_threshold)
+				robustness_threshold = best_plan.robustness;
+			else
+				robustness_threshold = 0;
+
+			RelaxedPlan rp(e, init, goals, robustness_threshold);
 			pair<int, double> rp_info;
-			rp.extract(rp_info);
+			// If we cannot build the relaxed plan, it means that no plan exists from this state
+			// Restart from the initial state
+			if (!rp.extract_01(rp_info))
+				break;
 
 			get_applicable_actions(e->get_last_state(), applicable_actions, &rp, Search::FF_helpful_actions);
 
@@ -93,7 +104,7 @@ bool StochasticLocalSearch::run() {
 		const State& s0 = *e->get_last_state();
 #endif
 
-			// (2) Quickly check if we find a better plan
+			// (2) For each applicable action, quickly check if we have a better plan with it
 			for (int k=0;k<applicable_actions.size();k++) {
 
 				assert(same_state(s0, *e->get_last_state()));
@@ -135,8 +146,8 @@ bool StochasticLocalSearch::run() {
 				lower = all_clauses.lower_wmc();
 				upper = all_clauses.upper_wmc();
 
-				// We use lower bound to recognize a better plan.
-				// If we use the upper bound, then we can guarantee completeness
+				// CHECKING CONDITION 1: If the lower bound is already better than the current robustness
+				// then a new plan found!
 				if (lower >= best_plan.robustness) {
 
 					all_clauses.wmc(r);
@@ -150,7 +161,50 @@ bool StochasticLocalSearch::run() {
 					best_plan.robustness = r.prob;
 
 					better_plan_found = true;
+
+					// PRINT OUT THIS PLAN
+					cout<<"PLAN "<<num_plans++<<endl;
+					cout<<"Number of actions:"<<best_plan.actions.size()<<endl;
+					for (int i=0;i<best_plan.actions.size();i++) {
+						int op = best_plan.actions[i];
+						print_op_name(op);
+						cout<<endl;
+					}
+					cout<<"Robustness: "<<best_plan.robustness<<endl;
+
 					break;	// out of considering other applicable actions
+				}
+
+				// CHECKING CONDITION 2: If the upper bound is better than the current robustness,
+				// then we also need to check the exact robustness
+				if (upper >= best_plan.robustness) {
+
+					all_clauses.wmc(r);
+					assert(upper >= r.prob);
+
+					// Only accept new plan if its exact robustness is better than the current value
+					if (r.prob > best_plan.robustness) {
+						// Extend the plan prefix
+						e->extend_plan_prefix(applicable_actions[k]);
+
+						// Record the new best plan
+						best_plan.actions = e->get_actions();	// Note: plan_prefix = all actions!
+						best_plan.robustness = r.prob;
+
+						better_plan_found = true;
+
+						// PRINT OUT THIS PLAN
+						cout<<"PLAN "<<num_plans++<<endl;
+						cout<<"Number of actions:"<<best_plan.actions.size()<<endl;
+						for (int i=0;i<best_plan.actions.size();i++) {
+							int op = best_plan.actions[i];
+							print_op_name(op);
+							cout<<endl;
+						}
+						cout<<"Robustness: "<<best_plan.robustness<<endl;
+
+						break;	// out of considering other applicable actions
+					}
 				}
 			}
 
@@ -170,10 +224,15 @@ bool StochasticLocalSearch::run() {
 				e->append(applicable_actions[k]);
 
 				// Extract the relaxed plan
-				RelaxedPlan rp2(e, e->get_last_state(), goals);
-				rp2.build_relaxed_planning_graph();
+				double robustness_threshold;
+				if (RelaxedPlan::use_robustness_threshold)
+					robustness_threshold = best_plan.robustness;
+				else
+					robustness_threshold = 0;
+
+				RelaxedPlan rp2(e, e->get_last_state(), goals, robustness_threshold);
 				pair<int, double> rp2_info;
-				rp2.extract(rp2_info);
+				rp2.extract_01(rp2_info);
 
 				// Record the best action
 //				if (best_robustness < rp2_info.second) {

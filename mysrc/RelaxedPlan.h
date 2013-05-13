@@ -77,6 +77,11 @@ class RelaxedPlan {
 	// Initialize the first fact layer
 	void initialize_fact_layer();
 
+	// Create relaxed planning graph.
+	// Return false if there is a goal proposition that cannot be achieved at the last layer
+	// (which won't change if the RPG continues to grow)
+	bool build_relaxed_planning_graph();
+
 	// Check if a fact and action is in a fact layer
 	bool fact_present(int ft, int l);
 	bool action_present(int a, int l);
@@ -180,11 +185,17 @@ class RelaxedPlan {
 	// Collect all clauses for steps before a new RP_STEP
 	void collect_rp_step_clauses_before(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clause_set_collection);
 
-	// Collect clauses for a new RP_STEP
-	void collect_rp_step_clauses(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clause_set_collection);
+	// Collect clauses for a new RP_STEP. Optionally, preconditions not present in rp_states
+	// are associated with clause sets constructed in the RPG
+	void collect_rp_step_clauses(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clause_set_collection,
+			bool use_potential_clauses = true);
 
 	// Collect all clauses for steps after a new RP_STEP
-	void collect_rp_step_clauses_after(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clause_set_collection);
+	void collect_rp_step_clauses_after(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clause_set_collection,
+			bool use_potential_clauses = true);
+
+	// Update rp_states before actions after a new step RP_STEP is removed
+	void update_rp_states_after_step_removal(RELAXED_PLAN::iterator& rp_step_itr);
 
 	// Evaluate a candidate action "a", which is at layer "l" of the RPG, wrt the current relaxed plan.
 	double evaluate_candidate_action_01(int a, int l);
@@ -204,7 +215,7 @@ class RelaxedPlan {
 	// Update all clauses for steps after a particular step
 	void update_rp_step_clauses_after(RELAXED_PLAN::iterator& rp_step_itr);
 
-	// Insert an action "a" at layer "l" into a relaxed plan
+	// Insert an action "a" at layer "l" into a relaxed plan.
 	// Return the new RP_STEP
 	RP_STEP *insert_action_into_relaxed_plan(int a, int l);
 	//-------
@@ -227,7 +238,10 @@ class RelaxedPlan {
 	bool in_rp_state(int p, const RP_STATE& s) const;
 
 	// Estimate the robustness of the plan prefix + the current relaxed plan
-	double estimate_robustness();
+	double compute_robustness();
+
+	// The number of unsupported known preconditions
+	int num_unsupported_known_preconditions;
 
 	// The robustness threshold: we want to find a plan with more than this robustness
 	double robustness_threshold;
@@ -264,11 +278,6 @@ public:
 	// Constructors
 	RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals, double robustness_threshold = 0);
 	virtual ~RelaxedPlan();
-
-	// Create relaxed planning graph.
-	// Return false if there is a goal proposition that cannot be achieved at the last layer
-	// (which won't change if the RPG continues to grow)
-	bool build_relaxed_planning_graph();
 
 	// Extract the relaxed plan.
 	// Return the length of the relaxed plan, and the robustness of {the plan prefix + the relaxed plan}
