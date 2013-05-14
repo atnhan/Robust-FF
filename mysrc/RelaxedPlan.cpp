@@ -354,9 +354,6 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 			cout<<"Candidate action "<<candidate_action<<" ignored."<<endl<<endl;
 #endif
 
-			// Check to update the number of unsupported known preconditions
-
-
 			continue;	// Consider next subgoals
 		}
 
@@ -468,13 +465,15 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 
 	} // out of Q-loop
 
+	//assert(num_unsupported_known_preconditions > 0);
+
 	result.first = rp.size();
 	result.second = compute_robustness();
 
 #ifdef DEBUG_EXTRACT
 	TAB(1);
 	cout<<"Out Q-loop "<<__LINE__<<endl<<endl;
-
+	cout<<"Num unsupported known preconditions: "<<num_unsupported_known_preconditions<<endl<<endl;
 	cout<<"End extract_01..."<<__LINE__<<endl<<endl;
 #endif
 
@@ -1575,16 +1574,16 @@ void RelaxedPlan::update_rp_state(RELAXED_PLAN::iterator& rp_step_itr) {
 				(*rp_step_itr)->s[gef_conn[ef].poss_A[j]] = 1;
 	}
 
-	// Update the number of unsupported known preconditions
-	int a = (*rp_step_itr)->a;
-	const RP_STATE& s = (*rp_step_itr)->s;
-	assert(gop_conn[a].num_E == 1);
-	int ef = gop_conn[a].E[0];
-	for (int i=0;i<gef_conn[ef].num_PC;i++) {
-		int p = gef_conn[ef].PC[i];
-		if (!in_rp_state(p, s))
-			num_unsupported_known_preconditions++;
-	}
+//	// Update the number of unsupported known preconditions
+//	int a = (*rp_step_itr)->a;
+//	const RP_STATE& s = (*rp_step_itr)->s;
+//	assert(gop_conn[a].num_E == 1);
+//	int ef = gop_conn[a].E[0];
+//	for (int i=0;i<gef_conn[ef].num_PC;i++) {
+//		int p = gef_conn[ef].PC[i];
+//		if (!in_rp_state(p, s))
+//			num_unsupported_known_preconditions++;
+//	}
 
 }
 
@@ -1605,7 +1604,7 @@ void RelaxedPlan::update_rp_states_after(RELAXED_PLAN::iterator& rp_step_itr) {
 
 			// If this proposition is already in the rp_state before this action,
 			// then increase its count
-			if (step.s.find(p) != step.s.end()) step.s[p]++;
+			if (in_rp_state(p, step.s)) step.s[p]++;
 			// Otherwise, initialize its count
 			else {
 				step.s[p] = 1;
@@ -1628,7 +1627,7 @@ void RelaxedPlan::update_rp_states_after(RELAXED_PLAN::iterator& rp_step_itr) {
 		itr++;
 		while (itr != rp.end()) {
 			RP_STEP& step = **itr;
-			if (step.s.find(p) != step.s.end()) step.s[p]++;
+			if (in_rp_state(p, step.s)) step.s[p]++;
 			else {
 				step.s[p] = 1;
 
@@ -1911,7 +1910,7 @@ RelaxedPlan::RP_STEP *RelaxedPlan::insert_action_into_relaxed_plan(int action, i
 	update_rp_step_clauses(new_itr);
 
 	// Update clauses for known and possible preconditions of actions after "action"
-	update_rp_states_after(new_itr);
+	update_rp_step_clauses_after(new_itr);
 
 	return new_step;
 }
