@@ -205,16 +205,25 @@ void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State
 	print_state(current);
 
 	cout<<endl;
+	cout<<"CLAUSES: "<<endl;
 	ClauseSet clauses;
 	e.get_clauses(clauses);
 	cout<<clauses<<endl;
 
+	cout<<"GOALS:"<<endl;
+	print_state(*goal_state);
+	cout<<endl;
 
 	cout<<"Extracting relaxed plan..."<<endl;
 	pair<int, double> rp_info;
 	rp.extract(rp_info);
 	cout<<"Done. Relaxed plan length: "<<rp_info.first<<", estimated robustness: "<<rp_info.second<<endl;
 
+	cout<<"******* RP-STEPS ********"<<endl<<endl;
+	for (int i=0;i<rp.length()-1;i++) {
+		print_rp_step(rp, i);
+		cout<<endl<<endl;
+	}
 }
 
 void print_rp_step(RelaxedPlan& r, int step) {

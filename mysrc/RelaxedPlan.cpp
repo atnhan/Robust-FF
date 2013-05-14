@@ -266,9 +266,15 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 		Q.push(subgoal);
 
 		// If this goal is not in the last state, increase the count
-		if (!is_in_state(g, current))
+		if (!is_in_state(g, current)) {
 			num_unsupported_known_preconditions++;
 
+#ifdef DEBUG_EXTRACT
+			cout<<"A goal not in current state: ";
+			print_ft_name(g);
+			cout<<endl<<endl;
+#endif
+		}
 		// Initialize clause sets for heuristics associated with these goals
 		if (is_in_state(g, current)) {
 			ClauseSet cs;
@@ -294,7 +300,7 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 	}
 
 #ifdef DEBUG_EXTRACT
-	TAB(1);
+	cout<<"current_clauses_for_heursitcis: "<<current_clauses_for_heursitcis<<endl<<endl;
 	cout<<"current_robustness_for_heuristics: "<<current_robustness_for_heuristics<<endl<<endl;
 #endif
 
@@ -432,7 +438,6 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 			cout<<"current_robustness: "<<current_robustness<<endl<<endl;
 #endif
 
-
 			// Relaxed plan found!
 			if (RelaxedPlan::use_robustness_threshold && current_robustness > robustness_threshold) {
 
@@ -461,6 +466,10 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 				SubGoal subgoal(p, candidate_action, layer_of_candidate_action, true, &new_rp_step->s);
 				Q.push(subgoal);
 			}
+
+#ifdef DEBUG_EXTRACT
+
+#endif
 		}
 
 	} // out of Q-loop
@@ -717,39 +726,51 @@ double RelaxedPlan::compute_robustness() {
 
 		int this_op = (*rp_itr)->a;
 		int layer = (*rp_itr)->layer;
-		assert(gop_conn[this_op].num_E == 1);
-		int ef = gop_conn[this_op].E[0];
 
-		// Consider known preconditions of "this_op"
-		for (int i=0;i<gef_conn[ef].num_PC;i++) {
-			int p = gef_conn[ef].PC[i];
+		if (this_op != GOAL_ACTION) {
 
-//			// If this known precondition is not in the state before the action
-//			if (!in_rp_state(p, (*rp_itr)->s) && RelaxedPlan::clauses_from_rpg_for_false_preconditions) {
-//				all_clauses.add_clauses((*P[layer]).at(p).best_clauses);
-//				continue;
-//			}
+			assert(gop_conn[this_op].num_E == 1);
+			int ef = gop_conn[this_op].E[0];
 
-			if ((*rp_itr)->pre_clauses.find(p) == (*rp_itr)->pre_clauses.end() ||
-				(*rp_itr)->pre_clauses.at(p)->size() <= 0)
-				continue;
+			// Consider known preconditions of "this_op"
+			for (int i=0;i<gef_conn[ef].num_PC;i++) {
+				int p = gef_conn[ef].PC[i];
 
-			// Collect this clause set
-			const ClauseSet& cs = *(*rp_itr)->pre_clauses.at(p);
-			all_clauses.add_clauses(cs);
-		}
+				//			// If this known precondition is not in the state before the action
+				//			if (!in_rp_state(p, (*rp_itr)->s) && RelaxedPlan::clauses_from_rpg_for_false_preconditions) {
+				//				all_clauses.add_clauses((*P[layer]).at(p).best_clauses);
+				//				continue;
+				//			}
 
-		// Consider possible preconditions of "this_op"
-		for (int i=0;i<gef_conn[ef].num_poss_PC;i++) {
-			int p = gef_conn[ef].poss_PC[i];
+				if ((*rp_itr)->pre_clauses.find(p) == (*rp_itr)->pre_clauses.end() ||
+						(*rp_itr)->pre_clauses.at(p)->size() <= 0)
+					continue;
 
-			if ((*rp_itr)->poss_pre_clauses.find(p) == (*rp_itr)->poss_pre_clauses.end() ||
-					(*rp_itr)->poss_pre_clauses.at(p)->size() <= 0)
+				// Collect this clause set
+				const ClauseSet& cs = *(*rp_itr)->pre_clauses.at(p);
+				all_clauses.add_clauses(cs);
+			}
+
+			// Consider possible preconditions of "this_op"
+			for (int i=0;i<gef_conn[ef].num_poss_PC;i++) {
+				int p = gef_conn[ef].poss_PC[i];
+
+				if ((*rp_itr)->poss_pre_clauses.find(p) == (*rp_itr)->poss_pre_clauses.end() ||
+						(*rp_itr)->poss_pre_clauses.at(p)->size() <= 0)
 					continue;
 
 				// Clause set for this possible precondition
 				const ClauseSet& cs = *(*rp_itr)->poss_pre_clauses.at(p);
 				all_clauses.add_clauses(cs);
+			}
+		}
+
+
+
+
+		ADD CLAUSES FROM GOAL STEP
+		else {
+
 		}
 	}
 
@@ -1574,16 +1595,16 @@ void RelaxedPlan::update_rp_state(RELAXED_PLAN::iterator& rp_step_itr) {
 				(*rp_step_itr)->s[gef_conn[ef].poss_A[j]] = 1;
 	}
 
-//	// Update the number of unsupported known preconditions
-//	int a = (*rp_step_itr)->a;
-//	const RP_STATE& s = (*rp_step_itr)->s;
-//	assert(gop_conn[a].num_E == 1);
-//	int ef = gop_conn[a].E[0];
-//	for (int i=0;i<gef_conn[ef].num_PC;i++) {
-//		int p = gef_conn[ef].PC[i];
-//		if (!in_rp_state(p, s))
-//			num_unsupported_known_preconditions++;
-//	}
+	// Update the number of unsupported known preconditions
+	int a = (*rp_step_itr)->a;
+	const RP_STATE& s = (*rp_step_itr)->s;
+	assert(gop_conn[a].num_E == 1);
+	int ef = gop_conn[a].E[0];
+	for (int i=0;i<gef_conn[ef].num_PC;i++) {
+		int p = gef_conn[ef].PC[i];
+		if (!in_rp_state(p, s))
+			num_unsupported_known_preconditions++;
+	}
 
 }
 
