@@ -68,7 +68,7 @@ using namespace std;
 
 extern void test_evaluate_plan_robustness(std::string filename, State *initial_state, State *goal_state);
 //extern void test_relaxed_planning_graph(string partial_sol_file, State *initial_state, State* goal_state);
-//extern void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State* goal_state);
+extern void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State* goal_state);
 extern void test_estimate_robustness();
 extern void test_adding_removing_clauses();
 extern int gnum_possible_annotations;
@@ -682,23 +682,23 @@ int main( int argc, char *argv[] )
 	/*
 	 * TUAN (begin)
 	 */
-	vector<double> weights(gnum_possible_annotations, 0.5);
-	Clause::set_weights(weights);
-	Search::FF_helpful_actions = false;
-	RelaxedPlan::ignore_poss_del_in_rp = true;
-	RelaxedPlan::use_lower_bound_in_rp = true;
-	RelaxedPlan::use_robustness_threshold = true;
-	RelaxedPlan::clauses_from_rpg_for_false_preconditions = true;
-	RelaxedPlan::candidate_actions_affect_current_actions = true;
-	RelaxedPlan::current_actions_affect_candidate_action = true;
-	int max_restarts = 50;
-	int max_steps = 50;
-	double noise = 0.1;
-
-
-	StochasticLocalSearch search(&ginitial_state, &ggoal_state, max_restarts, max_steps, noise);
-	search.run();
-	return 0;
+//	vector<double> weights(gnum_possible_annotations, 0.5);
+//	Clause::set_weights(weights);
+//	Search::FF_helpful_actions = false;
+//	RelaxedPlan::ignore_poss_del_in_rp = true;
+//	RelaxedPlan::use_lower_bound_in_rp = true;
+//	RelaxedPlan::use_robustness_threshold = true;
+//	RelaxedPlan::clauses_from_rpg_for_false_preconditions = true;
+//	RelaxedPlan::candidate_actions_affect_current_actions = true;
+//	RelaxedPlan::current_actions_affect_candidate_action = true;
+//	int max_restarts = 50;
+//	int max_steps = 50;
+//	double noise = 0.1;
+//
+//
+//	StochasticLocalSearch search(&ginitial_state, &ggoal_state, max_restarts, max_steps, noise);
+//	search.run();
+//	return 0;
 
 	/*
 	 * TUAN (end)
@@ -734,17 +734,22 @@ int main( int argc, char *argv[] )
 	/*
 	 * TUAN (begin)
 	 */
-//	ClauseSet::weights.resize(gnum_possible_annotations);
-//	for (int i=0;i<gnum_possible_annotations;i++)
-//		ClauseSet::weights[i] = 0.5;
-//	string sol_file("pfile10.partial.sol");
-//	test_relaxed_plan(sol_file, &ginitial_state, &ggoal_state);
-//
-//	exit(0);
+	RelaxedPlan::ignore_poss_del_in_rp = true;
+	RelaxedPlan::use_lower_bound_in_rp = true;
+	RelaxedPlan::use_robustness_threshold = true;
+	RelaxedPlan::clauses_from_rpg_for_false_preconditions = true;
+	RelaxedPlan::candidate_actions_affect_current_actions = true;
+	RelaxedPlan::current_actions_affect_candidate_action = true;
+	vector<double> weights(gnum_possible_annotations, 0.5);
+	Clause::set_weights(weights);
+	string sol_file("pfile10.partial.sol");
+	test_relaxed_plan(sol_file, &ginitial_state, &ggoal_state);
+	exit(0);
 	/*
 	 * TUAN (end)
 	 */
-//	ClauseSet::weights.resize(gnum_possible_annotations);
+
+	//	ClauseSet::weights.resize(gnum_possible_annotations);
 //	for (int i=0;i<gnum_possible_annotations;i++)
 //		ClauseSet::weights[i] = 0.5;
 //	test_estimate_robustness();

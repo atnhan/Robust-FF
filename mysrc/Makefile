@@ -21,7 +21,7 @@ PATH_HEADERS = -I$(BOOST_HEADER) -I$(SRC_HEADER)
 
 SRC_HEADER = .
 
-SOURCES =	Clause.cpp ClauseSet.cpp RelaxedPlan.cpp \
+SOURCES =	Clause.cpp ClauseSet.cpp RelaxedPlan.cpp RelaxedPlan_test.cpp \
 			StripsEncoding.cpp Helpful.cpp ClauseSet_test.cpp \
 			Search.cpp StochasticLocalSearch.cpp 
 

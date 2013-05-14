@@ -82,7 +82,7 @@ bool StochasticLocalSearch::run() {
 			pair<int, double> rp_info;
 			// If we cannot build the relaxed plan, it means that no plan exists from this state
 			// Restart from the initial state
-			if (!rp.extract_01(rp_info))
+			if (!rp.extract(rp_info))
 				break;
 
 			get_applicable_actions(e->get_last_state(), applicable_actions, &rp, Search::FF_helpful_actions);
@@ -232,7 +232,7 @@ bool StochasticLocalSearch::run() {
 
 				RelaxedPlan rp2(e, e->get_last_state(), goals, robustness_threshold);
 				pair<int, double> rp2_info;
-				rp2.extract_01(rp2_info);
+				rp2.extract(rp2_info);
 
 				// Record the best action
 //				if (best_robustness < rp2_info.second) {

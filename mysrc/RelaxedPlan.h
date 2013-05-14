@@ -179,38 +179,23 @@ class RelaxedPlan {
 	typedef std::priority_queue<SubGoal, std::vector<SubGoal>, SubGoalComparison> SubGoalQueue;
 	//-------
 
-	// Evaluate a candidate action "a", which is at layer "l" of the RPG, wrt the current relaxed plan.
-	double evaluate_candidate_action(int a, int l);
+//	// Evaluate a candidate action "a", which is at layer "l" of the RPG, wrt the current relaxed plan.
+//	double evaluate_candidate_action(int a, int l);
 
-	// Collect all clauses for steps before a new RP_STEP
-	void collect_rp_step_clauses_before(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clause_set_collection,
-			bool use_potential_clauses = true);
-
-	// Collect all clauses associated with rp_steps in [begin, end)
+	// Collect all clauses associated with rp_steps [begin, end) of the relaxed plan for evaluation
 	// Note that for preconditions not supported in the rp_states, we (optionally) use clause sets
 	// constructed in the RPG.
-	// Modified: "clause_set_collection" (initially may not be empty) will be added with these potential clauses
-	void collect_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator& begin, RELAXED_PLAN::iterator& end,
-			ClauseSet& clause_set_collection);
+	void collect_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator& begin, RELAXED_PLAN::iterator& end, ClauseSet& clauses);
 
-	// Collect clauses for a new RP_STEP. Optionally, preconditions not present in rp_states
+	// Construct clauses for a new RP_STEP "from scratch". Optionally, preconditions not present in rp_states
 	// are associated with clause sets constructed in the RPG
-	void collect_rp_step_clauses(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clause_set_collection,
-			bool use_potential_clauses = true);
-
-	// Collect all clauses for steps after a new RP_STEP
-	void collect_rp_step_clauses_after(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clause_set_collection,
-			bool use_potential_clauses = true);
+	void construct_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clauses);
 
 	// Update rp_states before actions after a new step RP_STEP is removed
 	void update_rp_states_after_step_removal(RELAXED_PLAN::iterator& rp_step_itr);
 
 	// Evaluate a candidate action "a", which is at layer "l" of the RPG, wrt the current relaxed plan.
-	double evaluate_candidate_action_01(int a, int l);
-
-	// Collect potential clauses for the relaxed plan
-	// This does not include the clause set of the current plan prefix
-	void collect_potential_clauses(ClauseSet& clauses);
+	double evaluate_candidate_action(int a, int l);
 
 	//-------
 	// FUNCTIONS THAT HELP INSERTING AN ACTION INTO THE RELAXED PLAN
@@ -291,14 +276,10 @@ public:
 	RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals, double robustness_threshold = 0);
 	virtual ~RelaxedPlan();
 
-	// Extract the relaxed plan.
-	// Return the length of the relaxed plan, and the robustness of {the plan prefix + the relaxed plan}
-	void extract(std::pair<int, double>& result);
-
 	// Extract the relaxed plan
 	// Return true if a relaxed plan is found. The "result" pair contains its length and
 	// the approximate robustness of the plan prefix + the relaxed plan
-	bool extract_01(std::pair<int, double>& result);
+	bool extract(std::pair<int, double>& result);
 
 	// Get FF-style helpful actions
 	void get_FF_helpful_actions(std::vector<int>& helpful_actions) const;

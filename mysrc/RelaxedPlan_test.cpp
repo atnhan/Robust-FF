@@ -67,14 +67,14 @@ void test_relaxed_planning_graph(string partial_sol_file, State *initial_state, 
 	const vector<int>& actions = e.get_actions();
 	const vector<State*>& states = e.get_states();
 	cout<<"Initial State:"<<endl;
-	print_state(states[0]);
+	print_state(*states[0]);
 	cout<<endl<<endl;
 	for (int i=0;i<actions.size();i++) {
 		cout<<"Action "<<actions[i]<<": ";
 		print_op_name(actions[i]);
 		cout<<endl;
 		cout<<"State ["<<i+1<<"]:"<<endl;
-		print_state(states[i+1]);
+		print_state(*states[i+1]);
 		cout<<endl<<endl;
 	}
 
@@ -188,14 +188,14 @@ void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State
 	const vector<int>& actions = e.get_actions();
 	const vector<State*>& states = e.get_states();
 	cout<<"Initial State:"<<endl;
-	print_state(states[0]);
+	print_state(*states[0]);
 	cout<<endl<<endl;
 	for (int i=0;i<actions.size();i++) {
 		cout<<"Action "<<actions[i]<<": ";
 		print_op_name(actions[i]);
 		cout<<endl;
 		cout<<"State ["<<i+1<<"]:"<<endl;
-		print_state(states[i+1]);
+		print_state(*states[i+1]);
 		cout<<endl<<endl;
 	}
 
@@ -210,14 +210,10 @@ void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State
 	cout<<clauses<<endl;
 
 
-	cout<<"Building relaxed planning graph..."<<endl;
-	rp.build_relaxed_planning_graph();
-	cout<<"Done."<<endl<<endl;
-
 	cout<<"Extracting relaxed plan..."<<endl;
 	pair<int, double> rp_info;
 	rp.extract(rp_info);
-	cout<<"Done. RPG length: "<<rp_info.first<<", estimated robustness: "<<rp_info.second<<endl;
+	cout<<"Done. Relaxed plan length: "<<rp_info.first<<", estimated robustness: "<<rp_info.second<<endl;
 
 }
 

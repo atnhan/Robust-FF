@@ -41,10 +41,12 @@ void StripsEncoding::append(int action) {
 //	cout<<"IN APPEND..."<<endl;
 
 	State *current_state = this->get_last_state();
+
 	State *resulting_state = (State*) calloc(1, sizeof(State));
 	make_state(resulting_state, gnum_ft_conn);
 	resulting_state->max_F = gnum_ft_conn;
 	result_to_dest(resulting_state, current_state, action);
+
 	this->states.push_back(resulting_state);
 	this->actions.push_back(action);
 

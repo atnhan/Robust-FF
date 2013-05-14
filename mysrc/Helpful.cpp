@@ -131,6 +131,13 @@ int find_action(string action_name) {
 void print_state(const State& s) {
 	for (int i=0;i<s.num_F;i++) {
 		int ft = s.F[i];
+		// Check if this fact is known
+		for (int j=0;j<s.num_known_F;j++) {
+			if (ft == s.known_F[j]) {
+				cout<<"*";
+				break;
+			}
+		}
 		print_ft_name(ft);
 		if (i < s.num_F-1)
 			cout<<endl;

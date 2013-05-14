@@ -892,6 +892,17 @@ void create_final_initial_state( void )
 		ginitial_state.F[ginitial_state.num_F++] = lindex[lp][adr];
 	}
 
+	/*
+	 * TUAN (begin)
+	 * Mark all facts in the initial state as KNOWN
+	 */
+	ginitial_state.num_known_F = ginitial_state.num_F;
+	for (i = 0; i < ginitial_state.num_known_F; i++)
+		ginitial_state.known_F[i] = ginitial_state.F[i];
+	/*
+	 * TUAN (end)
+	 */
+
 }
 
 

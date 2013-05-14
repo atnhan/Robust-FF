@@ -1148,16 +1148,6 @@ int result_to_dest( State *dest, State *source, int op )
 	 * Facts that are known in source, not in delete nor possible delete list, are known
 	 * in the destination
 	 */
-	dest->num_known_F = 0;
-	for ( i = 0; i < source->num_known_F; i++ ) {
-		if ( in_del[source->known_F[i]] || in_poss_del[source->known_F[i]]) {
-			continue;
-		}
-		if (!known_facts_in_dest[source->known_F[i]]) {
-			dest->known_F[dest->num_known_F++] = source->known_F[i];
-			known_facts_in_dest[source->known_F[i]] = TRUE;
-		}
-	}
 	/*
 	 * TUAN (end)
 	 */
@@ -1174,18 +1164,11 @@ int result_to_dest( State *dest, State *source, int op )
 			r = gef_conn[ef].A[j];
 		}
 
-		/*
-		 * TUAN (begin)
-		 * Put this fact into the known fact list of the destination (if it has not been)
-		 */
-		if (!known_facts_in_dest[gef_conn[ef].A[j]]) {
-			dest->known_F[dest->num_known_F++] = gef_conn[ef].A[j];
-			known_facts_in_dest[gef_conn[ef].A[j]] = TRUE;
-		}
-		/*
-		 * TUAN (end)
-		 */
 	}
+
+	/*
+	 * TUAN (begin)
+	 */
 
 	for ( j = 0; j < gef_conn[ef].num_poss_A; j++ ) {
 		if ( in_dest[gef_conn[ef].poss_A[j]] ) {
@@ -1202,6 +1185,33 @@ int result_to_dest( State *dest, State *source, int op )
 			r = gef_conn[ef].poss_A[j];
 		}
 	}
+
+	// KNOWN FACTS IN THE DEST
+
+	// First, facts that are known in source, not in delete nor possible delete list, are known
+	// in the destination
+	dest->num_known_F = 0;
+	for ( i = 0; i < source->num_known_F; i++ ) {
+		if ( in_del[source->known_F[i]] || in_poss_del[source->known_F[i]]) {
+			continue;
+		}
+		if (!known_facts_in_dest[source->known_F[i]]) {
+			dest->known_F[dest->num_known_F++] = source->known_F[i];
+			known_facts_in_dest[source->known_F[i]] = TRUE;
+		}
+	}
+	// Second, known add effects
+	for ( j = 0; j < gef_conn[ef].num_A; j++ ) {
+		if (!known_facts_in_dest[gef_conn[ef].A[j]]) {
+			dest->known_F[dest->num_known_F++] = gef_conn[ef].A[j];
+			known_facts_in_dest[gef_conn[ef].A[j]] = TRUE;
+		}
+	}
+
+
+	/*
+	 * TUAN (end)
+	 */
 
 /*
  * TUAN (begin)
@@ -1299,6 +1309,18 @@ void source_to_dest( State *dest, State *source )
 		dest->F[i] = source->F[i];
 	}
 	dest->num_F = source->num_F;
+
+	/*
+	 * TUAN (begin)
+	 */
+	for ( i = 0; i < source->num_known_F; i++ ) {
+		dest->known_F[i] = source->known_F[i];
+	}
+	dest->num_known_F = source->num_known_F;
+
+	/*
+	 * TUAN (end)
+	 */
 
 }
 
