@@ -354,6 +354,9 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 			cout<<"Candidate action "<<candidate_action<<" ignored."<<endl<<endl;
 #endif
 
+			// Check to update the number of unsupported known preconditions
+
+
 			continue;	// Consider next subgoals
 		}
 
