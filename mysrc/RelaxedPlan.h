@@ -116,7 +116,7 @@ class RelaxedPlan {
 	typedef boost::unordered_map<int, ClauseSet*> PRE_2_CLAUSES;
 	typedef boost::unordered_map<int, ClauseSet*> POSS_PRE_2_CLAUSES;
 	struct RP_STEP {
-		int a;	// the action at the step
+		int a;	// the action at the step. IMPORTANT NOTE: THIS INCLUDE THE GOAL_ACTION!!!
 		int layer;	// the layer of the action in the RPG
 		RP_STATE s;	// the state right before the action
 
@@ -169,6 +169,10 @@ class RelaxedPlan {
 		RP_STATE *state_before_op;		// State before the action in the relaxed plan
 
 		SubGoal(int g, int op, int l, bool possible_precondition, RP_STATE* s_ptr);
+
+		void print() const {
+			std::cout<<"g: "<<g<<", op: "<<op<<", l: "<<l<<", poss_pred?: "<<possible_precondition;
+		}
 	};
 
 	class SubGoalComparison {
@@ -177,6 +181,8 @@ class RelaxedPlan {
 		bool operator() (const SubGoal& g1, const SubGoal& g2) const;
 	};
 	typedef std::priority_queue<SubGoal, std::vector<SubGoal>, SubGoalComparison> SubGoalQueue;
+
+	void print_subgoals(SubGoalQueue Q);
 	//-------
 
 //	// Evaluate a candidate action "a", which is at layer "l" of the RPG, wrt the current relaxed plan.

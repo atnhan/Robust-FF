@@ -227,13 +227,13 @@ void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State
 }
 
 void print_rp_step(RelaxedPlan& r, int step) {
-	assert(step >= 0 && step < r.length());
+	assert(step >= 0 && step < r.length()-1);
 
 	RelaxedPlan::RELAXED_PLAN::const_iterator itr = r.rp.begin();
 	int i = 0;
 	for (; i < step; i++) itr++;
 
-	cout<<"===== STEP "<<step<<"====="<<endl;
+	cout<<">> STEP "<<step<<endl;
 	cout<<"STATE:"<<endl;
 	for (int ft = 0; ft < gnum_ft_conn; ft++) {
 		if ((*itr)->s.find(ft) == (*itr)->s.end())
@@ -242,22 +242,50 @@ void print_rp_step(RelaxedPlan& r, int step) {
 	}
 	cout<<endl;
 	cout<<"ACTION: "<<(*itr)->a<<endl;
-	for (int i=0;i<gop_conn[(*itr)->a].num_E;i++) {
-		int ef = gop_conn[(*itr)->a].E[i];
-		for (int j=0;j<gef_conn[ef].num_PC;j++) {
-			int p = gef_conn[ef].PC[j];
-			cout<<"Precond: "<<p;
-			if ((*itr)->pre_clauses.find(p) != (*itr)->pre_clauses.end())
-				cout<<"Clauses: "<<(*((*itr)->pre_clauses[p]));
-		}
-		for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
-			int p = gef_conn[ef].poss_PC[j];
-			cout<<"Poss precond: "<<p;
-			if ((*itr)->poss_pre_clauses.find(p) != (*itr)->poss_pre_clauses.end())
-				cout<<"Clauses: "<<(*((*itr)->poss_pre_clauses[p]));
-		}
+	assert(gop_conn[(*itr)->a].num_E == 1);
+	int ef = gop_conn[(*itr)->a].E[0];
+
+	for (int j=0;j<gef_conn[ef].num_PC;j++) {
+		int p = gef_conn[ef].PC[j];
+		cout<<" Precond: "<<p;
+		if (!r.in_rp_state(p, (*itr)->s))
+			cout<<" *";
+		if ((*itr)->pre_clauses.find(p) != (*itr)->pre_clauses.end())
+			cout<<" Clauses: "<<(*((*itr)->pre_clauses[p]));
+		cout<<endl;
 	}
 
+	for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
+		int p = gef_conn[ef].poss_PC[j];
+		cout<<" Poss precond: "<<p;
+		if ((*itr)->poss_pre_clauses.find(p) != (*itr)->poss_pre_clauses.end())
+			cout<<" Clauses: "<<(*((*itr)->poss_pre_clauses[p]));
+		cout<<endl;
+	}
+
+	for (int j=0;j<gef_conn[ef].num_A;j++) {
+		int p = gef_conn[ef].A[j];
+		cout<<" Add: "<<p;
+		cout<<endl;
+	}
+
+	for (int j=0;j<gef_conn[ef].num_poss_A;j++) {
+		int p = gef_conn[ef].poss_A[j];
+		cout<<" Poss add: "<<p;
+		cout<<endl;
+	}
+
+	for (int j=0;j<gef_conn[ef].num_D;j++) {
+		int p = gef_conn[ef].D[j];
+		cout<<" Del: "<<p;
+		cout<<endl;
+	}
+
+	for (int j=0;j<gef_conn[ef].num_poss_D;j++) {
+		int p = gef_conn[ef].poss_D[j];
+		cout<<" Poss del: "<<p;
+		cout<<endl;
+	}
 }
 
 void print_fact_layer(RelaxedPlan::FactLayer& fact_layer, int style) {
