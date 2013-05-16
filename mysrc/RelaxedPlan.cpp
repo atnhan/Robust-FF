@@ -1247,6 +1247,9 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 	ClauseSet clauses_before;
 	collect_rp_step_clauses_for_heuristics(rp.begin(), new_itr, clauses_before);
 
+
+
+
 	new_clauses_for_heuristics.add_clauses(clauses_before);
 
 	// Update the step's state
@@ -1309,12 +1312,24 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 		}
 	}
 
+#ifndef NDEBUG
+	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != rp.end(); itr++) {
+		assert((*itr)->a == GOAL_ACTION || ((*itr)->a >= 0 && (*itr)->a < gnum_op_conn) );
+	}
+#endif
 
 	// Remove the iterator to the new step
 	rp.erase(new_itr);
 
+#ifndef NDEBUG
+	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != rp.end(); itr++) {
+		assert((*itr)->a == GOAL_ACTION || ((*itr)->a >= 0 && (*itr)->a < gnum_op_conn) );
+	}
+#endif
+
 	// Delete memory for the new step
 	delete new_step;
+
 
 #ifndef NDEBUG
 	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != rp.end(); itr++) {
