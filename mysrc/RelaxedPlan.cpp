@@ -82,7 +82,7 @@ RelaxedPlan::~RelaxedPlan() {
 
 bool RelaxedPlan::build_relaxed_planning_graph() {
 
-#define DEBUG_BUILD_RPG
+//#define DEBUG_BUILD_RPG
 #ifdef DEBUG_BUILD_RPG
 	cout<<"Begin build_relaxed_planning graph..."<<endl<<endl;
 #endif
@@ -173,7 +173,6 @@ RelaxedPlan::RP_STEP *RelaxedPlan::create_rp_step_for_goals() {
 	}
 
 	// Update its clause set, and count the number of goals not in the current rp_state
-	num_unsupported_known_preconditions = 0;
 	for (int i=0;i<goals->num_F; i++) {
 		int g = goals->F[i];
 
@@ -188,7 +187,7 @@ RelaxedPlan::RP_STEP *RelaxedPlan::create_rp_step_for_goals() {
 
 			num_unsupported_known_preconditions++;
 
-#define DEBUG_CREATE_RP_STEP_FOR_GOALS
+
 #ifdef DEBUG_CREATE_RP_STEP_FOR_GOALS
 			cout<<"A goal not in current state: ";
 			print_ft_name(g);
@@ -204,10 +203,10 @@ RelaxedPlan::RP_STEP *RelaxedPlan::create_rp_step_for_goals() {
 
 bool RelaxedPlan::extract(pair<int, double>& result) {
 
-#define DEBUG_EXTRACT
+//#define DEBUG_EXTRACT
 
 #ifdef DEBUG_EXTRACT
-	cout<<"Begin extract_01..."<<endl<<endl;
+	cout<<"Begin extract_01... Robustness threshold: "<<robustness_threshold<<endl<<endl;
 #endif
 
 	if (!build_relaxed_planning_graph()) {
@@ -230,17 +229,28 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 	num_chosen_actions.reserve(n+1);
 	for (int i=0;i<=n;i++) num_chosen_actions[i] = 0;
 
+	num_unsupported_known_preconditions = 0;
+
 	// Create the step containing goal action of the relaxed plan
 	RP_STEP *goal_step = create_rp_step_for_goals();
 
 	// Initialize the relaxed plan with the goal step, and increase the counter
 	// REMINDER: release memory for "rp"
+	assert(rp.size() == 0);
 	rp.push_back(goal_step);
 	num_chosen_actions[n] = 1;
+
+	//
+	assert((*rp.begin())->a == GOAL_ACTION);
 
 	// Compute the current robustness of the plan prefix + current relaxed plan
 	// Check it against the robustness threshold
 	double current_robustness = compute_robustness();
+
+#ifdef DEBUG_EXTRACT
+	cout<<"Current robustness: "<<current_robustness<<endl<<endl;
+#endif
+
 	if (RelaxedPlan::use_robustness_threshold && current_robustness > robustness_threshold) {
 		result.first = 0;	// Don't count the goal step
 		result.second = current_robustness;
@@ -271,27 +281,35 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 		assert(last_fact_layer.find(g) != last_fact_layer.end());
 
 		// Ignore goals that are certainly known in the current state
-		if (RelaxedPlan::ignore_poss_del_in_rp && is_known_in_state(g, current))
+		if (RelaxedPlan::ignore_poss_del_in_rp && is_known_in_state(g, current)) {
+
+#ifdef DEBUG_EXTRACT
+			cout<<"Subgoal ignored (known in current state): "<<g<<endl<<endl;
+#endif
 			continue;
+		}
 
 		// Now the goal is either not in the state or in the state but not certainly known to be true
 
 		SubGoal subgoal(g, GOAL_ACTION, n, false, &goal_step->s);
 		Q.push(subgoal);
 
-		cout<<"New subgoal: ";
+#ifdef DEBUG_EXTRACT
+		cout<<"New subgoal added: ";
 		subgoal.print();
-		cout<<endl;
-		cout<<"Top: ";
-		Q.top().print();
-		cout<<endl;
+		cout<<endl<<endl;
 
+		cout<<"Current Q'top: ";
+		Q.top().print();
+		cout<<endl<<endl;
+#endif
 
 		// Initialize clause sets for heuristics associated with these goals
 		if (is_in_state(g, current)) {
 			ClauseSet cs;
 			e->supporting_constraints(g, e->get_actions().size(), cs);
-			current_clauses_for_heursitcis.add_clauses(cs);
+			if (cs.size())
+				current_clauses_for_heursitcis.add_clauses(cs);
 		}
 		else if (RelaxedPlan::clauses_from_rpg_for_false_preconditions) {
 			const FactNode& g_node = last_fact_layer.at(g);
@@ -312,21 +330,17 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 	}
 
 #ifdef DEBUG_EXTRACT
-	cout<<"current_clauses_for_heursitcis: "<<current_clauses_for_heursitcis<<endl<<endl;
+	cout<<"current_clauses_for_heuristics: "<<current_clauses_for_heursitcis<<endl<<endl;
 	cout<<"current_robustness_for_heuristics: "<<current_robustness_for_heuristics<<endl<<endl;
 #endif
 
 
 #ifdef DEBUG_EXTRACT
-	TAB(1);
 	cout<<"Num unsupported known preconditions: "<<num_unsupported_known_preconditions<<endl<<endl;
 	cout<<"In Q-loop"<<endl<<endl;
 #endif
 
 	// Extracting actions in the relaxed planning graph to support subgoals in Q
-	cout<<"TOP here: ";
-	Q.top().print();
-	cout<<endl<<endl;
 	while (!Q.empty()) {
 
 		// Retrieve the next subgoal
@@ -335,7 +349,7 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 
 #ifdef DEBUG_EXTRACT
 		TAB(2);
-		cout<<"New subgoal "<<subgoal.g<<"..."<<endl<<endl;
+		cout<<"Subgoal popped: "<<subgoal.g<<"..."<<endl<<endl;
 #endif
 
 #ifndef NDEBUG
@@ -349,7 +363,6 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 
 		// Find the best action supporting this subgoal.
 		// CURRENT STRATEGY: take the one found in the RPG construction
-		int candidate_action = -1;
 		int l = subgoal.l;
 		while (l > 0 && P[l]->at(subgoal.g).best_supporting_action == NOOP)
 			l--;
@@ -363,7 +376,7 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 			continue;
 		}
 
-		candidate_action = (P[l])->at(subgoal.g).best_supporting_action;
+		const int candidate_action = (P[l])->at(subgoal.g).best_supporting_action;
 		int layer_of_candidate_action = l - 1;
 		assert(candidate_action >= 0 && candidate_action < gnum_op_conn);
 
@@ -392,10 +405,9 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 				new_rp_step = insert_action_into_relaxed_plan(candidate_action, layer_of_candidate_action);
 
 				// Recompute the "robustness for heuristics"
-				RELAXED_PLAN::iterator rp_begin_itr = rp.begin();
-				RELAXED_PLAN::iterator rp_end_itr = rp.end();
 				ClauseSet cs_for_heuristics;
-				collect_rp_step_clauses_for_heuristics(rp_begin_itr, rp_end_itr, cs_for_heuristics);
+				collect_rp_step_clauses_for_heuristics(rp.begin(), rp.end(), cs_for_heuristics);
+
 				if (RelaxedPlan::use_lower_bound_in_rp)
 					current_robustness_for_heuristics = cs_for_heuristics.lower_wmc();
 				else if (RelaxedPlan::use_upper_bound_in_rp)
@@ -408,15 +420,15 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 				//
 
 #ifdef DEBUG_EXTRACT
-				TAB(3);
-				cout<<"Candidate action "<<candidate_action<<" inserted."<<endl<<endl;
-				cout<<"Current robustness for heuristics: "<<current_robustness_for_heuristics<<endl<<endl;
+				TAB(3);	cout<<"Candidate action "<<candidate_action<<" inserted."<<endl<<endl;
+				TAB(3);	cout<<"Current robustness for heuristics: "<<current_robustness_for_heuristics<<endl<<endl;
 				cout<<"-- RP-STEPS --"<<endl<<endl;
 				for (int i=0;i<this->length()-1;i++) {
 					print_rp_step(*this, i);
 					cout<<endl<<endl;
 				}
-				cout<<"Num unsupported known preconditions: "<<num_unsupported_known_preconditions<<endl<<endl;
+
+				TAB(3);	cout<<"Num unsupported known preconditions: "<<num_unsupported_known_preconditions<<endl<<endl;
 #endif
 
 			}
@@ -435,15 +447,16 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 					current_robustness_for_heuristics = new_robustness_for_heuristics;
 
 #ifdef DEBUG_EXTRACT
-					TAB(3);
-					cout<<"Candidate action "<<candidate_action<<" inserted."<<endl<<endl;
-					cout<<"Current robustness for heuristics: "<<current_robustness_for_heuristics<<endl<<endl;
+					TAB(3);	cout<<"Candidate action "<<candidate_action<<" inserted."<<endl<<endl;
+					TAB(3);	cout<<"Current robustness for heuristics: "<<current_robustness_for_heuristics<<endl<<endl;
+
 					cout<<"-- RP-STEPS --"<<endl<<endl;
 					for (int i=0;i<this->length()-1;i++) {
 						print_rp_step(*this, i);
 						cout<<endl<<endl;
 					}
-					cout<<"Num unsupported known preconditions: "<<num_unsupported_known_preconditions<<endl<<endl;
+
+					TAB(3);	cout<<"Num unsupported known preconditions: "<<num_unsupported_known_preconditions<<endl<<endl;
 #endif
 
 				}
@@ -463,15 +476,16 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 				current_robustness_for_heuristics = new_robustness_for_heuristics;
 
 #ifdef DEBUG_EXTRACT
-				TAB(3);
-				cout<<"Candidate action "<<candidate_action<<" ignored."<<endl<<endl;
-				cout<<"Current robustness for heuristics: "<<current_robustness_for_heuristics<<endl<<endl;
+				TAB(3); cout<<"Candidate action "<<candidate_action<<" ignored."<<endl<<endl;
+				TAB(3); cout<<"Current robustness for heuristics: "<<current_robustness_for_heuristics<<endl<<endl;
+
 				cout<<"-- RP-STEPS --"<<endl<<endl;
 				for (int i=0;i<this->length()-1;i++) {
 					print_rp_step(*this, i);
 					cout<<endl<<endl;
 				}
-				cout<<"Num unsupported known preconditions: "<<num_unsupported_known_preconditions<<endl<<endl;
+
+				TAB(3); cout<<"Num unsupported known preconditions: "<<num_unsupported_known_preconditions<<endl<<endl;
 #endif
 
 			}
@@ -486,37 +500,49 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 			current_robustness = compute_robustness();
 
 #ifdef DEBUG_EXTRACT
-			TAB(3);
-			cout<<"current_robustness: "<<current_robustness<<endl<<endl;
+			TAB(3); cout<<"current_robustness: "<<current_robustness<<endl<<endl;
 #endif
 
 			// Relaxed plan found!
 			if (RelaxedPlan::use_robustness_threshold && current_robustness > robustness_threshold) {
 
 #ifdef DEBUG_EXTRACT
-				TAB(1);
 				cout<<"Out Q-loop "<<__LINE__<<endl<<endl;
 #endif
 
 				break;
 			}
 
+			//
 			// Add new subgoals
 			assert(gop_conn[candidate_action].num_E == 1);
 			int ef = gop_conn[candidate_action].E[0];
 			for (int i=0;i<gef_conn[ef].num_PC;i++) {
 				int p = gef_conn[ef].PC[i];
-				if (RelaxedPlan::ignore_poss_del_in_rp && is_known_in_state(p, current))
+				// This can be improved: we need only check if "p" is known at the rp_state
+				// To do this, known facts at rp_states must be maintained
+				if (RelaxedPlan::ignore_poss_del_in_rp && is_known_in_state(p, current)) {
+
+#ifdef DEBUG_EXTRACT
+					TAB(3); cout<<"Subgoal ignored (known in current state): "<<p<<endl<<endl;
+#endif
+
 					continue;
+				}
+
 				SubGoal subgoal(p, candidate_action, layer_of_candidate_action, false, &new_rp_step->s);
 				Q.push(subgoal);
 
-				cout<<"New subgoal: ";
+#ifdef DEBUG_EXTRACT
+				TAB(3); cout<<"New subgoal added: ";
 				subgoal.print();
-				cout<<endl;
-				cout<<"Top: ";
+				cout<<endl<<endl;
+
+				TAB(3); cout<<"Current Q'top: ";
 				Q.top().print();
-				cout<<endl;
+				cout<<endl<<endl;
+#endif
+
 
 			}
 			for (int i=0;i<gef_conn[ef].num_poss_PC;i++) {
@@ -526,12 +552,15 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 				SubGoal subgoal(p, candidate_action, layer_of_candidate_action, true, &new_rp_step->s);
 				Q.push(subgoal);
 
-				cout<<"New subgoal: ";
+#ifdef DEBUG_EXTRACT
+				TAB(3); cout<<"New subgoal added: ";
 				subgoal.print();
-				cout<<endl;
-				cout<<"Top: ";
+				cout<<endl<<endl;
+
+				TAB(3); cout<<"Current Q'top: ";
 				Q.top().print();
-				cout<<endl;
+				cout<<endl<<endl;
+#endif
 
 			}
 
@@ -539,17 +568,29 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 
 	} // out of Q-loop
 
-	//assert(num_unsupported_known_preconditions > 0);
-
-	result.first = rp.size();
-	result.second = compute_robustness();
-
 #ifdef DEBUG_EXTRACT
-	TAB(1);
 	cout<<"Out Q-loop "<<__LINE__<<endl<<endl;
 	cout<<"Num unsupported known preconditions: "<<num_unsupported_known_preconditions<<endl<<endl;
+	cout<<"current_robustness_for_heuristics: "<<current_robustness_for_heuristics<<endl<<endl;
+	cout<<"current_robustness: "<<current_robustness<<endl<<endl;
 	cout<<"End extract_01..."<<__LINE__<<endl<<endl;
 #endif
+
+
+	// This must be satisfied, since a trivial relaxed plan includes all "best actions", with which
+	// all known preconditions are supported
+	assert(num_unsupported_known_preconditions == 0);
+
+	// This must be true, because when all known preconditions are supported, clause sets from RPG no longer need
+	assert(current_robustness_for_heuristics == current_robustness);
+
+	result.first = rp.size();
+	result.second = current_robustness;
+
+	// Check if the relaxed plan returned has enough robustness
+	if (current_robustness <= robustness_threshold) {
+		return false;
+	}
 
 	return true;
 }
@@ -883,17 +924,19 @@ void RelaxedPlan::print_subgoals(SubGoalQueue Q) {
 // Note that for preconditions not supported in the rp_states, we (optionally) use clause sets
 // constructed in the RPG.
 // Modified: "clause_set_collection" (initially may not be empty) will be added with these potential clauses
-void RelaxedPlan::collect_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator& begin, RELAXED_PLAN::iterator& end, ClauseSet& clauses) {
+void RelaxedPlan::collect_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator begin, RELAXED_PLAN::iterator end, ClauseSet& clauses) const{
+
 	if (clauses.size())
 		clauses.clear();
 
 	for (RELAXED_PLAN::iterator itr = begin; itr != end; itr++) {
+
 		int op = (*itr)->a;
 		int op_l = (*itr)->layer;
 		const FactLayer& current_fact_layer = *(P[op_l]);
 
 		if (op != GOAL_ACTION) {
-
+			assert(op >= 0 && op < gnum_op_conn);
 			assert(gop_conn[op].num_E == 1);
 			int ef = gop_conn[op].E[0];
 
@@ -1005,11 +1048,12 @@ void RelaxedPlan::collect_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator&
 			}
 		}
 	}
+
 }
 
 // Collect clauses for a new RP_STEP. Optionally, preconditions not present in rp_states
 // are associated with clause sets constructed in the RPG
-void RelaxedPlan::construct_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clauses) {
+void RelaxedPlan::construct_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator rp_step_itr, ClauseSet& clauses) {
 
 	clauses.clear();
 
@@ -1160,6 +1204,14 @@ void RelaxedPlan::update_rp_states_after_step_removal(RELAXED_PLAN::iterator& ne
 // Return the POTENTIAL robustness of plan prefix + relaxed plan + this new action
 double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 
+	assert(action >= 0 && action < gnum_op_conn);
+
+#ifndef NDEBUG
+	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != rp.end(); itr++) {
+		assert((*itr)->a == GOAL_ACTION || ((*itr)->a >= 0 && (*itr)->a < gnum_op_conn) );
+	}
+#endif
+
 	ClauseSet new_clauses_for_heuristics;
 	e->get_clauses(new_clauses_for_heuristics);
 
@@ -1192,10 +1244,8 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 	}
 
 	// Collect clauses from rp_steps before "new_itr"
-	RELAXED_PLAN::iterator begin = rp.begin();
 	ClauseSet clauses_before;
-
-	collect_rp_step_clauses_for_heuristics(begin, new_itr, clauses_before);
+	collect_rp_step_clauses_for_heuristics(rp.begin(), new_itr, clauses_before);
 
 	new_clauses_for_heuristics.add_clauses(clauses_before);
 
@@ -1222,9 +1272,8 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 	// Collect clauses for known and possible preconditions of actions "a" after "action" in the relaxed plan
 	if (RelaxedPlan::candidate_actions_affect_current_actions) {
 		RELAXED_PLAN::iterator after_new_itr = new_itr++;
-		RELAXED_PLAN::iterator end = rp.end();
 		ClauseSet clauses_after;
-		collect_rp_step_clauses_for_heuristics(after_new_itr, end, clauses_after);
+		collect_rp_step_clauses_for_heuristics(after_new_itr, rp.end(), clauses_after);
 		new_clauses_for_heuristics.add_clauses(clauses_after);
 	}
 
@@ -1266,6 +1315,13 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 
 	// Delete memory for the new step
 	delete new_step;
+
+#ifndef NDEBUG
+	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != rp.end(); itr++) {
+		assert((*itr)->a == GOAL_ACTION || ((*itr)->a >= 0 && (*itr)->a < gnum_op_conn) );
+	}
+#endif
+
 
 	return r;
 
@@ -2043,6 +2099,16 @@ void RelaxedPlan::update_rp_step_clauses_after(RELAXED_PLAN::iterator& rp_step_i
 // Insert "action" at "layer" of the RPG into the current relaxed plan
 // Note that we order it in front of all chosen actions at the same layer
 RelaxedPlan::RP_STEP *RelaxedPlan::insert_action_into_relaxed_plan(int action, int layer) {
+
+	assert(action >= 0 && action < gnum_op_conn);
+
+#ifndef NDEBUG
+	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != rp.end(); itr++) {
+		assert((*itr)->a == GOAL_ACTION || ((*itr)->a >= 0 && (*itr)->a < gnum_op_conn) );
+	}
+#endif
+
+
 	double r;
 
 	// Current fact layer of the RPG (the layer at which the "action" belongs to)
@@ -2050,6 +2116,10 @@ RelaxedPlan::RP_STEP *RelaxedPlan::insert_action_into_relaxed_plan(int action, i
 
 	// The new step to be inserted
 	RP_STEP *new_step = new RP_STEP;
+
+	// Update the step's action and layer
+	new_step->a = action;
+	new_step->layer = layer;
 
 	// Number of steps/actions before the "layer" (in the current partial relaxed plan)
 	int count = 0;
@@ -2075,10 +2145,6 @@ RelaxedPlan::RP_STEP *RelaxedPlan::insert_action_into_relaxed_plan(int action, i
 	// Mark this action node in the RPG
 	A[layer]->at(action).in_rp = true;
 
-	// Update the step's action and layer
-	new_step->a = action;
-	new_step->layer = layer;
-
 	// Update the step's state
 	update_rp_state(new_itr);
 
@@ -2092,6 +2158,12 @@ RelaxedPlan::RP_STEP *RelaxedPlan::insert_action_into_relaxed_plan(int action, i
 	// Update clauses for known and possible preconditions of actions after "action"
 	// Must be careful with GOAL_ACTION!!!
 	update_rp_step_clauses_after(new_itr);
+
+#ifndef NDEBUG
+	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != rp.end(); itr++) {
+		assert((*itr)->a == GOAL_ACTION || ((*itr)->a >= 0 && (*itr)->a < gnum_op_conn) );
+	}
+#endif
 
 	return new_step;
 }

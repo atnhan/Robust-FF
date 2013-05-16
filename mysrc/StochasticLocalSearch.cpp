@@ -297,7 +297,7 @@ bool StochasticLocalSearch::run() {
 	}
 
 	if (best_plan.actions.size() > 0 && best_plan.robustness > 0) {
-		cout<<"SOLUTION PLAN:"<<best_plan.actions.size()<<endl;
+		cout<<"SOLUTION PLAN:"<<endl;
 		for (int i=0;i<best_plan.actions.size();i++) {
 			int op = best_plan.actions[i];
 			print_op_name(op);

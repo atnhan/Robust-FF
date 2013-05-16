@@ -191,11 +191,11 @@ class RelaxedPlan {
 	// Collect all clauses associated with rp_steps [begin, end) of the relaxed plan for evaluation
 	// Note that for preconditions not supported in the rp_states, we (optionally) use clause sets
 	// constructed in the RPG.
-	void collect_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator& begin, RELAXED_PLAN::iterator& end, ClauseSet& clauses);
+	void collect_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator begin, RELAXED_PLAN::iterator end, ClauseSet& clauses) const;
 
 	// Construct clauses for a new RP_STEP "from scratch". Optionally, preconditions not present in rp_states
 	// are associated with clause sets constructed in the RPG
-	void construct_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator& rp_step_itr, ClauseSet& clauses);
+	void construct_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator rp_step_itr, ClauseSet& clauses);
 
 	// Update rp_states before actions after a new step RP_STEP is removed
 	void update_rp_states_after_step_removal(RELAXED_PLAN::iterator& rp_step_itr);
