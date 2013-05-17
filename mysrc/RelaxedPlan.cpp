@@ -589,6 +589,23 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 	cout<<"End extract_01..."<<__LINE__<<endl<<endl;
 #endif
 
+#ifndef NDEBUG
+	bool unsupported_known_preconditions = false;
+	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != rp.end() && !unsupported_known_preconditions; itr++) {
+		int a = (*itr)->a;
+		int ef = gop_conn[a].E[0];
+		for (int i=0;i<gef_conn[ef].num_PC && !unsupported_known_preconditions;i++) {
+			int p = gef_conn[ef].PC[i];
+			if (!in_rp_state(p, (*itr)->s)) {
+				unsupported_known_preconditions = true;
+				cout<<"Unsupported known pc: "<<p<<endl;
+				cout<<"Op: "<<a<<endl<<endl;
+			}
+		}
+	}
+	assert(!unsupported_known_preconditions);
+#endif
+
 
 	// This must be satisfied, since a trivial relaxed plan includes all "best actions", with which
 	// all known preconditions are supported
