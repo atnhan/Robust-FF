@@ -22,7 +22,7 @@ MY_LIBS = mysrc/mysrc.a
 
 SUB_DIRS =	mysrc
 
-BOOST_HEADER = /usr/local/boost_1_51_0
+BOOST_HEADER = /usr/local/boost_1_53_0
 
 ####### Files
 

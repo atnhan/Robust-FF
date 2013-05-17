@@ -70,12 +70,14 @@ RelaxedPlan::~RelaxedPlan() {
 				itr2->second = 0;
 			}
 		}
+
 		RP_STEP *temp = *itr;
 		itr++;
 		if (temp) {
 			delete temp;
 			temp = 0;
 		}
+
 	}
 
 }
@@ -153,6 +155,7 @@ bool RelaxedPlan::build_relaxed_planning_graph() {
 }
 
 // Create an RP_STEP containing the goal action
+//boost::shared_ptr<RelaxedPlan::RP_STEP> RelaxedPlan::create_rp_step_for_goals() {
 RelaxedPlan::RP_STEP *RelaxedPlan::create_rp_step_for_goals() {
 	// The level at which all goals appear. So this is also the layer at which GOAL_ACTION is put
 	int n = P.size() - 1;
@@ -162,6 +165,7 @@ RelaxedPlan::RP_STEP *RelaxedPlan::create_rp_step_for_goals() {
 	const FactLayer& last_fact_layer = *(P[n]);
 
 	// Create the step
+	//boost::shared_ptr<RP_STEP> goal_step (new RP_STEP);
 	RP_STEP *goal_step = new RP_STEP;
 	goal_step->a = GOAL_ACTION;
 	goal_step->layer = n;
@@ -203,7 +207,7 @@ RelaxedPlan::RP_STEP *RelaxedPlan::create_rp_step_for_goals() {
 
 bool RelaxedPlan::extract(pair<int, double>& result) {
 
-//#define DEBUG_EXTRACT
+#define DEBUG_EXTRACT
 
 #ifdef DEBUG_EXTRACT
 	cout<<"Begin extract_01... Robustness threshold: "<<robustness_threshold<<endl<<endl;
@@ -239,9 +243,6 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 	assert(rp.size() == 0);
 	rp.push_back(goal_step);
 	num_chosen_actions[n] = 1;
-
-	//
-	assert((*rp.begin())->a == GOAL_ACTION);
 
 	// Compute the current robustness of the plan prefix + current relaxed plan
 	// Check it against the robustness threshold
@@ -361,15 +362,26 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 		assert(rp_itr != rp.end());
 #endif
 
+		// If this subgoal is not in its fact layer in the RPG, which also means
+		// it is the possible precondition subgoal, we simply ignore this subgoal
+		// (since there is not any best supporting action for it)
+		if (!fact_present(subgoal.g, subgoal.l)) {
+			assert(subgoal.possible_precondition);
+
+			// Continue with the next subgoal
+			continue;
+		}
+
 		// Find the best action supporting this subgoal.
 		// CURRENT STRATEGY: take the one found in the RPG construction
 		int l = subgoal.l;
-		while (l > 0 && P[l]->at(subgoal.g).best_supporting_action == NOOP)
+		while (l > 0 && P[l]->at(subgoal.g).best_supporting_action == NOOP) {
 			l--;
+		}
 
 		if (l==0) {
 			assert(P[l]->at(subgoal.g).best_supporting_action == e->get_actions()[e->get_actions().size()-1] ||
-				   P[l]->at(subgoal.g).best_supporting_action == INIT_ACTION);
+					P[l]->at(subgoal.g).best_supporting_action == INIT_ACTION);
 
 			// The best supporting action is the last action in the plan prefix, or the INIT_ACTION.
 			// Continue with the next subgoal
@@ -393,6 +405,7 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 		}
 
 		// Pointer to the new RP_STEP (if insertion happens)
+		//boost::shared_ptr<RP_STEP> new_rp_step;
 		RP_STEP *new_rp_step = 0;
 
 		// Case 1: this subgoal is not present in the state before it
@@ -1161,7 +1174,7 @@ void RelaxedPlan::construct_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterato
 }
 
 // Update rp_states before actions after a new step RP_STEP is removed
-void RelaxedPlan::update_rp_states_after_step_removal(RELAXED_PLAN::iterator& new_itr) {
+void RelaxedPlan::update_rp_states_for_step_removal(RELAXED_PLAN::iterator& new_itr) {
 	int action = (*new_itr)->a;
 	assert(action != GOAL_ACTION);
 	assert(gop_conn[action].num_E == 1);
@@ -1205,13 +1218,6 @@ void RelaxedPlan::update_rp_states_after_step_removal(RELAXED_PLAN::iterator& ne
 double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 
 	assert(action >= 0 && action < gnum_op_conn);
-
-#ifndef NDEBUG
-	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != rp.end(); itr++) {
-		assert((*itr)->a == GOAL_ACTION || ((*itr)->a >= 0 && (*itr)->a < gnum_op_conn) );
-	}
-#endif
-
 	ClauseSet new_clauses_for_heuristics;
 	e->get_clauses(new_clauses_for_heuristics);
 
@@ -1221,6 +1227,8 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 	const FactLayer& current_fact_layer = *(P[layer]);
 
 	// The new step to be evaluated
+	//boost::shared_ptr<RP_STEP> new_step(new RP_STEP);
+
 	RP_STEP *new_step = new RP_STEP;
 	new_step->a = action;
 	new_step->layer = layer;
@@ -1235,20 +1243,19 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 	if (count == 0) {
 		rp.push_front(new_step);
 		new_itr = rp.begin();
+		assert(*new_itr == new_step);
 	}
 	else {
 		RELAXED_PLAN::iterator itr = rp.begin();
 		for (int i=0;i<count;i++)
 			itr++;
 		new_itr = rp.insert(itr, new_step);
+		assert(*new_itr == new_step);
 	}
 
 	// Collect clauses from rp_steps before "new_itr"
 	ClauseSet clauses_before;
 	collect_rp_step_clauses_for_heuristics(rp.begin(), new_itr, clauses_before);
-
-
-
 
 	new_clauses_for_heuristics.add_clauses(clauses_before);
 
@@ -1274,7 +1281,8 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 
 	// Collect clauses for known and possible preconditions of actions "a" after "action" in the relaxed plan
 	if (RelaxedPlan::candidate_actions_affect_current_actions) {
-		RELAXED_PLAN::iterator after_new_itr = new_itr++;
+		RELAXED_PLAN::iterator after_new_itr = new_itr;
+		after_new_itr++;
 		ClauseSet clauses_after;
 		collect_rp_step_clauses_for_heuristics(after_new_itr, rp.end(), clauses_after);
 		new_clauses_for_heuristics.add_clauses(clauses_after);
@@ -1295,7 +1303,7 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 
 	// Remove contribution of add effect and possible add effect of "action" to the states after it
 	if (RelaxedPlan::candidate_actions_affect_current_actions)
-		update_rp_states_after_step_removal(new_itr);
+		update_rp_states_for_step_removal(new_itr);
 
 	// Release memory for clause sets of (possible) preconditions of the new action
 	for (PRE_2_CLAUSES::iterator itr3 = (*new_itr)->pre_clauses.begin(); itr3 != (*new_itr)->pre_clauses.end(); itr3++) {
@@ -1312,31 +1320,10 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 		}
 	}
 
-#ifndef NDEBUG
-	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != rp.end(); itr++) {
-		assert((*itr)->a == GOAL_ACTION || ((*itr)->a >= 0 && (*itr)->a < gnum_op_conn) );
-	}
-#endif
-
 	// Remove the iterator to the new step
+	assert(*new_itr == new_step);
+	delete *new_itr;
 	rp.erase(new_itr);
-
-#ifndef NDEBUG
-	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != rp.end(); itr++) {
-		assert((*itr)->a == GOAL_ACTION || ((*itr)->a >= 0 && (*itr)->a < gnum_op_conn) );
-	}
-#endif
-
-	// Delete memory for the new step
-	delete new_step;
-
-
-#ifndef NDEBUG
-	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != rp.end(); itr++) {
-		assert((*itr)->a == GOAL_ACTION || ((*itr)->a >= 0 && (*itr)->a < gnum_op_conn) );
-	}
-#endif
-
 
 	return r;
 
@@ -1756,7 +1743,9 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 // Update state before an RP_STEP
 void RelaxedPlan::update_rp_state(RELAXED_PLAN::iterator& rp_step_itr) {
 
-	assert((*rp_step_itr)->a != GOAL_ACTION);
+	assert((*rp_step_itr)->a != GOAL_ACTION && ((*rp_step_itr)->a >= 0 && (*rp_step_itr)->a < gnum_op_conn));
+
+	(*rp_step_itr)->s.clear();
 
 	if (rp_step_itr == rp.begin()) {
 		for (int i=0;i<current->num_F; i++)
@@ -1766,11 +1755,14 @@ void RelaxedPlan::update_rp_state(RELAXED_PLAN::iterator& rp_step_itr) {
 		RELAXED_PLAN::iterator itr = rp_step_itr;
 		itr--;
 		int prev_action = (*itr)->a;
+		assert(prev_action != GOAL_ACTION && (prev_action >= 0 && prev_action < gnum_op_conn));
+
 		const RP_STATE& prev_state = (*itr)->s;
 
 		// Copy all facts from the previous state
 		for (RP_STATE::const_iterator i = prev_state.begin(); i != prev_state.end(); i++) {
-			(*rp_step_itr)->s[i->first] = i->second;
+			if (i->second > 0)
+				(*rp_step_itr)->s[i->first] = i->second;
 		}
 
 		// Add known and possible add effects of "prev_action" into "s", if they were not present
@@ -1806,7 +1798,7 @@ void RelaxedPlan::update_rp_state(RELAXED_PLAN::iterator& rp_step_itr) {
 
 void RelaxedPlan::update_rp_states_after(RELAXED_PLAN::iterator& rp_step_itr) {
 	int action = (*rp_step_itr)->a;
-	assert(action != GOAL_ACTION);	// We will never call this function for GOAL_ACTION
+	assert(action != GOAL_ACTION && (action >= 0 && action < gnum_op_conn));	// We will never call this function for GOAL_ACTION
 	assert(gop_conn[action].num_E == 1);
 	int ef = gop_conn[action].E[0];
 
@@ -2029,7 +2021,7 @@ void RelaxedPlan::update_rp_step_clauses_after(RELAXED_PLAN::iterator& rp_step_i
 			// Possible preconditions
 			for (int k = 0; k < gef_conn[ef].num_poss_PC; k++) {
 				int p = gef_conn[ef].poss_PC[k];
-				int bvar = get_bool_var(p, action, POSS_PRE);
+				int bvar = get_bool_var(p, a, POSS_PRE);
 
 				// If "p" is not affected by the new action, do nothing
 				if (!is_add(p, action) && !is_poss_add(p, action) &&
@@ -2113,16 +2105,9 @@ void RelaxedPlan::update_rp_step_clauses_after(RELAXED_PLAN::iterator& rp_step_i
 
 // Insert "action" at "layer" of the RPG into the current relaxed plan
 // Note that we order it in front of all chosen actions at the same layer
+//boost::shared_ptr<RelaxedPlan::RP_STEP> RelaxedPlan::insert_action_into_relaxed_plan(int action, int layer) {
 RelaxedPlan::RP_STEP *RelaxedPlan::insert_action_into_relaxed_plan(int action, int layer) {
-
 	assert(action >= 0 && action < gnum_op_conn);
-
-#ifndef NDEBUG
-	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != rp.end(); itr++) {
-		assert((*itr)->a == GOAL_ACTION || ((*itr)->a >= 0 && (*itr)->a < gnum_op_conn) );
-	}
-#endif
-
 
 	double r;
 
@@ -2130,7 +2115,9 @@ RelaxedPlan::RP_STEP *RelaxedPlan::insert_action_into_relaxed_plan(int action, i
 	const FactLayer& current_fact_layer = *(P[layer]);
 
 	// The new step to be inserted
+	//boost::shared_ptr<RP_STEP> new_step(new RP_STEP);
 	RP_STEP *new_step = new RP_STEP;
+	assert(new_step);
 
 	// Update the step's action and layer
 	new_step->a = action;
@@ -2174,12 +2161,7 @@ RelaxedPlan::RP_STEP *RelaxedPlan::insert_action_into_relaxed_plan(int action, i
 	// Must be careful with GOAL_ACTION!!!
 	update_rp_step_clauses_after(new_itr);
 
-#ifndef NDEBUG
-	for (RELAXED_PLAN::iterator itr = rp.begin(); itr != rp.end(); itr++) {
-		assert((*itr)->a == GOAL_ACTION || ((*itr)->a >= 0 && (*itr)->a < gnum_op_conn) );
-	}
-#endif
-
+	assert(*new_itr == new_step);
 	return new_step;
 }
 
@@ -2658,6 +2640,14 @@ bool RelaxedPlan::grow_fact_layer() {
 
 		// Create new fact node for the newly added fact
 		if (will_be_added) {
+
+#ifndef NDEBUG
+			if (best_supporting_action == NOOP) {
+				assert(fact_present(ft, n));
+			}
+#endif
+
+
 			FactNode node;
 			node.best_clauses = best_clauses;
 			node.best_robustness = best_robustness;

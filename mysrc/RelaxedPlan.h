@@ -125,7 +125,11 @@ class RelaxedPlan {
 		PRE_2_CLAUSES pre_clauses;
 		POSS_PRE_2_CLAUSES poss_pre_clauses;
 	};
+
+	//typedef std::list<boost::shared_ptr<RP_STEP> > RELAXED_PLAN;	// NOTE: including the step containing the unique goal action
+
 	typedef std::list<RP_STEP*> RELAXED_PLAN;	// NOTE: including the step containing the unique goal action
+
 	RELAXED_PLAN rp;
 	std::vector<int> num_chosen_actions;	// Number of chosen actions in the relaxed plan at each layer
 
@@ -198,7 +202,7 @@ class RelaxedPlan {
 	void construct_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator rp_step_itr, ClauseSet& clauses);
 
 	// Update rp_states before actions after a new step RP_STEP is removed
-	void update_rp_states_after_step_removal(RELAXED_PLAN::iterator& rp_step_itr);
+	void update_rp_states_for_step_removal(RELAXED_PLAN::iterator& rp_step_itr);
 
 	// Evaluate a candidate action "a", which is at layer "l" of the RPG, wrt the current relaxed plan.
 	double evaluate_candidate_action(int a, int l);
@@ -220,10 +224,12 @@ class RelaxedPlan {
 
 	// Insert an action "a" at layer "l" into a relaxed plan.
 	// Return the new RP_STEP
+	//boost::shared_ptr<RP_STEP> insert_action_into_relaxed_plan(int a, int l);
 	RP_STEP *insert_action_into_relaxed_plan(int a, int l);
 	//-------
 
 	// Create an RP_STEP containing the goal action
+	//boost::shared_ptr<RP_STEP> create_rp_step_for_goals();
 	RP_STEP *create_rp_step_for_goals();
 
 	// Get confirmed step in the relaxed plan OR the confirmed level in the current plan prefix

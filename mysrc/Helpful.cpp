@@ -159,8 +159,7 @@ int get_bool_var(int ft, int action, AnnotationType t) {
 	// Optimization (to be added): if "ft" is not possibly added or deleted by any action, then return.
 
 	int res = 0;	// Note: valid boolean variable must be POSITIVE
-	if (action < 0 || action >= gnum_op_conn)
-		return res;
+	assert (action >= 0 && action < gnum_op_conn);
 	if (gop_conn[action].num_E > 1) {
 		cout<<"Error! File %s "<<__FILE__<<", line "<<__LINE__<<endl;
 		exit(1);
