@@ -211,16 +211,18 @@ class RelaxedPlan {
 	// FUNCTIONS THAT HELP INSERTING AN ACTION INTO THE RELAXED PLAN
 
 	// Update state before an RP_STEP
-	void update_rp_state(RELAXED_PLAN::iterator& rp_step_itr);
+	// If required, return the number of known preconditions that are not supported
+	int update_rp_state(const RELAXED_PLAN::iterator& rp_step_itr, bool compute_unsupported_known_preconditions = true);
 
-	// Update states of all steps after a particular step
-	void update_rp_states_after(RELAXED_PLAN::iterator& rp_step_itr);
+	// Update states of all steps after a particular step.
+	// If required, return the number of unsupported known preconditions that are supported by the new action
+	int update_rp_states_after(const RELAXED_PLAN::iterator& rp_step_itr, bool compute_new_supported_preconditions = true);
 
 	// Update all clauses for a new RP_STEP
-	void update_rp_step_clauses(RELAXED_PLAN::iterator& rp_step_itr);
+	void update_rp_step_clauses(const RELAXED_PLAN::iterator& rp_step_itr);
 
 	// Update all clauses for steps after a particular step
-	void update_rp_step_clauses_after(RELAXED_PLAN::iterator& rp_step_itr);
+	void update_rp_step_clauses_after(const RELAXED_PLAN::iterator& rp_step_itr);
 
 	// Insert an action "a" at layer "l" into a relaxed plan.
 	// Return the new RP_STEP
@@ -237,11 +239,11 @@ class RelaxedPlan {
 	// The output is a pair:
 	// + the first field is the level of the plan prefix; it is -1 if "p" is confirmed by a step in the current relaxed plan
 	// + the second field is the confirmed step in the current relaxed plan; it must not be used if the first field is >= 0
-	void get_confirmed_step_or_level(int p, RELAXED_PLAN::iterator& the_step_itr,
+	void get_confirmed_step_or_level(int p, const RELAXED_PLAN::iterator& the_step_itr,
 								std::pair<int, RELAXED_PLAN::iterator>& output);
 
 	// Constructing supporting constraints for fact "p" at position pointed to by "the_step_itr" in the relaxed plan
-	bool supporting_constraints(int p, RELAXED_PLAN::iterator& the_step_itr, ClauseSet& clauses);
+	bool supporting_constraints(int p, const RELAXED_PLAN::iterator& the_step_itr, ClauseSet& clauses);
 
 	// Check if a proposition is in a RP-STATE
 	bool in_rp_state(int p, const RP_STATE& s) const;
@@ -254,6 +256,35 @@ class RelaxedPlan {
 
 	// The robustness threshold: we want to find a plan with more than this robustness
 	double robustness_threshold;
+
+	/*
+	 * FOR DEBUGGING PURPOSES
+	 */
+	// Check if there exists any unsupported known preconditions in the relaxed plan
+	// For debugging purpose
+	bool unsupported_known_precondition_exists();
+
+	// The set of unsupported known preconditions, together with its action. Note that in the relaxed plan
+	// each action occurs at most once
+	// First: precondition (proposition) id
+	// Second: the action
+	std::set<std::pair<int, int> > unsupported_known_precondition_set;
+
+	void print_unsupported_known_precondition_set() {
+		for (std::set<std::pair<int,int> >::const_iterator itr = unsupported_known_precondition_set.begin();
+				itr != unsupported_known_precondition_set.end(); itr++) {
+			std::cout<<"("<<itr->first<<", "<<itr->second<<") ";
+		}
+	}
+
+	// The queue
+	boost::unordered_set<std::pair<int, int> > SubgoalSet;
+	void print_subgoal_set() {
+		for (boost::unordered_set<std::pair<int, int> >::const_iterator itr = SubgoalSet.begin();
+				itr != SubgoalSet.end(); itr++) {
+			std::cout<<"("<<itr->first<<", "<<itr->second<<") ";
+		}
+	}
 
 public:
 

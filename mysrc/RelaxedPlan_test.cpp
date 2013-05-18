@@ -217,14 +217,19 @@ void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State
 	cout<<"Extracting relaxed plan..."<<endl;
 	pair<int, double> rp_info;
 	rp.robustness_threshold = 0.7;
-	rp.extract(rp_info);
-	cout<<"Done. Relaxed plan length: "<<rp_info.first<<", estimated robustness: "<<rp_info.second<<endl;
+	if (rp.extract(rp_info)) {
+		cout<<"Done. Relaxed plan length: "<<rp_info.first<<", estimated robustness: "<<rp_info.second<<endl;
+		cout<<"******* RP-STEPS ********"<<endl<<endl;
+		for (int i=0;i<rp.length()-1;i++) {
+			print_rp_step(rp, i);
+			cout<<endl<<endl;
+		}
 
-	cout<<"******* RP-STEPS ********"<<endl<<endl;
-	for (int i=0;i<rp.length()-1;i++) {
-		print_rp_step(rp, i);
-		cout<<endl<<endl;
 	}
+	else {
+		cout<<"No relaxed plan found!"<<endl;
+	}
+
 }
 
 void print_rp_step(RelaxedPlan& r, int step) {
