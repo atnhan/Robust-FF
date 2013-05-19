@@ -1911,7 +1911,6 @@ int RelaxedPlan::update_rp_state(const RELAXED_PLAN::iterator& rp_step_itr, bool
 			if (!in_rp_state(p, (*rp_step_itr)->s)) {
 				count++;
 
-#define DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
 #ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
 				cout<<"Add new unsupported known precondition: "<<p<<", action: "<<action<<endl<<endl;
 				unsupported_known_precondition_set.insert(make_pair(p, action));
@@ -1967,7 +1966,6 @@ int RelaxedPlan::update_rp_states_after(const RELAXED_PLAN::iterator& rp_step_it
 
 							count++;
 
-#define DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
 #ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
 							cout<<"Remove unsupported goal: "<<p<<endl<<endl;
 							unsupported_known_precondition_set.erase(make_pair(p, GOAL_ACTION));

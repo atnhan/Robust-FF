@@ -15,7 +15,7 @@ CC	= g++ -g3
 
 ####### COMPILE
 
-BOOST_HEADER = /usr/local/boost_1_51_0
+BOOST_HEADER = /usr/local/boost_1_53_0
 
 PATH_HEADERS = -I$(BOOST_HEADER) -I$(SRC_HEADER)
 

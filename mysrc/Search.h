@@ -25,12 +25,21 @@ protected:
 	std::vector<Plan> plans;
 	Plan best_plan;
 
+	// Optionally, we can set to find a plan with at least some robustness value
+	double desired_robustness;
+
 	/*
 	 * FUNCTIONS
 	 */
 
 	// Get applicable actions for a given state
 	void get_applicable_actions(const State* state, std::vector<int>& actions, const RelaxedPlan* rp = 0, bool helpful_actions = true);
+
+	// Get all applicable actions for a given state
+	void get_all_applicable_actions(const State* state, std::vector<int>& actions);
+
+	// Get "FF-helpful" actions
+	void get_FF_helpful_actions(const State* state, std::vector<int>& actions, const RelaxedPlan* rp);
 
 public:
 	Search(State* init, State* goals);

@@ -23,6 +23,8 @@ Search::Search(State* init, State* goals) {
 	make_state(this->goals, gnum_ft_conn);
 	this->goals->max_F = gnum_ft_conn;
 	source_to_dest(this->goals, goals);
+
+	this->desired_robustness = 1.0;
 }
 
 Search::~Search() {
@@ -34,6 +36,21 @@ Search::~Search() {
 		delete init;
 		init = 0;
 	}
+}
+
+// Get all applicable actions for a given state
+void Search::get_all_applicable_actions(const State* state, std::vector<int>& actions) {
+	actions.clear();
+	for (int op=0;op<gnum_op_conn;op++) {
+		if (applicable_action(op, state))
+			actions.push_back(op);
+	}
+}
+
+// Get "FF-helpful" actions
+void Search::get_FF_helpful_actions(const State* state, std::vector<int>& actions, const RelaxedPlan* rp) {
+	assert(rp != 0);
+	rp->get_FF_helpful_actions(actions);
 }
 
 // Get applicable actions for a given state

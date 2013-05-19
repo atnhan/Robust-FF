@@ -81,7 +81,7 @@ public:
 	}
 
 	// The last state (after the last action)
-	State* get_last_state() {
+	State* get_last_state() const {
 		return states[states.size()-1];
 	}
 

@@ -24,6 +24,9 @@ class StochasticLocalSearch: public Search {
 	double noise;
 	int max_steps;
 
+	// Using local search to find a better state than the current one
+	State *local_search_for_a_better_state(const StripsEncoding* e);
+
 public:
 	StochasticLocalSearch(State *init, State *goals, int max_restarts, int max_steps, double noise);
 	virtual ~StochasticLocalSearch();
