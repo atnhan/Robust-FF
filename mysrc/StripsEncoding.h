@@ -63,7 +63,7 @@ public:
 
 	// Check the goals: return false if any goal proposition is not in the last state
 	// *New* constraints enforced on goal propositions are also returned
-	bool check_goals(const State *goals, ClauseSet& clauses);
+	bool check_goals(const State *goals, ClauseSet& clauses) const;
 
 	// Collect all clauses for an action at position "i", and all actions
 	void get_clauses(int i, ClauseSet& cs) const;

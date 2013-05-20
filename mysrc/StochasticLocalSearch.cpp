@@ -11,7 +11,6 @@
 #include <ctime>
 #include "Helpful.h"
 #include "StripsEncoding.h"
-#include <climits>
 
 using namespace std;
 
@@ -30,27 +29,127 @@ StochasticLocalSearch::~StochasticLocalSearch() {
 }
 
 // Using local search to find a better state than the current one
-State *StochasticLocalSearch::local_search_for_a_better_state(const StripsEncoding* e) {
-	const State *current_state = e->get_last_state();
+State *StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
+		double &current_robustness, double& better_robustness) {
+	const State *S_min = e->get_last_state();
 	State *result_state = 0;
 
-	// Extract the relaxed plan with more than the current best plan's robustness
-	// If we fail, then we conclude that no better plan could be found
-//	RelaxedPlan rp(e, init, goals, best_plan.robustness);
-//	pair<int, double> rp_info;
-//	if (!rp.extract(rp_info))
-//		break;
+	int depth_bound = initial_depth_bound;
+	for (int i=0; i < max_iterations && !result_state; i++) {
+		for (int probes = 1; probes <= probes_at_depth && !result_state; probes++) {
+			State *S = S_min;
+			int new_actions_count = 0;
+			for (int depth = 1; depth <= depth_bound && !result_state; depth++) {
+
+				// Sample the next state
+				NEIGHBOR selected_neighbor;
+				if (sample_next_state(e, current_robustness, selected_neighbor)) {
+
+					// Append the next action
+					e->append(selected_neighbor.action);
+					new_actions_count++;
+
+					// A better state found
+					if (selected_neighbor.h == 0) {
+						better_robustness = selected_neighbor.robustness;
+						result_state = e->get_last_state();
+					}
+				}
+				// If we cannot sample a state from which a relaxed plan (with >= a robustness threshold) exists,
+				// then we roll back and start a new probe.
+				else {
+					for (int j = 0; j < new_actions_count; j++)
+						e->remove_last();
+
+					// Start a new probe
+					break;
+				}
+			}
+		}
+
+		// Double depth bound
+		depth_bound *= 2;
+	}
 
 	return result_state;
+}
+
+// Sample a set of next actions from a given state
+void StochasticLocalSearch::sample_next_actions(StripsEncoding* e, std::vector<int>& actions) {
+	const State *current_state = e->get_last_state();
+}
+
+// Sample a next state of a given state
+bool StochasticLocalSearch::sample_next_state(StripsEncoding* e, double current_robustness, NEIGHBOR& selected_neighbor) {
+
+	// Set of sampled actions
+	vector<int> sampled_applicable_actions;
+	sample_next_actions(e, sampled_applicable_actions);
+
+	// Set of heuristic values if applying each action
+	vector<NEIGHBOR> neighbors;
+	double sum_weights = 0;
+	for (int i = 0; i < sampled_applicable_actions.size(); i++) {
+		int a = sampled_applicable_actions[i];
+		e->append(a);
+
+		// Extract relaxed plan
+		RelaxedPlan rp(e, e->get_last_state(), goals, current_robustness);
+		pair<int, double> rp_info;
+
+		// If a relaxed plan with (lower/upper/exact) robustness > current_robustness,
+		// record the action and relaxed plan length
+		if (rp.extract(rp_info)) {
+			assert(rp_info.second > current_robustness);
+			NEIGHBOR neighbor;
+			neighbor.action = a;
+			neighbor.h = rp_info.first;
+			neighbor.robustness = rp_info.second;
+			neighbor.h_weight = 1.0 / neighbor.h;	// TO BE CONTINUED: using "beta"
+			sum_weights += neighbor.h_weight;
+		}
+
+		// Retract this action
+		e->remove_last();
+	}
+
+	if (neighbors.size() <= 0)
+		return false;
+
+	// Compute the probability for each neighbor
+	for (int i=0;i<neighbors.size();i++) {
+		neighbors[i].prob = neighbors[i].h_weight / sum_weights;
+	}
+
+	// Sort the neighbors in increasing of their probability
+	for (int i=1;i<neighbors.size();i++) {
+		// Neighbors from 0 to i-1 are sorted
+
+		// Now insert neighbor i
+		int j = i-1;
+		NEIGHBOR n = neighbors[i];
+		while (j >= 0 && neighbors[j].prob > n.prob) {
+			neighbors[j+1] = neighbors[j];
+			j--;
+		}
+		neighbors[j+1] = n;
+	}
+
+	// Roulette wheel selection
+	double random = real_dist(generator);
+	int k = 0;
+	double sum = neighbors[k].prob;
+	while (k < neighbors.size() && sum < random)
+		k++;
+
+	// Return the selected neighbor
+	selected_neighbor = neighbors[k];
+	return true;
 }
 
 bool StochasticLocalSearch::run() {
 	// Set up seed for the generator
 	generator.seed(static_cast<unsigned int>(std::time(0)));		// Initialize seed using the current time
-
-	// The two distribution for random number generation
-	boost::random::uniform_int_distribution<> int_dist;		// The range can change
-	boost::random::uniform_real_distribution<> real_dist;	// By default: [0, 1)
 
 	best_plan.actions.clear();
 	best_plan.robustness = 0;
@@ -62,10 +161,41 @@ bool StochasticLocalSearch::run() {
 
 	// We try to find better plans in at most "max_restarts" restarts from the initial state
 	int restarts = 0;
-	while (restarts < max_restarts && best_plan.robustness < desired_robustness) {
+	while (restarts < max_restarts) {
 
+		// This is where we restart from the initial state
 		StripsEncoding *e = new StripsEncoding(init);
+		double current_robustness = 0;
 
+		int attempts_to_move_to_better_states = 0;
+		while (attempts_to_move_to_better_states <= max_attempts) {
+
+			// Try to move to a better state.
+			// Note: this may need a sequence of actions
+			double next_robustness;
+			State *next_state = local_search_for_a_better_state(e, current_robustness, next_robustness);
+
+			// If we cannot find a better state, restart.
+			if (!next_state) {
+				break;
+			}
+
+			// Increment the attempt count
+			attempts_to_move_to_better_states++;
+
+			// If the current sequence has better robustness than the current best plan
+			// then record the new best plan, and restart
+			if (next_robustness > best_plan.robustness) {
+				best_plan.actions = e->get_actions();
+				best_plan.robustness = next_robustness;
+
+				// Save this new plan to the set of all plans
+				plans.push_back(best_plan);
+
+				// Restart
+				break;
+			}
+		}
 
 		// Restart from the initial state
 		restarts++;
@@ -76,7 +206,7 @@ bool StochasticLocalSearch::run() {
 
 
 
-	for (int i=0;i<max_restarts && best_plan.robustness < desired_robustness;i++) {
+	for (int i=0;i<max_restarts;i++) {
 
 		// When we're here: we have a current best robustness for the current best plan
 		// Restart from the initial state

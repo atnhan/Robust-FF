@@ -23,8 +23,6 @@ Search::Search(State* init, State* goals) {
 	make_state(this->goals, gnum_ft_conn);
 	this->goals->max_F = gnum_ft_conn;
 	source_to_dest(this->goals, goals);
-
-	this->desired_robustness = 1.0;
 }
 
 Search::~Search() {
@@ -76,3 +74,34 @@ void Search::get_applicable_actions(const State* state, std::vector<int>& action
 #endif
 }
 
+// Check if an action sequence, incorporated in a StripsEncoding, satisfies the "goals"
+// with at least a threshold
+// + check_type: < 0  if using lower bound, == 0 if exact, and > 0 if upper bound
+bool Search::robustness_check(const StripsEncoding *e, int check_type, double robustness_threshold) {
+	ClauseSet all_clauses;
+	e->get_clauses(all_clauses);
+
+	// Check if the goals present in the last state, and get its clause set
+	ClauseSet goal_clauses;
+	bool goals_present = e->check_goals(goals, goal_clauses);
+	if (!goals_present)
+		return false;
+
+	// Add goal clauses into the set of all clauses
+	all_clauses.add_clauses(goal_clauses);
+
+	double robustness;
+	if (check_type < 0) {
+		robustness = all_clauses.lower_wmc();
+	}
+	else if (check_type == 0) {
+		CACHET_OUTPUT o;
+		all_clauses.wmc(o);
+		robustness = o.prob;
+	}
+	else {
+		robustness = all_clauses.upper_wmc();
+	}
+
+	//if ()
+}

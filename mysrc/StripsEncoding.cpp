@@ -245,7 +245,7 @@ bool StripsEncoding::supporting_constraints(int ft, int level, ClauseSet& clause
 //	clauses->add_clause(c);
 //}
 
-bool StripsEncoding::check_goals(const State *goals, ClauseSet& clauses) {
+bool StripsEncoding::check_goals(const State *goals, ClauseSet& clauses) const {
 	if (!goals) {
 		clauses.clear();
 		return true;

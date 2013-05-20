@@ -9,8 +9,11 @@
 #define SEARCH_H_
 #include "../ff.h"
 #include <vector>
+#include <climits>
 #include "StripsEncoding.h"
 #include "RelaxedPlan.h"
+
+#define INFINITY	INT_MAX
 
 class Search {
 protected:
@@ -25,9 +28,6 @@ protected:
 	std::vector<Plan> plans;
 	Plan best_plan;
 
-	// Optionally, we can set to find a plan with at least some robustness value
-	double desired_robustness;
-
 	/*
 	 * FUNCTIONS
 	 */
@@ -40,6 +40,11 @@ protected:
 
 	// Get "FF-helpful" actions
 	void get_FF_helpful_actions(const State* state, std::vector<int>& actions, const RelaxedPlan* rp);
+
+	// Check if an action sequence, incorporated in a StripsEncoding, satisfies the "goals"
+	// with at least a threshold
+	// + check_type: < 0  if using lower bound, == 0 if exact, and > 0 if upper bound
+	bool robustness_check(const StripsEncoding *e, int check_type, double robustness_threshold);
 
 public:
 	Search(State* init, State* goals);
