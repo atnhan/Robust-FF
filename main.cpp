@@ -682,23 +682,25 @@ int main( int argc, char *argv[] )
 	/*
 	 * TUAN (begin)
 	 */
-//	vector<double> weights(gnum_possible_annotations, 0.5);
-//	Clause::set_weights(weights);
-//	Search::FF_helpful_actions = false;
-//	RelaxedPlan::ignore_poss_del_in_rp = true;
-//	RelaxedPlan::use_lower_bound_in_rp = true;
-//	RelaxedPlan::use_robustness_threshold = true;
-//	RelaxedPlan::clauses_from_rpg_for_false_preconditions = true;
-//	RelaxedPlan::candidate_actions_affect_current_actions = true;
-//	RelaxedPlan::current_actions_affect_candidate_action = true;
-//	int max_restarts = 50;
-//	int max_steps = 50;
-//	double noise = 0.1;
-//
-//
-//	StochasticLocalSearch search(&ginitial_state, &ggoal_state, max_restarts, max_steps, noise);
-//	search.run();
-//	return 0;
+	vector<double> weights(gnum_possible_annotations, 0.5);
+	Clause::set_weights(weights);
+
+	RelaxedPlan::ignore_poss_del_in_rp = true;
+	RelaxedPlan::use_lower_bound_in_rp = true;
+	RelaxedPlan::use_robustness_threshold = true;
+	RelaxedPlan::clauses_from_rpg_for_false_preconditions = true;
+	RelaxedPlan::candidate_actions_affect_current_actions = true;
+	RelaxedPlan::current_actions_affect_candidate_action = true;
+
+	StochasticLocalSearch::max_restarts = 5;
+	StochasticLocalSearch::initial_depth_bound = 5;
+	StochasticLocalSearch::max_iterations = 5;
+	StochasticLocalSearch::probes_at_depth = 10;
+	StochasticLocalSearch::neighborhood_size = 5;
+
+	StochasticLocalSearch search(&ginitial_state, &ggoal_state);
+	search.run();
+	return 0;
 
 	/*
 	 * TUAN (end)
@@ -734,17 +736,17 @@ int main( int argc, char *argv[] )
 	/*
 	 * TUAN (begin)
 	 */
-	RelaxedPlan::ignore_poss_del_in_rp = true;
-	RelaxedPlan::use_lower_bound_in_rp = true;
-	RelaxedPlan::use_robustness_threshold = true;
-	RelaxedPlan::clauses_from_rpg_for_false_preconditions = true;
-	RelaxedPlan::candidate_actions_affect_current_actions = true;
-	RelaxedPlan::current_actions_affect_candidate_action = true;
-	vector<double> weights(gnum_possible_annotations, 0.5);
-	Clause::set_weights(weights);
-	string sol_file("pfile10.partial.sol");
-	test_relaxed_plan(sol_file, &ginitial_state, &ggoal_state);
-	exit(0);
+//	RelaxedPlan::ignore_poss_del_in_rp = true;
+//	RelaxedPlan::use_lower_bound_in_rp = true;
+//	RelaxedPlan::use_robustness_threshold = true;
+//	RelaxedPlan::clauses_from_rpg_for_false_preconditions = true;
+//	RelaxedPlan::candidate_actions_affect_current_actions = true;
+//	RelaxedPlan::current_actions_affect_candidate_action = true;
+//	vector<double> weights(gnum_possible_annotations, 0.5);
+//	Clause::set_weights(weights);
+//	string sol_file("pfile10.partial.sol");
+//	test_relaxed_plan(sol_file, &ginitial_state, &ggoal_state);
+//	exit(0);
 	/*
 	 * TUAN (end)
 	 */
@@ -1050,6 +1052,32 @@ Bool process_command_line( int argc, char *argv[] )
 				if (strcmp(str_option,"-s") == 0) {
 					strcpy(gcmd_line.solution_file,*argv);
 				}
+
+				if (strcmp(str_option,"-max_restarts") == 0) {
+					sscanf(*argv, "%d", &StochasticLocalSearch::max_restarts);
+				}
+
+				if (strcmp(str_option,"-max_iterations") == 0) {
+					sscanf(*argv, "%d", &StochasticLocalSearch::max_iterations);
+				}
+
+				if (strcmp(str_option,"-initial_depth_bound") == 0) {
+					sscanf(*argv, "%d", &StochasticLocalSearch::initial_depth_bound);
+				}
+
+				if (strcmp(str_option,"-probes_at_depth") == 0) {
+					sscanf(*argv, "%d", &StochasticLocalSearch::probes_at_depth);
+				}
+
+				if (strcmp(str_option,"-neighborhood_size") == 0) {
+					sscanf(*argv, "%d", &StochasticLocalSearch::neighborhood_size);
+				}
+
+				if (strcmp(str_option,"-initial_fail_bound") == 0) {
+					sscanf(*argv, "%d", &StochasticLocalSearch::initial_fail_bound);
+				}
+
+
 			}
 		}
 	}

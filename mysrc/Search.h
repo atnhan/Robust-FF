@@ -13,7 +13,7 @@
 #include "StripsEncoding.h"
 #include "RelaxedPlan.h"
 
-#define INFINITY	INT_MAX
+#define INF_HEU		INT_MAX
 
 class Search {
 protected:
@@ -27,6 +27,8 @@ protected:
 	State *goals;
 	std::vector<Plan> plans;
 	Plan best_plan;
+
+	double desired_robustness;
 
 	/*
 	 * FUNCTIONS
@@ -47,7 +49,8 @@ protected:
 	bool robustness_check(const StripsEncoding *e, int check_type, double robustness_threshold);
 
 public:
-	Search(State* init, State* goals);
+
+	Search(State* init, State* goals, double desired_robustness = 1.0);
 	virtual ~Search();
 
 	virtual bool run() = 0;

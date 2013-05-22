@@ -216,7 +216,7 @@ void test_relaxed_plan(std::string partial_sol_file, State *initial_state, State
 
 	cout<<"Extracting relaxed plan..."<<endl;
 	pair<int, double> rp_info;
-	rp.robustness_threshold = 0.7;
+	rp.robustness_threshold = 0;
 	if (rp.extract(rp_info)) {
 		cout<<"Done. Relaxed plan length: "<<rp_info.first<<", estimated robustness: "<<rp_info.second<<endl;
 		cout<<"******* RP-STEPS ********"<<endl<<endl;

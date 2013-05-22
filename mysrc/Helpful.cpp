@@ -144,6 +144,21 @@ void print_state(const State& s) {
 	}
 }
 
+void print_state_with_fact_indices(const State& s) {
+	for (int i=0;i<s.num_F;i++) {
+		int ft = s.F[i];
+		cout<<"F"<<ft;
+		// Check if this fact is known
+		for (int j=0;j<s.num_known_F;j++) {
+			if (ft == s.known_F[j]) {
+				cout<<"(+)";
+				break;
+			}
+		}
+		cout<<"  ";
+	}
+}
+
 // Check if two states are the same
 bool same_state(const State& s1, const State& s2) {
 	if (s1.num_F != s2.num_F)

@@ -147,11 +147,29 @@ bool StripsEncoding::remove_last() {
 
 // Append an action and extend the plan prefix. Update the clause set.
 void StripsEncoding::extend_plan_prefix(int action) {
+	assert(plan_prefix_length == actions.size());
 	append(action);
 	plan_prefix_length++;
 	ClauseSet clauses;
 	get_clauses(actions.size()-1, clauses);
 	plan_prefix_clauses.add_clauses(clauses);
+}
+
+// Advance the plan prefix with next "steps" actions (which have already been appended)
+void StripsEncoding::advance_plan_prefix(int steps) {
+	if (steps <= 0)
+		return;
+	assert(plan_prefix_length + steps <= actions.size());
+	for (int i=0;i<steps;i++) {
+		ClauseSet clauses;
+		get_clauses(plan_prefix_length++, clauses);
+		plan_prefix_clauses.add_clauses(clauses);
+	}
+}
+
+void StripsEncoding::advance_plan_prefix() {
+	assert(actions.size() > plan_prefix_length);
+	advance_plan_prefix(actions.size() - plan_prefix_length);
 }
 
 int StripsEncoding::get_confirmed_level(int ft,int level) const

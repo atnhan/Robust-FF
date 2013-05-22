@@ -137,8 +137,8 @@ class RelaxedPlan {
 	// This multiset is updated when an action is inserted into the relaxed plan
 	boost::unordered_multiset<Clause, boost::hash<Clause> > rp_clauses;
 
-	// Set of facts added or possibly added by actions in the first action layer, who has been selected into the relaxed plan
-	boost::unordered_set<int> possibly_supported_facts_at_1st_fact_layer;
+	// Facts in the first fact layer. Used for extracting FF-helpful actions
+	std::vector<bool> known_and_possible_adds_of_actions_in_first_layer;
 
 	//-------
 	// Unsupported actions chosen during the relaxed plan extraction are stored in a queue

@@ -61,6 +61,10 @@ public:
 	// Append an action and extend the plan prefix. Update the clause set.
 	void extend_plan_prefix(int action);
 
+	// Advance the plan prefix with next "steps" actions (which have already been appended)
+	void advance_plan_prefix(int steps);
+	void advance_plan_prefix();
+
 	// Check the goals: return false if any goal proposition is not in the last state
 	// *New* constraints enforced on goal propositions are also returned
 	bool check_goals(const State *goals, ClauseSet& clauses) const;

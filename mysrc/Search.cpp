@@ -7,13 +7,15 @@
 
 #include "Search.h"
 #include "Helpful.h"
+#include <vector>
+using namespace std;
 
 extern void source_to_dest( State *dest, State *source );
 extern void make_state( State *S, int n );
 
 bool Search::FF_helpful_actions = true;
 
-Search::Search(State* init, State* goals) {
+Search::Search(State* init, State* goals, double desired_robustness) {
 	this->init = (State*) calloc(1, sizeof(State));
 	make_state(this->init, gnum_ft_conn);
 	this->init->max_F = gnum_ft_conn;
@@ -23,6 +25,8 @@ Search::Search(State* init, State* goals) {
 	make_state(this->goals, gnum_ft_conn);
 	this->goals->max_F = gnum_ft_conn;
 	source_to_dest(this->goals, goals);
+
+	this->desired_robustness = desired_robustness;
 }
 
 Search::~Search() {
@@ -105,3 +109,5 @@ bool Search::robustness_check(const StripsEncoding *e, int check_type, double ro
 
 	//if ()
 }
+
+

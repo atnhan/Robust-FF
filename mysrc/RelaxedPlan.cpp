@@ -31,6 +31,8 @@ RelaxedPlan::RelaxedPlan(const StripsEncoding *e, const State *init, const State
 	this->actions_in_rpg = new vector<bool>(gnum_op_conn, false);
 	this->robustness_threshold = robustness_threshold;
 
+	this->known_and_possible_adds_of_actions_in_first_layer.resize(gnum_ft_conn, false);
+
 }
 
 RelaxedPlan::~RelaxedPlan() {
@@ -675,7 +677,6 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 						itr != unsupported_known_precondition_set.end(); itr++) {
 					assert(SubgoalSet.find(make_pair(itr->first, itr->second)) != SubgoalSet.end());
 				}
-
 #endif
 
 
@@ -713,7 +714,7 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 	// This must be true, because when all known preconditions are supported, clause sets from RPG no longer need
 	assert(current_robustness_for_heuristics == current_robustness);
 
-	result.first = rp.size();
+	result.first = rp.size() - 1;	// Ignore the goal step
 	result.second = current_robustness;
 
 	// Check if the relaxed plan returned has enough robustness
@@ -931,11 +932,13 @@ void RelaxedPlan::get_FF_helpful_actions(std::vector<int>& helpful_actions) cons
 
 		// We check if it (possibly) adds any propositions in the first fact layer that
 		// has been selected during the relaxed plan extraction
-		for (int ft = 0; ft < gnum_ft_conn; ft++) {
-			if (possibly_supported_facts_at_1st_fact_layer.find(ft) == possibly_supported_facts_at_1st_fact_layer.end())
+		bool helpful = false;
+		for (int ft = 0; ft < gnum_ft_conn && !helpful; ft++) {
+			if (!known_and_possible_adds_of_actions_in_first_layer[ft])
 				continue;
 			if (is_add(ft, op) || is_poss_add(ft, op)) {
 				helpful_actions.push_back(op);
+				helpful = true;
 			}
 		}
 	}
@@ -2338,6 +2341,22 @@ RelaxedPlan::RP_STEP *RelaxedPlan::insert_action_into_relaxed_plan(int action, i
 	// Must be careful with GOAL_ACTION!!!
 	update_rp_step_clauses_after(new_itr);
 
+	// If the action is at the first action layer, collect its add and possible add effects
+	// for the purpose of using helpful actions
+	if (layer == 0) {
+		assert(gop_conn[action].num_E == 1);
+		int ef = gop_conn[action].E[0];
+
+		for (int k=0;k<gef_conn[ef].num_A;k++) {
+			int p = gef_conn[ef].A[k];
+			known_and_possible_adds_of_actions_in_first_layer[p] = true;
+		}
+		for (int k=0;k<gef_conn[ef].num_poss_A;k++) {
+			int p = gef_conn[ef].poss_A[k];
+			known_and_possible_adds_of_actions_in_first_layer[p] = true;
+		}
+	}
+
 	assert(*new_itr == new_step);
 	return new_step;
 }
@@ -2788,7 +2807,7 @@ bool RelaxedPlan::grow_fact_layer() {
 				int bvar = get_bool_var(ft, op, POSS_ADD);
 				ClauseSet cs = current_action_layer[op].clauses;
 				Clause c;
-				c.add_literal(bvar);			// A clause with a single literal
+				c.add_literal(bvar);	// A clause with a single literal
 				cs.add_clause(c);		// CAREFUL: this very like removes many clauses that are superset of "c"
 
 				ClauseSet tmp;

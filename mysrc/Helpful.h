@@ -36,6 +36,9 @@ int find_action(std::string action_name);
 // Print state
 void print_state(const State& s);
 
+// Print state with fact indices only
+void print_state_with_fact_indices(const State& s);
+
 // Get boolean variable for a possible precondition and effect
 // Valid boolean variable must be POSITIVE
 int get_bool_var(int ft, int action, AnnotationType t);
