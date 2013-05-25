@@ -58,6 +58,7 @@ bool StochasticLocalSearch::sample_next_actions(StripsEncoding* e, double robust
 	// Get FF helpful actions
 	vector<int> helpful_actions;
 	get_FF_helpful_actions(current_state, helpful_actions, &rp);
+	assert(helpful_actions.size());
 
 #ifdef DEBUG_SAMPLE_ACTION
 	TAB(tab+1); cout<<"Helpful actions: ";

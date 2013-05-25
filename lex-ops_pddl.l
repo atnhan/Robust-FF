@@ -89,11 +89,11 @@ z [Zz]
 
 ":"{p}{r}{e}{c}{o}{n}{d}{i}{t}{i}{o}{n}  {  return(PRECONDITION_TOK); }
 
-":"{p}{o}{s}{s}{p}{r}{e}{c}{o}{n}{d}{i}{t}{i}{o}{n}  {  return(POSS_PRECONDITION_TOK); }
+":"{p}{o}{s}{s}"-"{p}{r}{e}{c}{o}{n}{d}{i}{t}{i}{o}{n}  {  return(POSS_PRECONDITION_TOK); }
 
 ":"{e}{f}{f}{e}{c}{t}  {  return(EFFECT_TOK); }
 
-":"{p}{o}{s}{s}{e}{f}{f}{e}{c}{t}  {  return(POSS_EFFECT_TOK); }
+":"{p}{o}{s}{s}"-"{e}{f}{f}{e}{c}{t}  {  return(POSS_EFFECT_TOK); }
 
 ":"{i}{m}{p}{l}{i}{e}{s}  {  return(IMPLIES_TOK); }
 

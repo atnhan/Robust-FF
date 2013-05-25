@@ -712,7 +712,7 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 	assert(num_unsupported_known_preconditions == 0);
 
 	// This must be true, because when all known preconditions are supported, clause sets from RPG no longer need
-	assert(current_robustness_for_heuristics == current_robustness);
+	//assert(current_robustness_for_heuristics == current_robustness);
 
 	result.first = rp.size() - 1;	// Ignore the goal step
 	result.second = current_robustness;

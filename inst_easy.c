@@ -100,6 +100,8 @@ void build_easy_action_templates( void )
 		for ( i = 0; i < gnum_easy_operators; i++ ) {
 			print_NormOperator( geasy_operators[i] );
 		}
+
+		exit(0);
 	}
 
 	multiply_easy_effect_parameters();			/* TUAN: For STRIPS domains, effects have no conditions*/
@@ -145,6 +147,7 @@ void build_easy_action_templates( void )
 				}
 			}
 		}
+
 	}
 
 }

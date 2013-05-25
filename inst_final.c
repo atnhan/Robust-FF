@@ -558,6 +558,7 @@ void collect_relevant_facts( void )
 	 */
 	for ( a = gactions; a; a = a->next ) {
 		if ( a->norm_operator ) {
+
 			no = a->norm_operator;
 
 			for ( ne = no->effects; ne; ne = ne->next ) {
@@ -920,6 +921,7 @@ void create_final_actions( void )
 	while ( a ) {
 
 		if ( a->norm_operator ) {
+
 			/* action comes from an easy template NormOp
 			 */
 			no = a->norm_operator;
@@ -969,6 +971,12 @@ void create_final_actions( void )
 
 				a->poss_preconds[a->num_poss_preconds] = lindex[lp][adr];
 				a->poss_precond_annotation_id[a->num_poss_preconds++] = no->poss_precond_annotation_id[i];
+
+				//
+//				printf(">> ");
+//				print_ft_name(lindex[lp][adr]);
+//				printf("\n>>lp = %d, adr = %d\n", lp, adr);
+				//
 			}
 
 			if (no->num_poss_adds > 0) {
@@ -1260,6 +1268,8 @@ void create_final_actions( void )
 		p = a;
 		a = a->next;
 	}/* endfor all actions ! */
+
+
 
 }
 
@@ -1927,6 +1937,8 @@ void build_connectivity_graph( void )
 			exit(1);
 		}
 
+//		print_Action(a);
+
 		// If this actions have totally zero number of known and possible add and delete effects, ignore it
 		int num_adds = 0;
 		int num_dels = 0;
@@ -2100,6 +2112,21 @@ void build_connectivity_graph( void )
 		gnum_op_conn++;
 		gnum_ef_conn++;
 	}
+
+	/*
+	 * TUAN: begin debug
+	 */
+//	printf("=== FACTS ===\n\n");
+//	for (int i=0;i<gnum_ft_conn;i++) {
+//		printf("%d :", i);
+//		print_ft_name(i);
+//		printf("\n");
+//	}
+//	exit(1);
+
+	/*
+	 * TUAN: end
+	 */
 
 	// Allocate space for fact information array
 	for (int i = 0; i < gnum_ft_conn; i++ ) {
