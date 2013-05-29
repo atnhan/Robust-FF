@@ -242,4 +242,6 @@ void TAB(int n) {
 		std::cout<<"\t";
 }
 
-
+float get_time(const tms& start, const tms& end) {
+	return ( float ) ( ( end.tms_utime - start.tms_utime + end.tms_stime - start.tms_stime  ) / 100.0 );
+}

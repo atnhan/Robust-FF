@@ -8,6 +8,7 @@
 #include "Search.h"
 #include "Helpful.h"
 #include <vector>
+#include <iostream>
 using namespace std;
 
 extern void source_to_dest( State *dest, State *source );
@@ -38,6 +39,46 @@ Search::~Search() {
 		delete init;
 		init = 0;
 	}
+}
+
+ostream& operator<<(std::ostream& os, const std::vector<Search::Plan>& plans) {
+
+	// Domain file
+	os<<"; Domain file";
+	os<<gcmd_line.ops_file_name<<endl;
+
+	// Problem file
+	os<<"; Problem file";
+	os<<gcmd_line.fct_file_name<<endl;
+
+	// Number of plans
+	os<<"; Number of plans"<<endl;
+	os<<plans.size()<<endl;
+
+	for (size_t i = 0; i < plans.size(); i++) {
+		const Search::Plan& p = plans[i];
+
+		os<<";"<<endl;
+		os<<"; Plan "<<i+1<<"/"<<plans.size()<<endl;
+
+		// Robustness
+		os<<"; Robustness"<<endl;
+		os<<p.robustness<<endl;
+
+		// Number of actions
+		os<<"; Number of actions"<<endl;
+		os<<p.actions.size()<<endl;
+
+		for (size_t j=0; j<p.actions.size(); j++) {
+			Action *a = gop_conn[p.actions[j]].action;
+			os<<a->name<<" ";
+			for (size_t k=0;k<a->num_name_vars;k++) {
+				os<<" "<<gconstants[a->name_inst_table[k]];
+			}
+		}
+	}
+
+	return os;
 }
 
 // Get all applicable actions for a given state

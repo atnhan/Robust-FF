@@ -59,4 +59,7 @@ bool same_state(const State& s1, const State& s2);
 // Print TAB
 void TAB(int n);
 
+// Get time
+float get_time(const tms& start, const tms& end);
+
 #endif /* HELPFUL_H_ */

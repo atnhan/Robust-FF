@@ -48,6 +48,10 @@ protected:
 	// + check_type: < 0  if using lower bound, == 0 if exact, and > 0 if upper bound
 	bool robustness_check(const StripsEncoding *e, int check_type, double robustness_threshold);
 
+	// Output plans to streams
+	friend std::ostream& operator<<(std::ostream& os, const std::vector<Plan>& plans);
+
+
 public:
 
 	Search(State* init, State* goals, double desired_robustness = 1.0);

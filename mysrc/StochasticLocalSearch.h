@@ -9,6 +9,7 @@
 #define STOCHASTICLOCALSEARCH_H_
 
 #include "Search.h"
+#include "Clock.h"
 #include <boost/random/uniform_int_distribution.hpp>
 #include <boost/random/uniform_real_distribution.hpp>
 #include <boost/random/mersenne_twister.hpp>
@@ -25,6 +26,37 @@ class StochasticLocalSearch: public Search {
 
 	// The number of fails, initialized to 0 every time we restart from the initial state
 	int fail_count;
+
+	// Various types of time spent during the search
+	struct TIMER {
+		// Time spent by the local search
+		double search_time;
+
+		// Time spent to maintain the encoding
+		double clause_set_construction_time;
+
+		// Relaxed plan extraction time
+		double rp_time;
+
+		// Robustness computation time (exact or approximate)
+		double robustness_computation_time;
+
+		// Constructor
+		TIMER() {
+			search_time = 0;
+			rp_time = 0;
+			robustness_computation_time = 0;
+		}
+
+		// Get the total time
+		double total() {
+			return search_time + clause_set_construction_time + rp_time + robustness_computation_time;
+		}
+	};
+	TIMER timer;
+
+	// The clock to record time
+	Clock clock;
 
 	// The search neighbor
 	struct NEIGHBOR {
@@ -59,6 +91,9 @@ class StochasticLocalSearch: public Search {
 
 	// Sample k distinct integers from 0 to n-1
 	void sample_k(int k, int n, std::vector<int>& result);
+
+	// Update the experiment analysis file
+	void update_experiment_analysis_file();
 
 public:
 

@@ -337,6 +337,10 @@ struct _command_line {
 	 */
 	bool robustness_evaluation;
 	char solution_file[MAX_LENGTH];				// Plan to evaluate
+
+	char solution_folder[MAX_LENGTH];
+
+	char experiment_analysis_file[MAX_LENGTH];
 	/*
 	 * TUAN (end)
 	 */

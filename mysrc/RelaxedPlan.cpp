@@ -12,14 +12,22 @@
 #include <boost/foreach.hpp>
 using namespace std;
 
-// By default, possible delete effects are ignored in the relaxed plan
-bool RelaxedPlan::ignore_poss_del_in_rp = true;
-bool RelaxedPlan::use_lower_bound_in_rp = true;
-bool RelaxedPlan::use_upper_bound_in_rp = false;
-bool RelaxedPlan::use_robustness_threshold = true;
-bool RelaxedPlan::clauses_from_rpg_for_false_preconditions = true;
-bool RelaxedPlan::current_actions_affect_candidate_action = true;
-bool RelaxedPlan::candidate_actions_affect_current_actions = true;
+// DEFAULT OPTIONS
+
+bool RelaxedPlan::ignore_poss_del_in_rp = true;	// Possible delete effects ignored
+
+bool RelaxedPlan::use_lower_bound_in_rp = false;	// With both of these FALSE, the default
+bool RelaxedPlan::use_upper_bound_in_rp = false;	// computation of WMC for SAT formula is exact!
+
+bool RelaxedPlan::use_robustness_threshold = true;	// The extraction of relaxed plans will stop as
+													// soon as its estimated/exact robustness is more than this threshold
+
+bool RelaxedPlan::clauses_from_rpg_for_false_preconditions = true;	// Use clauses from the RPG construction for preconditions that
+																	// are known to be false given the current partial relaxed plan
+
+bool RelaxedPlan::current_actions_affect_candidate_action = true;	// The effect of current actions on a candidate action (after them) is considered
+bool RelaxedPlan::candidate_actions_affect_current_actions = true;	// and that of a candidate action on current actions (after it)
+
 
 RelaxedPlan::RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals, double robustness_threshold) {
 	assert(e && goals);

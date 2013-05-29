@@ -679,32 +679,36 @@ int main( int argc, char *argv[] )
 	times( &end );
 	TIME( gconn_time );
 
-	/*
-	 * TUAN (begin)
-	 */
+	/******************************************************************************************************************
+	 * TUAN: Begin search for robust plans
+	 ******************************************************************************************************************/
+
+	// Weights of annotations. Uniform just for now!
+	// The weights have not been updated directly from the parser
 	vector<double> weights(gnum_possible_annotations, 0.5);
 	Clause::set_weights(weights);
 
-	RelaxedPlan::ignore_poss_del_in_rp = true;
-	RelaxedPlan::use_lower_bound_in_rp = true;
-	RelaxedPlan::use_robustness_threshold = true;
-	RelaxedPlan::clauses_from_rpg_for_false_preconditions = true;
-	RelaxedPlan::candidate_actions_affect_current_actions = true;
-	RelaxedPlan::current_actions_affect_candidate_action = true;
-
-	StochasticLocalSearch::max_restarts = 5;
-	StochasticLocalSearch::initial_depth_bound = 5;
-	StochasticLocalSearch::max_iterations = 5;
-	StochasticLocalSearch::probes_at_depth = 10;
-	StochasticLocalSearch::neighborhood_size = 5;
-
+	// Start the search
 	StochasticLocalSearch search(&ginitial_state, &ggoal_state);
 	search.run();
 	return 0;
 
-	/*
-	 * TUAN (end)
-	 */
+
+	/******************************************************************************************************************
+	 * TUAN: End
+	 ******************************************************************************************************************/
+
+
+
+
+
+
+
+
+
+
+
+
 
 	/*
 	 * TUAN (begin)
@@ -1048,10 +1052,76 @@ Bool process_command_line( int argc, char *argv[] )
 				continue;
 			}
 
+			/*
+			 * OPTIONS RELATED TO RELAXED PLAN EXTRACTION
+			 */
+
+			// ignore_poss_del_in_rp;
+			// Default: true
+			if (strcmp(str_option,"-poss_del_in_rp") == 0) {
+				RelaxedPlan::ignore_poss_del_in_rp = false;
+				continue;
+			}
+
+			// use_lower_bound_in_rp;
+			// Default: false
+			if (strcmp(str_option,"-lower_bound_in_rp") == 0) {
+
+				if (RelaxedPlan::use_upper_bound_in_rp) {
+					printf("Upper and lower bounds cannot be both used.\n\n");
+					return FALSE;
+				}
+
+				RelaxedPlan::use_lower_bound_in_rp = true;
+				continue;
+			}
+
+			// use_upper_bound_in_rp;
+			// Default: false
+			if (strcmp(str_option,"-upper_bound_in_rp") == 0) {
+
+				if (RelaxedPlan::use_lower_bound_in_rp) {
+					printf("Upper and lower bounds cannot be both used.\n\n");
+					return FALSE;
+				}
+
+				RelaxedPlan::use_upper_bound_in_rp = true;
+				continue;
+			}
+
+			// candidate_actions_affect_current_actions;
+			// Default: true
+			if (strcmp(str_option,"-candidate_actions_not_affect_current_actions") == 0) {
+
+				RelaxedPlan::candidate_actions_affect_current_actions = false;
+				continue;
+			}
+
+			// current_actions_affect_candidate_action
+			// Default: true
+			if (strcmp(str_option,"-current_actions_not_affect_candidate_action") == 0) {
+
+				RelaxedPlan::current_actions_affect_candidate_action = false;
+				continue;
+			}
+
+			// clauses_from_rpg_for_false_preconditions;
+			// Default: true
+			if (strcmp(str_option,"-no_clauses_from_rpg_for_false_preconditions") == 0) {
+
+				RelaxedPlan::clauses_from_rpg_for_false_preconditions = false;
+				continue;
+			}
+
+
 			if (--argc && ++argv) {
 				if (strcmp(str_option,"-s") == 0) {
 					strcpy(gcmd_line.solution_file,*argv);
 				}
+
+				/*
+				 * OPTIONS RELATED TO SEARCH
+				 */
 
 				if (strcmp(str_option,"-max_restarts") == 0) {
 					sscanf(*argv, "%d", &StochasticLocalSearch::max_restarts);

@@ -10,6 +10,7 @@
 #include <vector>
 #include <ctime>
 #include <algorithm>
+#include <fstream>
 #include "Helpful.h"
 #include "StripsEncoding.h"
 
@@ -43,6 +44,12 @@ bool StochasticLocalSearch::sample_next_actions(StripsEncoding* e, double robust
 
 	const State *current_state = e->get_last_state();
 
+	// Add search time
+	clock.stop();
+	timer.search_time += clock.time();
+	clock.restart();
+	//
+
 	// Extract relaxed plan for the current state, in order to get helpful action
 	RelaxedPlan rp(e, current_state, goals, robustness_threshold);
 	pair<int, double> rp_info;
@@ -52,8 +59,19 @@ bool StochasticLocalSearch::sample_next_actions(StripsEncoding* e, double robust
 	TAB(tab); cout<<"End sampling action... FAILED!"<<endl<<endl;
 #endif
 
+		// Add RP time
+		clock.stop();
+		timer.rp_time += clock.time();
+		clock.restart();
+
+
 		return false;
 	}
+
+	// Add RP time
+	clock.stop();
+	timer.rp_time += clock.time();
+	clock.restart();
 
 	// Get FF helpful actions
 	vector<int> helpful_actions;
@@ -110,7 +128,19 @@ bool StochasticLocalSearch::sample_next_state(StripsEncoding* e, double current_
 	for (int i = 0; i < sampled_applicable_actions.size() && !better_state_found; i++) {
 		int a = sampled_applicable_actions[i];
 		assert(a >= 0 && a < gnum_op_conn);
+
+		// Add search time
+		clock.stop();
+		timer.search_time += clock.time();
+		clock.restart();
+
 		e->append(a);
+
+		// Add encoding time
+		clock.stop();
+		timer.clause_set_construction_time += clock.time();
+		clock.restart();
+		//
 
 		// Extract relaxed plan
 		RelaxedPlan rp(e, e->get_last_state(), goals, current_robustness);
@@ -119,6 +149,13 @@ bool StochasticLocalSearch::sample_next_state(StripsEncoding* e, double current_
 		// If a relaxed plan with (lower/upper/exact) robustness > current_robustness,
 		// record the action and relaxed plan length
 		if (rp.extract(rp_info)) {
+
+			// Add RP time
+			clock.stop();
+			timer.rp_time += clock.time();
+			clock.restart();
+			//
+
 			assert(rp_info.second > current_robustness);
 
 			if (rp_info.first < h) {
@@ -144,8 +181,22 @@ bool StochasticLocalSearch::sample_next_state(StripsEncoding* e, double current_
 			}
 		}
 
+		// Add RP time
+		clock.stop();
+		timer.rp_time += clock.time();
+		clock.restart();
+		//
+
+
 		// Retract this action
 		e->remove_last();
+
+		// Add encoding time
+		clock.stop();
+		timer.clause_set_construction_time += clock.time();
+		clock.restart();
+		//
+
 	}
 
 	// If a better state found, immediately return
@@ -200,7 +251,6 @@ bool StochasticLocalSearch::sample_next_state(StripsEncoding* e, double current_
 bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 		double current_robustness, int h, int& next_h, double& next_robustness, bool& fail_bound_reached, int tab) {
 
-#define DEBUG_LOCAL_SEARCH
 #ifdef DEBUG_LOCAL_SEARCH
 	TAB(tab); cout<<"Begin local search..."<<endl;
 	TAB(tab); cout<<"Robustness threshold: "<<current_robustness<<endl;
@@ -221,6 +271,7 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 #ifdef DEBUG_LOCAL_SEARCH
 		TAB(tab+3); cout<<"Iteration "<<i+1<<endl<<endl;
 #endif
+
 		for (int probes = 1; probes <= probes_at_depth && !better_state_found; probes++) {
 
 #ifdef DEBUG_LOCAL_SEARCH
@@ -244,8 +295,21 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 				NEIGHBOR selected_neighbor;
 				if (sample_next_state(e, current_robustness, h, selected_neighbor, tab + 4)) {
 
+					// Update search time
+					clock.stop();
+					timer.search_time += clock.time();
+					clock.restart();
+					//
+
 					// Append the next action
 					e->append(selected_neighbor.action);
+
+					// Update clause set construction time
+					clock.stop();
+					timer.clause_set_construction_time += clock.time();
+					clock.restart();
+					//
+
 					new_actions_count++;
 
 #ifdef DEBUG_LOCAL_SEARCH
@@ -258,7 +322,21 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 					if (selected_neighbor.h < h) {
 						next_h = selected_neighbor.h;
 						next_robustness = selected_neighbor.robustness;
+
+						// Update search time
+						clock.stop();
+						timer.search_time += clock.time();
+						clock.restart();
+						//
+
 						e->advance_plan_prefix();
+
+						// Update clause set construction time
+						clock.stop();
+						timer.clause_set_construction_time += clock.time();
+						clock.restart();
+						//
+
 						better_state_found = true;
 
 #ifdef DEBUG_LOCAL_SEARCH
@@ -272,9 +350,22 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 				// then we roll back and start a new probe.
 				else {
 
+					// Update search time
+					clock.stop();
+					timer.search_time += clock.time();
+					clock.restart();
+					//
+
 					for (int j = 0; j < new_actions_count; j++) {
 						e->remove_last();
 					}
+
+					// Update clause set construction time
+					clock.stop();
+					timer.clause_set_construction_time += clock.time();
+					clock.restart();
+					//
+
 
 #ifdef DEBUG_LOCAL_SEARCH
 					TAB(tab+5); cout<<"No sampled action found;"<<endl<<endl;
@@ -306,11 +397,12 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 
 bool StochasticLocalSearch::run() {
 
-#define DEBUG_SLS_RUN
-
 #ifdef DEBUG_SLS_RUN
 	cout<<"BEGIN StochasticLocalSearch::run()..."<<endl<<endl;
 #endif
+
+	// Start the clock
+	clock.restart();
 
 	// Set up seed for the generator
 	generator.seed(static_cast<unsigned int>(std::time(0)));		// Initialize seed using the current time
@@ -318,6 +410,7 @@ bool StochasticLocalSearch::run() {
 	best_plan.actions.clear();
 	best_plan.robustness = 0;
 
+	// To store output by Cachet
 	CACHET_OUTPUT r;
 
 	// Number of plans found
@@ -331,9 +424,20 @@ bool StochasticLocalSearch::run() {
 		cout<<endl<<endl;
 #endif
 
+	// Add search time
+	clock.stop();
+	timer.search_time += clock.time();
+	clock.restart();
 
 	// Find the relaxed plan from the initial state
 	StripsEncoding *e_0 = new StripsEncoding(init);
+
+	// Add encoding time
+	clock.stop();
+	timer.clause_set_construction_time += clock.time();
+	clock.restart();
+	//
+
 	RelaxedPlan rp_0(e_0, init, goals, best_plan.robustness);
 	pair<int, double> rp_0_info;
 	if (!rp_0.extract(rp_0_info)) {
@@ -343,8 +447,18 @@ bool StochasticLocalSearch::run() {
 		cout<<"END StochasticLocalSearch::run()..."<<endl<<endl;
 #endif
 
+		// RP time
+		clock.stop();
+		timer.rp_time += clock.time();
+
 		return false;		// No relaxed plan found.
 	}
+
+
+	// RP time
+	clock.stop();
+	timer.rp_time += clock.time();
+	clock.restart();
 
 #ifdef DEBUG_SLS_RUN
 	cout<<"Relaxed plan: "<<rp_0_info.first<<" actions. Robustness (plan prefix + relaxed plan): "<<rp_0_info.second<<endl<<endl;
@@ -362,7 +476,10 @@ bool StochasticLocalSearch::run() {
 
 
 		// This is where we restart from the initial state
+		clock.stop();
 		StripsEncoding *e = new StripsEncoding(init);
+		timer.clause_set_construction_time += clock.time();
+		clock.restart();
 
 		// Initialize fail count
 		fail_count = 0;
@@ -375,6 +492,7 @@ bool StochasticLocalSearch::run() {
 #endif
 
 		while (true) {
+
 			int next_h;
 			bool fail_bound_reached;
 			double next_robustness;
@@ -433,24 +551,33 @@ bool StochasticLocalSearch::run() {
 		delete e;
 	}
 
+	// Add search time
+	clock.stop();
+	timer.search_time += clock.time();
 
-	// Print all plans
-	if (plans.size()) {
-		cout<<endl<<"===== "<<plans.size()<<" PLANS ====="<<endl<<endl;
-		for (int i=0;i<plans.size(); i++) {
-			cout<<"PLAN "<<i<<endl;
-			for (int j=0;j<plans[i].actions.size();j++) {
-				int op = plans[i].actions[j];
-				cout<<j<<": ";
-				print_op_name(op);
-				cout<<endl;
-			}
-			cout<<"ROBUSTNESS: "<<plans[i].robustness<<endl;
+	// WRITE TO FILE FOR EXPERIMENT ANALYSIS
+	update_experiment_analysis_file();
+
+	// SAVE PLANS TO FILE...
+	string solution_file_name = string(gcmd_line.path) + string(gcmd_line.ops_file_name) + string("@") + string(gcmd_line.fct_file_name);
+	ofstream f;
+	f.open(solution_file_name.c_str());
+	f<<plans;
+	f.close();
+
+#ifdef DEBUG_SSL_RUN
+	cout<<endl<<"===== "<<plans.size()<<" PLANS ====="<<endl<<endl;
+	for (int i=0;i<plans.size(); i++) {
+		cout<<"PLAN "<<i<<endl;
+		for (int j=0;j<plans[i].actions.size();j++) {
+			int op = plans[i].actions[j];
+			cout<<j<<": ";
+			print_op_name(op);
+			cout<<endl;
 		}
+		cout<<"ROBUSTNESS: "<<plans[i].robustness<<endl;
 	}
-	else {
-		cout<<"==== NO PLAN FOUND! ===="<<endl;
-	}
+#endif
 
 	delete e_0;
 
@@ -467,6 +594,32 @@ void StochasticLocalSearch::sample_k(int k, int n, vector<int>& result) {
 		result.push_back(a[t]);
 		a.erase(a.begin() + t);
 	}
+}
+
+// Update the experiment analysis file
+void StochasticLocalSearch::update_experiment_analysis_file() {
+
+#define tab		"\t"
+
+	string stat_file = string(gcmd_line.path) + string(gcmd_line.experiment_analysis_file);
+	ofstream f;
+	f.open(stat_file.c_str(), ios::out | ios::app);
+
+	// Domain
+	f<<gcmd_line.ops_file_name<<tab;
+
+	// Problem
+	f<<gcmd_line.fct_file_name<<tab;
+
+	// Best plan's information
+	f<<best_plan.actions.size()<<tab<<best_plan.robustness<<tab;
+
+	// Time spent
+	f<<timer.total()<<tab<<timer.search_time<<tab<<timer.rp_time<<tab
+	 <<timer.clause_set_construction_time<<tab<<timer.robustness_computation_time<<tab;
+
+	f.close();
+
 }
 
 //bool StochasticLocalSearch::run() {
