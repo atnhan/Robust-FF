@@ -164,18 +164,31 @@ void perform_reachability_analysis( void )
 		t1 = geasy_templates;
 		while ( t1 ) {
 			no = t1->op;
+
+//#define DEBUG_PERFORM_REACHABILITY_ANALYSIS
+#ifdef DEBUG_PERFORM_REACHABILITY_ANALYSIS
+			print_NormOperator(no);
+#endif
+
+			// TUAN: consider every of preconditions of the operator
 			for ( i = 0; i < no->num_preconds; i++ ) {
+
+				// TUAN: the predicate
 				lp = no->preconds[i].predicate;
 				for ( j = 0; j < garity[lp]; j++ ) {
+
+					// TUAN: its parameters
 					largs[j] = ( no->preconds[i].args[j] >= 0 ) ?
 							no->preconds[i].args[j] : t1->inst_table[DECODE_VAR( no->preconds[i].args[j] )];
 				}
+
+				// If this precondition is not possibly positive yet
 				if ( !lpos[lp][fact_adress()] ) {
 					break;
 				}
 			}
 
-			if ( i < no->num_preconds ) {		/* TUAN: this action will never be applicable, thus will be removed*/
+			if ( i < no->num_preconds ) {		/* TUAN: Not all preconditions possibly satisfied; this action will not be collected into "gactions" */
 				t1 = t1->next;
 				continue;
 			}
@@ -275,6 +288,7 @@ void perform_reachability_analysis( void )
 					fixpoint = FALSE;
 				}
 			}
+
 			/*
 			 * TUAN (end)
 			 */
@@ -308,8 +322,9 @@ void perform_reachability_analysis( void )
 
 
 		/*
-		 * TUAN: I think with STRIPS, the following code does not reach.
+		 * TUAN (begin): I think with STRIPS, the following code does not reach.
 		 */
+
 
 		/* now assign all hard templates that have not been transformed
 		 * to actions yet.
@@ -318,6 +333,16 @@ void perform_reachability_analysis( void )
 			if ( had_hard_template[i] ) {
 				continue;
 			}
+
+			/*
+			 * TUAN (begin)
+			 */
+			printf("Assumption wrong! %s: %d\n",__FILE__, __LINE__);
+			assert(0);
+			/*
+			 * TUAN (end)
+			 */
+
 			pa = ghard_templates[i];
 
 			for ( j = 0; j < pa->num_preconds; j++ ) {
@@ -431,7 +456,9 @@ void perform_reachability_analysis( void )
  * must consider pred args in smallest - to - largest - type order to make
  * mapping injective.
  */
-int fact_adress( void )
+int fact_adress( void )		/*TUAN: return the fact index of p(A, B, C) where p is predicate with index "lp", "(A, B, C)" is determined
+ 	 	 	 	 	 	 	 	 by "largs[0] = A", "largs[1] = B" and "largs[2] = C".
+ 	 	 	 	 	 	 	 	 */
 {
 	int r = 0, b = 1, i, j, min, minj;
 	Bool done[MAX_ARITY];
@@ -459,7 +486,7 @@ int fact_adress( void )
 		/* now minj is remaining arg with lowest type size min
 		 */
 		/* need number **within type** here! */
-		r += b * gmember_nr[largs[minj]][gpredicates_args_type[lp][minj]];
+		r += b * gmember_nr[largs[minj]][gpredicates_args_type[lp][minj]];		// TUAN: "largs" is used here!!!
 		b *= min;
 		done[minj] = TRUE;
 	}
@@ -560,6 +587,10 @@ void collect_relevant_facts( void )
 		if ( a->norm_operator ) {
 
 			no = a->norm_operator;
+
+#ifdef DEBUG_COLLECT_RELEVANT_FACTS
+			print_NormOperator(no);
+#endif
 
 			for ( ne = no->effects; ne; ne = ne->next ) {
 				for ( i = 0; i < ne->num_dels; i++ ) {
@@ -667,6 +698,65 @@ void collect_relevant_facts( void )
 		}
 	}
 
+	/*
+	 * TUAN (begin)
+	 * After adding known preconditions, known/possible add and delete effects into the relevant fact list,
+	 * now we do that for possible preconditions
+	 */
+	for ( a = gactions; a; a = a->next ) {
+		if ( a->norm_operator ) {
+			no = a->norm_operator;
+
+			for (i = 0; i < no->num_poss_preconds; i++) {
+				lp = no->poss_preconds[i].predicate;
+				for ( j = 0; j < garity[lp]; j++ ) {
+					largs[j] = ( no->poss_preconds[i].args[j] >= 0 ) ?
+							no->poss_preconds[i].args[j] : a->inst_table[DECODE_VAR( no->poss_preconds[i].args[j] )];
+				}
+				adr = fact_adress();
+				// We search to see if this fact: predicate "lp" with objects "largs" has been in the relevant fact list
+				// or not.
+				int is_relevant = 0;
+				for (j = 0; j < gnum_relevant_facts; j++) {
+					if (grelevant_facts[j].predicate != lp)
+						continue;
+					int k = 0;
+					for (; k < garity[lp]; k++) {
+						if (grelevant_facts[j].args[k] != largs[k])
+							break;
+					}
+					if (k == garity[lp]) {
+						is_relevant = 1;
+						break;
+					}
+				}
+				if (!is_relevant) {
+					if ( gnum_relevant_facts == MAX_RELEVANT_FACTS ) {
+						printf("\ntoo many relevant facts! increase MAX_RELEVANT_FACTS (currently %d)\n\n",
+								MAX_RELEVANT_FACTS);
+						exit( 1 );
+					}
+
+					grelevant_facts[gnum_relevant_facts].predicate = lp;
+
+					for ( j = 0; j < garity[lp]; j++ ) {
+						grelevant_facts[gnum_relevant_facts].args[j] = largs[j];
+					}
+					lindex[lp][adr] = gnum_relevant_facts;
+					gnum_relevant_facts++;
+				}
+			}
+
+		}
+		else {
+			printf("Assumption wrong! %s, %d\n", __FILE__, __LINE__);
+			exit(1);
+		}
+	}
+	/*
+	 * TUAN (end)
+	 */
+
 	if ( gcmd_line.display_info == 119 ) {
 		printf("\n\nfacts selected as relevant:\n\n");
 		for ( i = 0; i < gnum_relevant_facts; i++ ) {
@@ -723,6 +813,10 @@ void collect_relevant_facts( void )
 			print_ft_name( ggoal_state.F[i] );
 			printf("\n");
 		}
+
+		// TUAN (begin)
+		exit(0);
+		// TUAN (end)
 	}
 
 }
@@ -917,6 +1011,19 @@ void create_final_actions( void )
 	PseudoAction *pa;
 	PseudoActionEffect *pae;
 
+//#define DEBUG_CREATE_FINAL_ACTIONS
+#ifdef DEBUG_CREATE_FINAL_ACTIONS
+	a = gactions;
+	while (a) {
+		if (a->norm_operator) {
+			no = a->norm_operator;
+			print_NormOperator(no);
+		}
+		a = a->next;
+	}
+	exit(0);
+#endif
+
 	a = gactions; p = NULL;
 	while ( a ) {
 
@@ -940,7 +1047,7 @@ void create_final_actions( void )
 
 				/* preconds are lpos in all cases due to reachability analysis
 				 */
-				if ( !lneg[lp][adr] ) {
+				if ( !lneg[lp][adr] ) {		// TUAN: this precondition has been proved not to be negative, so will be removed from the precondition list
 					continue;
 				}
 
@@ -963,20 +1070,11 @@ void create_final_actions( void )
 				}
 				adr = fact_adress();
 
-				/* preconds are lpos in all cases due to reachability analysis
-				 */
-				if ( !lneg[lp][adr] ) {
-					continue;
-				}
+				// Note: unlike known preconditions, we do not remove possible preconditions because they are not possibly false (negative)
 
 				a->poss_preconds[a->num_poss_preconds] = lindex[lp][adr];
 				a->poss_precond_annotation_id[a->num_poss_preconds++] = no->poss_precond_annotation_id[i];
 
-				//
-//				printf(">> ");
-//				print_ft_name(lindex[lp][adr]);
-//				printf("\n>>lp = %d, adr = %d\n", lp, adr);
-				//
 			}
 
 			if (no->num_poss_adds > 0) {

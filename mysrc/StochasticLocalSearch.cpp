@@ -16,13 +16,18 @@
 
 using namespace std;
 
+extern int gnum_possible_annotations;
+
 // Default search parameters
+bool StochasticLocalSearch::FF_helpful_actions = true;
 int StochasticLocalSearch::max_restarts = 5;
-int StochasticLocalSearch::initial_depth_bound = 5;
+int StochasticLocalSearch::initial_depth_bound = 10;
 int StochasticLocalSearch::max_iterations = 5;
-int StochasticLocalSearch::probes_at_depth = 10;
+int StochasticLocalSearch::probes_at_depth = 60;
 int StochasticLocalSearch::neighborhood_size = 5;
 int StochasticLocalSearch::initial_fail_bound = 32;
+double StochasticLocalSearch::max_heuristic_bias = 1.5;
+double StochasticLocalSearch::min_heuristic_bias = 0.5;
 
 StochasticLocalSearch::StochasticLocalSearch(State *init, State *goals, double desired_robustness):
 	Search(init, goals, desired_robustness) {
@@ -44,57 +49,68 @@ bool StochasticLocalSearch::sample_next_actions(StripsEncoding* e, double robust
 
 	const State *current_state = e->get_last_state();
 
+	// The set of candidate applicable actions (either FF helpful or all applicable actions)
+	vector<int> candidate_applicable_actions;
+
 	// Add search time
 	clock.stop();
 	timer.search_time += clock.time();
 	clock.restart();
 	//
 
-	// Extract relaxed plan for the current state, in order to get helpful action
-	RelaxedPlan rp(e, current_state, goals, robustness_threshold);
-	pair<int, double> rp_info;
-	if (!rp.extract(rp_info)) {
+	if (StochasticLocalSearch::FF_helpful_actions) {
+		// Extract relaxed plan for the current state, in order to get helpful action
+		RelaxedPlan rp(e, current_state, goals, robustness_threshold);
+		pair<int, double> rp_info;
+		if (!rp.extract(rp_info)) {
 
 #ifdef DEBUG_SAMPLE_ACTION
-	TAB(tab); cout<<"End sampling action... FAILED!"<<endl<<endl;
+			TAB(tab); cout<<"End sampling action... FAILED!"<<endl<<endl;
 #endif
+
+			// Add RP time
+			clock.stop();
+			timer.rp_time += clock.time();
+			clock.restart();
+
+			return false;
+		}
 
 		// Add RP time
 		clock.stop();
 		timer.rp_time += clock.time();
 		clock.restart();
 
+		// Get FF helpful actions
+		get_FF_helpful_actions(current_state, candidate_applicable_actions, &rp);
+		assert(candidate_applicable_actions.size());
 
-		return false;
+	}
+	// Get all applicable actions (including non FF-helpful)
+	else {
+		for (int op = 0; op < gnum_op_conn; op++) {
+			if (applicable_action(op, current_state))
+				candidate_applicable_actions.push_back(op);
+		}
 	}
 
-	// Add RP time
-	clock.stop();
-	timer.rp_time += clock.time();
-	clock.restart();
-
-	// Get FF helpful actions
-	vector<int> helpful_actions;
-	get_FF_helpful_actions(current_state, helpful_actions, &rp);
-	assert(helpful_actions.size());
-
 #ifdef DEBUG_SAMPLE_ACTION
-	TAB(tab+1); cout<<"Helpful actions: ";
-	for (int i=0;i<helpful_actions.size();i++)
-		cout<<helpful_actions[i]<<" ";
+	TAB(tab+1); cout<<"Candidate actions: ";
+	for (int i=0;i<candidate_applicable_actions.size();i++)
+		cout<<candidate_applicable_actions[i]<<" ";
 	cout<<endl<<endl;
 #endif
 
 	// Now sample "n" actions
-	if (n < helpful_actions.size()) {
+	if (n < candidate_applicable_actions.size()) {
 		vector<int> indices;
-		sample_k(n, helpful_actions.size(), indices);
+		sample_k(n, candidate_applicable_actions.size(), indices);
 		for (int i=0;i<indices.size();i++) {
-			actions.push_back(helpful_actions[indices[i]]);
+			actions.push_back(candidate_applicable_actions[indices[i]]);
 		}
 	}
 	else {
-		actions = helpful_actions;
+		actions = candidate_applicable_actions;
 	}
 
 #ifdef DEBUG_SAMPLE_ACTION
@@ -110,7 +126,7 @@ bool StochasticLocalSearch::sample_next_actions(StripsEncoding* e, double robust
 
 // Sample a next state of a given state
 bool StochasticLocalSearch::sample_next_state(StripsEncoding* e, double current_robustness, int h, NEIGHBOR& selected_neighbor, int tab) {
-#define DEBUG_SAMPLE_STATE
+//#define DEBUG_SAMPLE_STATE
 #ifdef DEBUG_SAMPLE_STATE
 	TAB(tab); cout<<"Begin sample next state..."<<endl<<endl;
 #endif
@@ -268,10 +284,15 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 	int depth_bound = initial_depth_bound;
 	for (int i=0; i < max_iterations && !better_state_found; i++) {
 
+		// In the first half of the iterations, we only consider FF helpful actions
+		// In the second half, all actions will be considered
+		// This option will be used in sampling the next actions
+		StochasticLocalSearch::FF_helpful_actions = i <= max_iterations/2 ? true : false;
+
 #ifdef DEBUG_LOCAL_SEARCH
 		TAB(tab+3); cout<<"Iteration "<<i+1<<endl<<endl;
 #endif
-
+		// Execute "probes_at_depth" probes of "depth"
 		for (int probes = 1; probes <= probes_at_depth && !better_state_found; probes++) {
 
 #ifdef DEBUG_LOCAL_SEARCH
@@ -286,7 +307,7 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 			TAB(tab+4); cout<<"Current h: "<<h<<endl<<endl;
 #endif
 
-
+			// "depth_bound" is the maximal length of a sequence of sampled actions
 			for (int depth = 1; depth <= depth_bound && !better_state_found; depth++) {
 
 				// Sample the next state. Since we have a threshold for robustness,
@@ -384,7 +405,6 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 					fail_bound_reached = true;
 					break;
 				}
-
 			}
 		}
 
@@ -397,6 +417,8 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 
 bool StochasticLocalSearch::run() {
 
+#define DEBUG_SSL_RUN
+
 #ifdef DEBUG_SLS_RUN
 	cout<<"BEGIN StochasticLocalSearch::run()..."<<endl<<endl;
 #endif
@@ -407,6 +429,7 @@ bool StochasticLocalSearch::run() {
 	// Set up seed for the generator
 	generator.seed(static_cast<unsigned int>(std::time(0)));		// Initialize seed using the current time
 
+	// Reset best plan information
 	best_plan.actions.clear();
 	best_plan.robustness = 0;
 
@@ -454,7 +477,6 @@ bool StochasticLocalSearch::run() {
 		return false;		// No relaxed plan found.
 	}
 
-
 	// RP time
 	clock.stop();
 	timer.rp_time += clock.time();
@@ -473,7 +495,6 @@ bool StochasticLocalSearch::run() {
 #ifdef DEBUG_SLS_RUN
 		cout<<"Restart from initial state: restarts = "<<restarts<<endl<<endl;
 #endif
-
 
 		// This is where we restart from the initial state
 		clock.stop();
@@ -546,7 +567,6 @@ bool StochasticLocalSearch::run() {
 		if (restarts % 3 == 0)
 			initial_fail_bound *= 2;
 
-
 		// Release memory
 		delete e;
 	}
@@ -559,7 +579,8 @@ bool StochasticLocalSearch::run() {
 	update_experiment_analysis_file();
 
 	// SAVE PLANS TO FILE...
-	string solution_file_name = string(gcmd_line.path) + string(gcmd_line.ops_file_name) + string("@") + string(gcmd_line.fct_file_name);
+	//string solution_file_name = string(gcmd_line.path) + string(gcmd_line.ops_file_name) + string("_") + string(gcmd_line.fct_file_name);
+	string solution_file_name = string(gcmd_line.path) + string("plan.out");
 	ofstream f;
 	f.open(solution_file_name.c_str());
 	f<<plans;
@@ -602,8 +623,37 @@ void StochasticLocalSearch::update_experiment_analysis_file() {
 #define tab		"\t"
 
 	string stat_file = string(gcmd_line.path) + string(gcmd_line.experiment_analysis_file);
+
+	// Check if the file exists, if not then write the header
+	ifstream f0(stat_file.c_str());
+	bool file_exists = f0.good();
+	f0.close();
+
 	ofstream f;
 	f.open(stat_file.c_str(), ios::out | ios::app);
+
+	if (!file_exists) {
+		f<<"#SEARCH PARAMETERS:"<<endl;
+		f<<"#Max restart:\t"<<max_restarts<<endl;
+		f<<"#Max iterations:\t"<<max_iterations<<endl;
+		f<<"#Initial depth bound:\t"<<initial_depth_bound<<endl;
+		f<<"#Probes at depth:\t"<<probes_at_depth<<endl;
+		f<<"#Neighborhood size:\t"<<neighborhood_size<<endl;
+		f<<"#Initial fail bound:\t"<<initial_fail_bound<<endl;
+		f<<"#Min heuristic bias:\t"<<min_heuristic_bias<<endl;
+		f<<"#Max heuristic bias:\t"<<max_heuristic_bias<<endl;
+		f<<"#"<<endl;
+		f<<"#RELAXED PLAN PARAMETERS:"<<endl;
+		f<<"#ignore_poss_del_in_rp:\t"<<RelaxedPlan::ignore_poss_del_in_rp<<endl;
+		f<<"#use_lower_bound_in_rp:\t"<<RelaxedPlan::use_lower_bound_in_rp<<endl;
+		f<<"#use_upper_bound_in_rp:\t"<<RelaxedPlan::use_upper_bound_in_rp<<endl;
+		f<<"#use_robustness_threshold:\t"<<RelaxedPlan::use_robustness_threshold<<endl;
+		f<<"#clauses_from_rpg_for_false_preconditions:\t"<<RelaxedPlan::clauses_from_rpg_for_false_preconditions<<endl;
+		f<<"#current_actions_affect_candidate_action:\t"<<RelaxedPlan::current_actions_affect_candidate_action<<endl;
+		f<<"#candidate_actions_affect_current_actions:\t"<<RelaxedPlan::candidate_actions_affect_current_actions<<endl;
+		f<<"#"<<endl;
+		f<<"#Domain"<<tab<<"#Problem"<<tab<<"#Incompleteness-amount"<<tab<<"#Plan-length"<<tab<<"Robustness"<<tab<<"Total-time"<<tab<<"Search-time"<<tab<<"RP-time"<<tab<<"clause-time"<<tab<<"WMC-time"<<endl;
+	}
 
 	// Domain
 	f<<gcmd_line.ops_file_name<<tab;
@@ -611,12 +661,17 @@ void StochasticLocalSearch::update_experiment_analysis_file() {
 	// Problem
 	f<<gcmd_line.fct_file_name<<tab;
 
+	// The total number of possible preconditions and effects
+	f<<gnum_possible_annotations<<tab;
+
 	// Best plan's information
 	f<<best_plan.actions.size()<<tab<<best_plan.robustness<<tab;
 
 	// Time spent
 	f<<timer.total()<<tab<<timer.search_time<<tab<<timer.rp_time<<tab
 	 <<timer.clause_set_construction_time<<tab<<timer.robustness_computation_time<<tab;
+
+	f<<endl;
 
 	f.close();
 

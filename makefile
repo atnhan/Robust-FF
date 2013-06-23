@@ -11,6 +11,7 @@ ADDONS	=
 
 CC      = g++
 
+# Release
 #CFLAGS	= -O6 -Wall -g -ansi $(TYPE) $(ADDONS) 
 
 # Debug
@@ -56,8 +57,9 @@ OBJECTS 	= $(SOURCES:.c=.o)
 ####### Build rules
 
 
-ff: COMPILE_SUB $(OBJECTS) $(PDDL_PARSER_OBJ)
-	$(CC) -o ff $(OBJECTS) $(PDDL_PARSER_OBJ) $(MY_LIBS) $(LIBS) $(CFLAGS) -I$(BOOST_HEADER)
+pisa: COMPILE_SUB $(OBJECTS) $(PDDL_PARSER_OBJ)
+	$(CC) -o pisa $(OBJECTS) $(PDDL_PARSER_OBJ) $(MY_LIBS) $(LIBS) $(CFLAGS) -I$(BOOST_HEADER)
+	cp ./pisa ./benchmark
 COMPILE_SUB:
 	@ for i in $(SUB_DIRS); do $(MAKE) -C $$i; done
 
@@ -67,7 +69,7 @@ clean:
         \#*\# $(RES_PARSER_SRC) $(PDDL_PARSER_SRC)
 
 veryclean: clean
-	rm -f ff H* J* K* L* O* graph.* *.symbex gmon.out \
+	rm -f pisa H* J* K* L* O* graph.* *.symbex gmon.out \
 	$(PDDL_PARSER_SRC) \
 	lex.fct_pddl.c lex.ops_pddl.c lex.probname.c \
 	*.output

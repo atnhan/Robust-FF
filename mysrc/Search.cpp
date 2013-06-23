@@ -14,8 +14,6 @@ using namespace std;
 extern void source_to_dest( State *dest, State *source );
 extern void make_state( State *S, int n );
 
-bool Search::FF_helpful_actions = true;
-
 Search::Search(State* init, State* goals, double desired_robustness) {
 	this->init = (State*) calloc(1, sizeof(State));
 	make_state(this->init, gnum_ft_conn);
@@ -44,29 +42,29 @@ Search::~Search() {
 ostream& operator<<(std::ostream& os, const std::vector<Search::Plan>& plans) {
 
 	// Domain file
-	os<<"; Domain file";
+	os<<"# Domain file";
 	os<<gcmd_line.ops_file_name<<endl;
 
 	// Problem file
-	os<<"; Problem file";
+	os<<"# Problem file";
 	os<<gcmd_line.fct_file_name<<endl;
 
 	// Number of plans
-	os<<"; Number of plans"<<endl;
+	os<<"# Number of plans"<<endl;
 	os<<plans.size()<<endl;
 
 	for (size_t i = 0; i < plans.size(); i++) {
 		const Search::Plan& p = plans[i];
 
-		os<<";"<<endl;
-		os<<"; Plan "<<i+1<<"/"<<plans.size()<<endl;
+		os<<"#"<<endl;
+		os<<"# Plan "<<i+1<<"/"<<plans.size()<<endl;
 
 		// Robustness
-		os<<"; Robustness"<<endl;
+		os<<"# Robustness"<<endl;
 		os<<p.robustness<<endl;
 
 		// Number of actions
-		os<<"; Number of actions"<<endl;
+		os<<"# Number of actions"<<endl;
 		os<<p.actions.size()<<endl;
 
 		for (size_t j=0; j<p.actions.size(); j++) {
@@ -75,6 +73,7 @@ ostream& operator<<(std::ostream& os, const std::vector<Search::Plan>& plans) {
 			for (size_t k=0;k<a->num_name_vars;k++) {
 				os<<" "<<gconstants[a->name_inst_table[k]];
 			}
+			os<<endl;
 		}
 	}
 

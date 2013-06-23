@@ -319,7 +319,6 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 	// The queue to store all subgoals
 	SubGoalQueue Q;
 
-
 	// Initialize Q with the all the top level goals
 	for (int i=0;i<goals->num_F;i++) {
 

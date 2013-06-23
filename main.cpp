@@ -63,6 +63,7 @@
 #include "mysrc/RelaxedPlan.h"
 #include "mysrc/ClauseSet.h"
 #include "mysrc/StochasticLocalSearch.h"
+#include "mysrc/Log.h"
 
 using namespace std;
 
@@ -75,6 +76,10 @@ extern int gnum_possible_annotations;
 
 // Problem file
 string gproblem_file;
+
+// The log file
+//tlib::Log glog;
+
 
 /*
  * TUAN (end)
@@ -683,6 +688,14 @@ int main( int argc, char *argv[] )
 	 * TUAN: Begin search for robust plans
 	 ******************************************************************************************************************/
 
+	// Open the log file
+//	glog.set_path(gcmd_line.path);
+//	glog.set_file(gcmd_line.log_file);
+//	if (!glog.open()) {
+//		printf("Log file cannot be open.\n");
+//	}
+//	glog<<"Hello "<<"there!";
+
 	// Weights of annotations. Uniform just for now!
 	// The weights have not been updated directly from the parser
 	vector<double> weights(gnum_possible_annotations, 0.5);
@@ -993,7 +1006,6 @@ void ff_usage( void )
 
 
 Bool process_command_line( int argc, char *argv[] )
-
 {
 
 	char option;
@@ -1032,6 +1044,22 @@ Bool process_command_line( int argc, char *argv[] )
 					case 'd':
 						sscanf( *argv, "%d", &gcmd_line.debug );
 						break;
+
+					/*
+					 * TUAN (begin)
+					 */
+					case 'w':
+						strncpy(gcmd_line.experiment_analysis_file, *argv, MAX_LENGTH );
+						break;
+
+					case 'l':
+						strncpy(gcmd_line.log_file, *argv, MAX_LENGTH );
+						break;
+
+					/*
+					 * TUAN (end)
+					 */
+
 					default:
 						printf( "\nff: unknown option: %c entered\n\n", option );
 						return FALSE;

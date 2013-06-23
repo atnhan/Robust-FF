@@ -101,6 +101,9 @@ public:
 	 * SEARCH PARAMETERS
 	 */
 
+	// If we only consider FF helpful actions in sampling next actions
+	static bool FF_helpful_actions;
+
 	// The number of times to restart from the initial state
 	static int max_restarts;
 
@@ -119,6 +122,10 @@ public:
 	// The number of "fails" during the local search. A fail is when a complete probe has been constructed but we cannot
 	// find a better state. Doubled every time we restart the search from the initial state.
 	static int initial_fail_bound;
+
+	// The max and min of heuristic-bias parameter (beta, in Coles's work)
+	static double max_heuristic_bias;
+	static double min_heuristic_bias;
 
 	StochasticLocalSearch(State *init, State *goals, double desired_robustness = 1.0);
 	virtual ~StochasticLocalSearch();
