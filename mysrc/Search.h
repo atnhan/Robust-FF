@@ -59,9 +59,6 @@ public:
 
 	virtual bool run() = 0;
 
-	// If we are using FF-helpful action
-	static bool FF_helpful_actions;
-
 };
 
 #endif /* SEARCH_H_ */
