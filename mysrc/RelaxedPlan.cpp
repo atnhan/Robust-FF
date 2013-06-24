@@ -289,7 +289,7 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 	rp.push_back(goal_step);
 	num_chosen_actions[n] = 1;
 
-	// Compute the current robustness of the plan prefix + current relaxed plan
+	// Compute the current robustness of the plan prefix + current EMPTY relaxed plan
 	// Check it against the robustness threshold
 	double current_robustness = compute_robustness();
 
@@ -314,7 +314,11 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 	// Note: when the relaxed plan does not have any unsupported known preconditions, it is equal to
 	// the robustness of the relaxed plan
 	double current_robustness_for_heuristics;
-	ClauseSet current_clauses_for_heursitcis;
+	ClauseSet current_clauses_for_heuristics;
+
+	// Clause set of the current plan prefix
+	ClauseSet clauses_of_plan_prefix;
+	e->get_clauses(clauses_of_plan_prefix);
 
 	// The queue to store all subgoals
 	SubGoalQueue Q;
@@ -360,23 +364,26 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 			ClauseSet cs;
 			e->supporting_constraints(g, e->get_actions().size(), cs);
 			if (cs.size())
-				current_clauses_for_heursitcis.add_clauses(cs);
+				current_clauses_for_heuristics.add_clauses(cs);
 		}
 		else if (RelaxedPlan::clauses_from_rpg_for_false_preconditions) {
 			const FactNode& g_node = last_fact_layer.at(g);
 			if (g_node.best_clauses.size())
-				current_clauses_for_heursitcis.add_clauses(g_node.best_clauses);
+				current_clauses_for_heuristics.add_clauses(g_node.best_clauses);
 		}
 	}
 
+	// Add all clauses of the current plan prefix
+	current_clauses_for_heuristics.add_clauses(clauses_of_plan_prefix);
+
 	// Compute the current "robustness for heuristics"
 	if (RelaxedPlan::use_lower_bound_in_rp)
-		current_robustness_for_heuristics = current_clauses_for_heursitcis.lower_wmc();
+		current_robustness_for_heuristics = current_clauses_for_heuristics.lower_wmc();
 	else if (RelaxedPlan::use_upper_bound_in_rp)
-		current_robustness_for_heuristics = current_clauses_for_heursitcis.upper_wmc();
+		current_robustness_for_heuristics = current_clauses_for_heuristics.upper_wmc();
 	else {
 		CACHET_OUTPUT o;
-		current_clauses_for_heursitcis.wmc(o);
+		current_clauses_for_heuristics.wmc(o);
 		current_robustness_for_heuristics = o.prob;
 	}
 
@@ -497,6 +504,7 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 		// Pointer to the new RP_STEP (if insertion happens)
 		//boost::shared_ptr<RP_STEP> new_rp_step;
 		RP_STEP *new_rp_step = 0;
+
 		// Case 1: this subgoal is not present in the state before it
 		if (!in_rp_state(subgoal.g, *subgoal.state_before_op)) {
 
@@ -509,6 +517,10 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 				// Recompute the "robustness for heuristics"
 				ClauseSet cs_for_heuristics;
 				collect_rp_step_clauses_for_heuristics(rp.begin(), rp.end(), cs_for_heuristics);
+
+				ClauseSet cs_for_plan_prefix;
+				e->get_clauses(cs_for_plan_prefix);
+				cs_for_heuristics.add_clauses(cs_for_plan_prefix);
 
 				if (RelaxedPlan::use_lower_bound_in_rp)
 					current_robustness_for_heuristics = cs_for_heuristics.lower_wmc();
@@ -560,6 +572,7 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 				}
 			}
 		}
+
 		// Case 2: this subgoal is present in the state before it
 		// Evaluate the action and insert only if it increases the robustness
 		else {
@@ -598,7 +611,7 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 			TAB(3); cout<<"current_robustness: "<<current_robustness<<endl<<endl;
 #endif
 
-			// Relaxed plan found!
+			// RELAXED PLAN FOUND!!!!
 			if (RelaxedPlan::use_robustness_threshold && current_robustness > robustness_threshold) {
 
 #ifdef DEBUG_EXTRACT

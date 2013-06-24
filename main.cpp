@@ -1171,8 +1171,8 @@ Bool process_command_line( int argc, char *argv[] )
 					sscanf(*argv, "%d", &StochasticLocalSearch::neighborhood_size);
 				}
 
-				if (strcmp(str_option,"-initial_fail_bound") == 0) {
-					sscanf(*argv, "%d", &StochasticLocalSearch::initial_fail_bound);
+				if (strcmp(str_option,"-fail_bound") == 0) {
+					sscanf(*argv, "%d", &StochasticLocalSearch::fail_bound);
 				}
 
 

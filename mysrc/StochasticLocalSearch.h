@@ -24,9 +24,6 @@ class StochasticLocalSearch: public Search {
 	boost::random::uniform_int_distribution<> int_dist;		// The range can change
 	boost::random::uniform_real_distribution<> real_dist;	// By default: [0, 1)
 
-	// The number of fails, initialized to 0 every time we restart from the initial state
-	int fail_count;
-
 	// Various types of time spent during the search
 	struct TIMER {
 		// Time spent by the local search
@@ -79,7 +76,7 @@ class StochasticLocalSearch: public Search {
 
 	// Using local search to find a better state than the current one
 	bool local_search_for_a_better_state(StripsEncoding* e,
-			double current_robustness, int h, int& next_h, double& next_robustness, bool& fail_bound_reached, int tab = 0);
+			double current_robustness, int h, int& next_h, double& next_robustness, int& fail_count, int tab = 0);
 
 	// Sample a set of next actions from a given state
 	bool sample_next_actions(StripsEncoding* e, double robustness_threshold, int n, std::vector<int>& actions, int tab = 0);
@@ -87,7 +84,7 @@ class StochasticLocalSearch: public Search {
 	// Sample a next state of a given state
 	// Return true if a next state is found from which there is a relaxed plan with at least the specified
 	// robustness threshold
-	bool sample_next_state(StripsEncoding* e, double current_robustness, int h, NEIGHBOR& selected_neighbor, int tab = 0);
+	bool sample_next_state(StripsEncoding* e, double current_robustness, int h, double heuristic_bias, NEIGHBOR& selected_neighbor, int tab = 0);
 
 	// Sample k distinct integers from 0 to n-1
 	void sample_k(int k, int n, std::vector<int>& result);
@@ -121,7 +118,7 @@ public:
 
 	// The number of "fails" during the local search. A fail is when a complete probe has been constructed but we cannot
 	// find a better state. Doubled every time we restart the search from the initial state.
-	static int initial_fail_bound;
+	static int fail_bound;
 
 	// The max and min of heuristic-bias parameter (beta, in Coles's work)
 	static double max_heuristic_bias;

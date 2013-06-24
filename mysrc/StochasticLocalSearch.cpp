@@ -9,6 +9,7 @@
 #include "assert.h"
 #include <vector>
 #include <ctime>
+#include <cmath>
 #include <algorithm>
 #include <fstream>
 #include "Helpful.h"
@@ -25,13 +26,13 @@ int StochasticLocalSearch::initial_depth_bound = 10;
 int StochasticLocalSearch::max_iterations = 5;
 int StochasticLocalSearch::probes_at_depth = 60;
 int StochasticLocalSearch::neighborhood_size = 5;
-int StochasticLocalSearch::initial_fail_bound = 32;
+int StochasticLocalSearch::fail_bound = 32;
 double StochasticLocalSearch::max_heuristic_bias = 1.5;
 double StochasticLocalSearch::min_heuristic_bias = 0.5;
 
 StochasticLocalSearch::StochasticLocalSearch(State *init, State *goals, double desired_robustness):
 	Search(init, goals, desired_robustness) {
-	fail_count = 0;
+
 }
 
 StochasticLocalSearch::~StochasticLocalSearch() {
@@ -129,7 +130,7 @@ bool StochasticLocalSearch::sample_next_actions(StripsEncoding* e, double robust
 }
 
 // Sample a next state of a given state
-bool StochasticLocalSearch::sample_next_state(StripsEncoding* e, double current_robustness, int h, NEIGHBOR& selected_neighbor, int tab) {
+bool StochasticLocalSearch::sample_next_state(StripsEncoding* e, double current_robustness, int h, double heuristic_bias, NEIGHBOR& selected_neighbor, int tab) {
 //#define DEBUG_SAMPLE_STATE
 #ifdef DEBUG_SAMPLE_STATE
 	TAB(tab); cout<<"Begin sample next state..."<<endl<<endl;
@@ -189,7 +190,7 @@ bool StochasticLocalSearch::sample_next_state(StripsEncoding* e, double current_
 				neighbor.action = a;
 				neighbor.h = rp_info.first;
 				neighbor.robustness = rp_info.second;
-				neighbor.h_weight = 1.0 / neighbor.h;	// TO BE CONTINUED: using "beta"
+				neighbor.h_weight = pow(1.0 / neighbor.h, heuristic_bias);
 				sum_weights += neighbor.h_weight;
 
 				// Add this neighbor
@@ -269,14 +270,13 @@ bool StochasticLocalSearch::sample_next_state(StripsEncoding* e, double current_
 
 // Using local search to find a better state than the current one (i.e., having heuristic value < "h")
 bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
-		double current_robustness, int h, int& next_h, double& next_robustness, bool& fail_bound_reached, int tab) {
+		double current_robustness, int h, int& next_h, double& next_robustness, int& fail_count, int tab) {
 
 #ifdef DEBUG_LOCAL_SEARCH
 	TAB(tab); cout<<"Begin local search..."<<endl;
 	TAB(tab); cout<<"Robustness threshold: "<<current_robustness<<endl;
 #endif
 
-	fail_bound_reached = false;
 	State *S_min = e->get_last_state();
 	bool better_state_found = false;
 
@@ -286,18 +286,18 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 #endif
 
 	int depth_bound = initial_depth_bound;
-	for (int i=0; i < max_iterations && !better_state_found; i++) {
+	for (int i=0; i < max_iterations && !better_state_found && fail_count < fail_bound; i++) {
 
 		// In the first half of the iterations, we only consider FF helpful actions
 		// In the second half, all actions will be considered
 		// This option will be used in sampling the next actions
-		StochasticLocalSearch::FF_helpful_actions = i <= max_iterations/2 ? true : false;
+		StochasticLocalSearch::FF_helpful_actions = (i <= max_iterations/2) ? true : false;
 
 #ifdef DEBUG_LOCAL_SEARCH
 		TAB(tab+3); cout<<"Iteration "<<i+1<<endl<<endl;
 #endif
 		// Execute "probes_at_depth" probes of "depth"
-		for (int probes = 1; probes <= probes_at_depth && !better_state_found; probes++) {
+		for (int probes = 1; probes <= probes_at_depth && !better_state_found && fail_count < fail_bound; probes++) {
 
 #ifdef DEBUG_LOCAL_SEARCH
 			TAB(tab+4); cout<<"Probe "<<probes<<endl<<endl;
@@ -312,13 +312,19 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 #endif
 
 			// "depth_bound" is the maximal length of a sequence of sampled actions
+			double heuristic_bias = max_heuristic_bias;
+			double heuristic_bias_length = max_heuristic_bias - min_heuristic_bias;
 			for (int depth = 1; depth <= depth_bound && !better_state_found; depth++) {
+
+				// Update the heuristic bias (so that it decreases linearly from max to min
+				// when the length of the probe goes from 1 to depth_bound
+				heuristic_bias -= (heuristic_bias_length / depth_bound);
 
 				// Sample the next state. Since we have a threshold for robustness,
 				// only states from which we can extract a "valid" relaxed plan are considered
 				// (the returned value of the following function)
 				NEIGHBOR selected_neighbor;
-				if (sample_next_state(e, current_robustness, h, selected_neighbor, tab + 4)) {
+				if (sample_next_state(e, current_robustness, h, heuristic_bias, selected_neighbor, tab + 4)) {
 
 					// Update search time
 					clock.stop();
@@ -343,7 +349,7 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 					TAB(tab+5); cout<<"h from here: "<<selected_neighbor.h<<endl<<endl;
 #endif
 
-					// A better state found
+					// A BETTER STATE IS FOUND!!!
 					if (selected_neighbor.h < h) {
 						next_h = selected_neighbor.h;
 						next_robustness = selected_neighbor.robustness;
@@ -362,13 +368,14 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 						clock.restart();
 						//
 
+						// Mark that a better state is found so that the fail count won't be updated
 						better_state_found = true;
 
 #ifdef DEBUG_LOCAL_SEARCH
 						TAB(tab+5); cout<<"Better state found!"<<endl<<endl;
 #endif
 
-						break;
+						break;	// out of building the current probe
 					}
 				}
 				// If we cannot sample a state from which a relaxed plan (with >= a robustness threshold) exists,
@@ -396,18 +403,13 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 					TAB(tab+5); cout<<"Roll back "<<new_actions_count<<" actions."<<endl<<endl;
 #endif
 
-					// Start a new probe
-					break;
+					break;	// out of building the current probe
 				}
 			}
 
 			// Increment fail count if no better state is found
 			if (!better_state_found) {
 				fail_count++;
-				if (fail_count >= initial_fail_bound) {
-					fail_bound_reached = true;
-					break;
-				}
 			}
 		}
 
@@ -505,8 +507,8 @@ bool StochasticLocalSearch::run() {
 		timer.clause_set_construction_time += clock.time();
 		clock.restart();
 
-		// Initialize fail count
-		fail_count = 0;
+		// Reset the number of fails. Each fail corresponds to a complete probe without finding a better state
+		int fail_count = 0;
 
 		// Current heuristic
 		int h = rp_0_info.first;
@@ -520,20 +522,21 @@ bool StochasticLocalSearch::run() {
 			int next_h;
 			bool fail_bound_reached;
 			double next_robustness;
-			bool better_state_found = local_search_for_a_better_state(e, best_plan.robustness, h, next_h, next_robustness, fail_bound_reached);
+			bool better_state_found = local_search_for_a_better_state(e, best_plan.robustness, h, next_h, next_robustness, fail_count);
 
-			// If a better state cannot be found, restart from the initial state
-			if (!better_state_found) {
-
-				// Reset fail count if the bound reaches
-				if (fail_bound_reached)
-					fail_count = 0;
-
-				// Restart
+			// Two cases to restart the local search from the initial state
+			// (1) fails count reached
+			// (2) cannot escape the plateau
+			if (fail_bound_reached) {
+				fail_count = 0;
 				break;
 			}
 
-			// Here, a better state has been found
+			if (!better_state_found) {
+				break;
+			}
+
+			// HERE, A BETTER STATE HAS BEEN FOUND!!!
 
 			// Check if the plan prefix has better robustness than the current best plan (i.e., the relaxed plan is empty)
 			// The local search succeeds
@@ -568,7 +571,7 @@ bool StochasticLocalSearch::run() {
 
 		// Update fail bound if needs
 		if (restarts % 3 == 0)
-			initial_fail_bound *= 2;
+			fail_bound *= 2;
 
 		// Release memory
 		delete e;
@@ -642,7 +645,7 @@ void StochasticLocalSearch::update_experiment_analysis_file() {
 		f<<"#Initial depth bound:\t"<<initial_depth_bound<<endl;
 		f<<"#Probes at depth:\t"<<probes_at_depth<<endl;
 		f<<"#Neighborhood size:\t"<<neighborhood_size<<endl;
-		f<<"#Initial fail bound:\t"<<initial_fail_bound<<endl;
+		f<<"#Initial fail bound:\t"<<fail_bound<<endl;
 		f<<"#Min heuristic bias:\t"<<min_heuristic_bias<<endl;
 		f<<"#Max heuristic bias:\t"<<max_heuristic_bias<<endl;
 		f<<"#"<<endl;
@@ -655,7 +658,17 @@ void StochasticLocalSearch::update_experiment_analysis_file() {
 		f<<"#current_actions_affect_candidate_action:\t"<<RelaxedPlan::current_actions_affect_candidate_action<<endl;
 		f<<"#candidate_actions_affect_current_actions:\t"<<RelaxedPlan::candidate_actions_affect_current_actions<<endl;
 		f<<"#"<<endl;
-		f<<"#Domain"<<tab<<"#Problem"<<tab<<"#Incompleteness-amount"<<tab<<"#Plan-length"<<tab<<"Robustness"<<tab<<"Total-time"<<tab<<"Search-time"<<tab<<"RP-time"<<tab<<"clause-time"<<tab<<"WMC-time"<<endl;
+		f<<"#Domain"<<tab
+		 <<"Problem"<<tab
+		 <<"Incompleteness_amount"<<tab
+		 <<"Num_plans"<<tab
+		 <<"Best-plan-length"<<tab
+		 <<"Best-plan-robustness"<<tab
+		 <<"Total-time"<<tab
+		 <<"Search-time"<<tab
+		 <<"RP-time"<<tab
+		 <<"clause-time"<<tab
+		 <<"WMC-time"<<endl;
 	}
 
 	// Domain
@@ -667,12 +680,29 @@ void StochasticLocalSearch::update_experiment_analysis_file() {
 	// The total number of possible preconditions and effects
 	f<<gnum_possible_annotations<<tab;
 
-	// Best plan's information
-	f<<best_plan.actions.size()<<tab<<best_plan.robustness<<tab;
+	// The number of plans found
+	f<<plans.size()<<tab;
 
-	// Time spent
-	f<<timer.total()<<tab<<timer.search_time<<tab<<timer.rp_time<<tab
-	 <<timer.clause_set_construction_time<<tab<<timer.robustness_computation_time<<tab;
+	// Best plan's length
+	f<<best_plan.actions.size()<<tab;
+
+	// Best plan's robustness
+	f<<best_plan.robustness<<tab;
+
+	// Total time
+	f<<timer.total()<<tab;
+
+	// Search time
+	f<<timer.search_time<<tab;
+
+	// Time to extract relaxed plans
+	f<<timer.rp_time<<tab;
+
+	// Time to construct clause sets
+	f<<timer.clause_set_construction_time<<tab;
+
+	// Time to estimate and exactly compute robustness
+	f<<timer.robustness_computation_time<<tab;
 
 	f<<endl;
 
