@@ -43,7 +43,11 @@ bool StochasticLocalSearch::sample_next_actions(StripsEncoding* e, double robust
 
 #define DEBUG_SAMPLE_ACTION
 #ifdef DEBUG_SAMPLE_ACTION
-	TAB(tab); cout<<"Begin sampling action..."<<endl;
+	TAB(tab); cout<<"Begin sampling action ";
+	if (StochasticLocalSearch::FF_helpful_actions)
+		cout<<"(FF-helpful only)..."<<endl;
+	else
+		cout<<"(all applicable actions)..."<<endl;
 	TAB(tab); cout<<n<<" actions"<<endl<<endl;
 #endif
 
@@ -386,7 +390,6 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 					timer.clause_set_construction_time += clock.time();
 					clock.restart();
 					//
-
 
 #ifdef DEBUG_LOCAL_SEARCH
 					TAB(tab+5); cout<<"No sampled action found;"<<endl<<endl;
