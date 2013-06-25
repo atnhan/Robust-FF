@@ -36,9 +36,15 @@ StripsEncoding::~StripsEncoding() {
 }
 
 void StripsEncoding::append(int action) {
-	assert(action >= 0 && action < gnum_op_conn);
 
-//	cout<<"IN APPEND..."<<endl;
+//#define DEBUG_APPEND
+#ifdef DEBUG_APPEND
+	int t = 1;
+	TAB(t);
+	cout<<"In appending action "<<action<<"..."<<endl;
+#endif
+
+	assert(action >= 0 && action < gnum_op_conn);
 
 	State *current_state = this->get_last_state();
 
@@ -61,7 +67,16 @@ void StripsEncoding::append(int action) {
 
 	// First, for known preconditions
 	for (int i=0;i<gef_conn[n_ef].num_PC;i++) {
+
 		int ft = gef_conn[n_ef].PC[i];
+
+#ifdef DEBUG_APPEND
+		TAB(t+1);
+		cout<<"Known pre ";
+		print_ft_name(ft);
+		cout<<endl;
+#endif
+
 		ClauseSet cs;
 		bool success = supporting_constraints(ft, level, cs);
 		assert(success);
@@ -70,8 +85,6 @@ void StripsEncoding::append(int action) {
 		if (cs.size()) {
 			new_action_clauses.pre_clauses[ft] = cs;
 
-			//
-//			cout<<cs<<endl;
 		}
 	}
 
@@ -174,7 +187,17 @@ void StripsEncoding::advance_plan_prefix() {
 
 int StripsEncoding::get_confirmed_level(int ft,int level) const
 {
+
 	int n = actions.size();
+
+//#define DEBUG_GET_CONFIRMED_LEVEL
+#ifdef DEBUG_GET_CONFIRMED_LEVEL
+	int t = 3;
+	TAB(t);
+	cout<<"In get_confirmed_level... ft = "<<ft<<", level = "<<level<<", n = "<<n<<endl;
+#endif
+
+
 	if (n == 0)
 		return 0;
 
@@ -183,27 +206,44 @@ int StripsEncoding::get_confirmed_level(int ft,int level) const
 		return -1;
 	}
 
-	// If "ft" is after the last action, then we only check if it is add or delete effect of the last action
-	if (level == n) {
-
-		if (is_add(ft, actions[n-1]) || is_del(ft, actions[n-1]))
-			return n;
-
-		for (int l = n-1; l >= 1; l--) {
-			// Check if it is a precondition
-			if (is_pre(ft, actions[l])) return l;
-			// Check if it is add or delete effect
-			if (is_add(ft, actions[l-1]) || is_del(ft, actions[l-1])) return l;
+	for (int l = level; l >= 0; l--) {
+		if (l > 0 && (is_add(ft, actions[l-1]) || is_del(ft, actions[l-1]))) {
+			return l;
+		}
+		if (l < level && is_pre(ft, actions[l])) {
+			return l;
 		}
 	}
-	else {
-		for (int l = level; l >= 1; l--) {
-			// Check if it is a precondition
-			if (is_pre(ft, actions[l])) return l;
-			// Check if it is add or delete effect
-			if (is_add(ft, actions[l-1]) || is_del(ft, actions[l-1])) return l;
-		}
-	}
+
+//	// If "ft" is after the last action, then we only check if it is add or delete effect of the last action
+//	if (level == n) {
+//
+//		if (is_add(ft, actions[n-1]) || is_del(ft, actions[n-1]))
+//			return n;
+//
+//		for (int l = n-1; l >= 1; l--) {
+//
+//			// Check if it is add or delete effect
+//			if (is_add(ft, actions[l-1]) || is_del(ft, actions[l-1])) return l;
+//
+//
+//			// Check if it is a precondition
+//			if (is_pre(ft, actions[l])) return l;
+//		}
+//	}
+//	else {
+//		for (int l = level; l >= 1; l--) {
+//
+//			// First, check if it is a known add or delete effect
+//			if (is_add(ft, actions[l-1]) || is_del(ft, actions[l-1])) return l;
+//
+//			// Second, check if it is a precondition (only when l < level)
+//			if (l < level && is_pre(ft, actions[l])) {
+//				return l;
+//			}
+//
+//		}
+//	}
 
 	// All fact values are "confirmed at the initial state
 	return 0;
@@ -211,6 +251,14 @@ int StripsEncoding::get_confirmed_level(int ft,int level) const
 
 // Construct the set of clauses for TRUE truth value of a fact at a level
 bool StripsEncoding::supporting_constraints(int ft, int level, ClauseSet& clauses) const {
+
+//#define DEBUG_SUPPORTING_CONSTRAINTS
+#ifdef DEBUG_SUPPORTING_CONSTRAINTS
+	int t=2;
+	TAB(t);
+	cout<<"In supporting constraints: ft = "<<ft<<", level = "<<level<<endl;
+#endif
+
 	if (clauses.size())
 		clauses.clear();
 
@@ -221,6 +269,11 @@ bool StripsEncoding::supporting_constraints(int ft, int level, ClauseSet& clause
 		return false;
 
 	int confirmed_level = get_confirmed_level(ft, level);
+
+#ifdef DEBUG_SUPPORTING_CONSTRAINTS
+	TAB(t+1);
+	cout<<"Confirmed level: "<<confirmed_level<<endl;
+#endif
 
 	// If "ft" is false at the confirmed level, we first need "establishment constraints"
 	if (!is_in_state(ft, this->states[confirmed_level])) {

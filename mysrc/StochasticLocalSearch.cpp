@@ -42,7 +42,7 @@ StochasticLocalSearch::~StochasticLocalSearch() {
 // Sample a set of "n" actions from a given state
 bool StochasticLocalSearch::sample_next_actions(StripsEncoding* e, double robustness_threshold, int n, std::vector<int>& actions, int tab) {
 
-#define DEBUG_SAMPLE_ACTION
+//#define DEBUG_SAMPLE_ACTION
 #ifdef DEBUG_SAMPLE_ACTION
 	TAB(tab); cout<<"Begin sampling action ";
 	if (StochasticLocalSearch::FF_helpful_actions)
@@ -85,6 +85,9 @@ bool StochasticLocalSearch::sample_next_actions(StripsEncoding* e, double robust
 		clock.stop();
 		timer.rp_time += clock.time();
 		clock.restart();
+
+		// Add WMC time
+		timer.robustness_computation_time += rp.get_wmc_time();
 
 		// Get FF helpful actions
 		get_FF_helpful_actions(current_state, candidate_applicable_actions, &rp);
@@ -206,8 +209,9 @@ bool StochasticLocalSearch::sample_next_state(StripsEncoding* e, double current_
 		clock.stop();
 		timer.rp_time += clock.time();
 		clock.restart();
-		//
 
+		// Add WMC time
+		timer.robustness_computation_time += rp.get_wmc_time();
 
 		// Retract this action
 		e->remove_last();
@@ -291,7 +295,7 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 		// In the first half of the iterations, we only consider FF helpful actions
 		// In the second half, all actions will be considered
 		// This option will be used in sampling the next actions
-		StochasticLocalSearch::FF_helpful_actions = (i <= max_iterations/2) ? true : false;
+		//StochasticLocalSearch::FF_helpful_actions = (i <= max_iterations/2) ? true : false;
 
 #ifdef DEBUG_LOCAL_SEARCH
 		TAB(tab+3); cout<<"Iteration "<<i+1<<endl<<endl;
@@ -422,8 +426,7 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 
 bool StochasticLocalSearch::run() {
 
-#define DEBUG_SSL_RUN
-
+//#define DEBUG_SLS_RUN
 #ifdef DEBUG_SLS_RUN
 	cout<<"BEGIN StochasticLocalSearch::run()..."<<endl<<endl;
 #endif
@@ -513,21 +516,20 @@ bool StochasticLocalSearch::run() {
 		// Current heuristic
 		int h = rp_0_info.first;
 
-#ifdef DEBUG_SSL_RUN
+#ifdef DEBUG_SLS_RUN
 		TAB(2); cout<<"Current h = "<<h<<endl<<endl;
 #endif
 
 		while (true) {
 
 			int next_h;
-			bool fail_bound_reached;
 			double next_robustness;
 			bool better_state_found = local_search_for_a_better_state(e, best_plan.robustness, h, next_h, next_robustness, fail_count);
 
 			// Two cases to restart the local search from the initial state
 			// (1) fails count reached
 			// (2) cannot escape the plateau
-			if (fail_bound_reached) {
+			if (fail_count >= fail_bound) {
 				fail_count = 0;
 				break;
 			}
@@ -547,7 +549,7 @@ bool StochasticLocalSearch::run() {
 				// Save this new plan to the set of all plans
 				plans.push_back(best_plan);
 
-#ifdef DEBUG_SSL_RUN
+#ifdef DEBUG_SLS_RUN
 				TAB(2); cout<<"BETTER PLAN FOUND!"<<endl;
 #endif
 
@@ -558,7 +560,7 @@ bool StochasticLocalSearch::run() {
 			// Otherwise, update the current heuristics
 			else {
 
-#ifdef DEBUG_SSL_RUN
+#ifdef DEBUG_SLS_RUN
 				TAB(2); cout<<"Next h = "<<next_h<<endl<<endl;
 #endif
 
@@ -585,14 +587,15 @@ bool StochasticLocalSearch::run() {
 	update_experiment_analysis_file();
 
 	// SAVE PLANS TO FILE...
-	//string solution_file_name = string(gcmd_line.path) + string(gcmd_line.ops_file_name) + string("_") + string(gcmd_line.fct_file_name);
-	string solution_file_name = string(gcmd_line.path) + string("plan.out");
+	string solution_file_name = string(gcmd_line.path) + string(gcmd_line.ops_file_name) + string("@") +
+			string(gcmd_line.fct_file_name) + string(".SOL");
+	//string solution_file_name = string(gcmd_line.path) + string("plan.out");
 	ofstream f;
 	f.open(solution_file_name.c_str());
 	f<<plans;
 	f.close();
 
-#ifdef DEBUG_SSL_RUN
+#ifdef DEBUG_SLS_RUN
 	cout<<endl<<"===== "<<plans.size()<<" PLANS ====="<<endl<<endl;
 	for (int i=0;i<plans.size(); i++) {
 		cout<<"PLAN "<<i<<endl;
@@ -608,7 +611,7 @@ bool StochasticLocalSearch::run() {
 
 	delete e_0;
 
-	return false;
+	return true;
 }
 
 // Sample k distinct integers from 0 to n-1

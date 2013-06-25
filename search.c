@@ -1232,14 +1232,18 @@ int result_to_dest( State *dest, State *source, int op )
 			assert(is_add(ft, op) || is_poss_add(ft, op));
 		}
 		else if (!in_current && !in_next) {
-			assert(!is_add(ft, op) && !is_poss_add(ft, op));
+			assert(!is_add(ft, op));
+
+			// There's some rare case where an instantiated action has the same poss add and known delete
+			assert((!is_poss_add(ft, op) || is_del(ft, op)));
 		}
 
 		Bool is_known_in_source = is_known_in_state(ft, source);
 		Bool is_known_in_dest = is_known_in_state(ft, dest);
 		// Four cases
 		if (is_known_in_source && is_known_in_dest) {
-			assert(!is_del(ft, op) && !is_poss_del(ft, op));
+			assert(!is_del(ft, op));
+			assert(!is_poss_del(ft, op) || is_add(ft, op));		// Some case: a fact is in both known add and possible delete effects?
 		}
 		else if (is_known_in_source && !is_known_in_dest) {
 			assert(is_del(ft, op) || is_poss_del(ft, op));

@@ -8,10 +8,10 @@
 #CFLAGS = -g -DNDEBUG
 
 # For debug
-CC	= g++ -g3
+#CC	= g++ -g3
 
 # For release
-#CC	= g++ -O3
+CC	= g++ -O6
 
 ####### COMPILE
 
@@ -23,7 +23,7 @@ SRC_HEADER = .
 
 SOURCES =	Clause.cpp ClauseSet.cpp RelaxedPlan.cpp RelaxedPlan_test.cpp \
 			StripsEncoding.cpp Helpful.cpp ClauseSet_test.cpp \
-			Search.cpp StochasticLocalSearch.cpp 
+			Search.cpp StochasticLocalSearch.cpp
 
 OBJECTS = $(SOURCES:.cpp=.o)
 

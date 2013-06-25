@@ -547,6 +547,23 @@ int main( int argc, char *argv[] )
 	sprintf(ops_file, "%s%s", gcmd_line.path, gcmd_line.ops_file_name);
 	sprintf(fct_file, "%s%s", gcmd_line.path, gcmd_line.fct_file_name);
 
+	/*
+	 * TUAN (begin)
+	 */
+	string logfile(gcmd_line.path);
+	logfile += string(gcmd_line.log_file);
+	FILE *log = fopen(logfile.c_str(), "a");
+	if (!log) {
+		printf("Cannot open log file: %s\n", logfile.c_str());
+		exit(1);
+	}
+	fprintf(log, "========================================================\n");
+	fprintf(log, "DOMAIN: %s\n\n", gcmd_line.ops_file_name);
+	fprintf(log, "PROBLEN: %s\n\n", gcmd_line.fct_file_name);
+	/*
+	 * TUAN (end)
+	 */
+
 
 	/* parse the input files
 	 */
@@ -688,14 +705,6 @@ int main( int argc, char *argv[] )
 	 * TUAN: Begin search for robust plans
 	 ******************************************************************************************************************/
 
-	// Open the log file
-//	glog.set_path(gcmd_line.path);
-//	glog.set_file(gcmd_line.log_file);
-//	if (!glog.open()) {
-//		printf("Log file cannot be open.\n");
-//	}
-//	glog<<"Hello "<<"there!";
-
 	// Weights of annotations. Uniform just for now!
 	// The weights have not been updated directly from the parser
 	vector<double> weights(gnum_possible_annotations, 0.5);
@@ -703,7 +712,13 @@ int main( int argc, char *argv[] )
 
 	// Start the search
 	StochasticLocalSearch search(&ginitial_state, &ggoal_state);
-	search.run();
+	fprintf(log, ">> RESULT (Out of time or something wrong if neither 'successful' nor 'failed'...):\n");
+	if (search.run()) {
+		fprintf(log, ">> SUCCESSFUL!\n\n");
+	}
+	else {
+		fprintf(log, ">> FAILED!\n\n");
+	}
 	return 0;
 
 
@@ -739,9 +754,9 @@ int main( int argc, char *argv[] )
 	 * Test the correctness constraints by testing plan robustness assessment
 	 */
 //	gproblem_file = string(gcmd_line.fct_file_name);
-//	vector<double> weights(gnum_possible_annotations, 0.75);
+//	vector<double> weights(gnum_possible_annotations, 0.5);
 //	Clause::set_weights(weights);
-//	string sol_file("pfile10.sol");
+//	string sol_file("zenotravel.pddl.0p_0a_4d.1@pfile2.SOL");
 //	test_evaluate_plan_robustness(sol_file, &ginitial_state, &ggoal_state);
 //
 //	exit(0);

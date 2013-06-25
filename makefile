@@ -12,10 +12,10 @@ ADDONS	=
 CC      = g++
 
 # Release
-#CFLAGS	= -O6 -Wall -g -ansi $(TYPE) $(ADDONS) 
+CFLAGS	= -O6 -Wall -g -ansi $(TYPE) $(ADDONS) 
 
 # Debug
-CFLAGS	= -g3 -Wall -ansi $(TYPE) $(ADDONS)
+#CFLAGS	= -g3 -Wall -ansi $(TYPE) $(ADDONS)
 
 LIBS    = -lm
 

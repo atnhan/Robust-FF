@@ -34,6 +34,8 @@ class RelaxedPlan {
 	const State *goals;
 	const StripsEncoding *e;
 
+	// Time spent by the Weighted Model Counting module
+	double wmc_time;
 
 	/**************************************************************************************************
 	 * RELAXED PLANNING GRAPH
@@ -249,8 +251,14 @@ class RelaxedPlan {
 	// Check if a proposition is in a RP-STATE
 	bool in_rp_state(int p, const RP_STATE& s) const;
 
-	// Estimate the robustness of the plan prefix + the current relaxed plan
+	// Estimate the robustness of the plan prefix + the current relaxed plan, depending on the flags
 	double compute_robustness();
+
+	// As the above function: Estimate both lower bound, upper bound of the plan prefix + the current relaxed plan
+	// Except: the upper bound is compared against the robustness threshold, and if it is better then the exact robustness will also be computed
+	// Return false if there exists unsupported preconditions in the current relaxed plan
+	bool compute_robustness(double& lower, double& upper, double& exact);
+
 
 	// The number of unsupported known preconditions
 	int num_unsupported_known_preconditions;
@@ -338,6 +346,10 @@ public:
 	}
 	const State& get_goals() const {
 		return *goals;
+	}
+
+	double get_wmc_time() {
+		return wmc_time;
 	}
 
 	// UNIT TEST

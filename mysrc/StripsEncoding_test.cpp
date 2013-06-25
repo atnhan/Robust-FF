@@ -63,17 +63,15 @@ void test_evaluate_plan_robustness(string filename, State *initial_state, State*
 	/***********************************************/
 	StripsEncoding e(initial_state);
 	for (int i=0;i<plan_actions.size();i++) {
-
-		//cout<<plan_actions[i]<<endl;
-
 		int op = find_action(plan_actions[i]);
+		cout<<op<<": "<<plan_actions[i]<<endl;
 		e.extend_plan_prefix(op);
 	}
 
 	const vector<int> actions = e.get_actions();
 	const vector<State*> states = e.get_states();
 	cout<<"Initial State:"<<endl;
-	print_state(states[0]);
+	print_state(*states[0]);
 	cout<<endl<<endl;
 
 	for (int i=0;i<actions.size();i++) {
@@ -81,7 +79,7 @@ void test_evaluate_plan_robustness(string filename, State *initial_state, State*
 		print_op_name(actions[i]);
 		cout<<endl;
 		cout<<"State ["<<i+1<<"]:"<<endl;
-		print_state(states[i+1]);
+		print_state(*states[i+1]);
 		cout<<endl<<endl;
 	}
 

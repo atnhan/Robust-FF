@@ -41,6 +41,7 @@ class StochasticLocalSearch: public Search {
 		// Constructor
 		TIMER() {
 			search_time = 0;
+			clause_set_construction_time = 0;
 			rp_time = 0;
 			robustness_computation_time = 0;
 		}

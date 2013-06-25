@@ -41,6 +41,7 @@ RelaxedPlan::RelaxedPlan(const StripsEncoding *e, const State *init, const State
 
 	this->known_and_possible_adds_of_actions_in_first_layer.resize(gnum_ft_conn, false);
 
+	this->wmc_time = 0;
 }
 
 RelaxedPlan::~RelaxedPlan() {
@@ -257,6 +258,7 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 	cout<<"Begin extract_01... Robustness threshold: "<<robustness_threshold<<endl<<endl;
 #endif
 
+
 	if (!build_relaxed_planning_graph()) {
 
 #ifdef DEBUG_EXTRACT
@@ -289,24 +291,64 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 	rp.push_back(goal_step);
 	num_chosen_actions[n] = 1;
 
-	// Compute the current robustness of the plan prefix + current EMPTY relaxed plan
-	// Check it against the robustness threshold
-	double current_robustness = compute_robustness();
+	// The robustness of plan prefix + the current relaxed plan (0 if there exists an unsupported known preconditions in the RP)
+	// Note that this can be either lower bound, upper bound or exact value of the robustness, depending on the flags
+	// "-use_lower_bound_in_rp" and "-use_upper_bound_in_rp;"
+	double current_robustness;
+
+	// The lower bound, upper bound of the robustness of the plan prefix + the empty relaxed plan
+	double lower_robustness, upper_robustness, exact_robustness;
+	if (compute_robustness(lower_robustness, upper_robustness, exact_robustness)) {	// Succeed only if no unsupported known preconditions exist
+
+		if (RelaxedPlan::use_lower_bound_in_rp) {
+			current_robustness = lower_robustness;
+		}
+		else if (RelaxedPlan::use_upper_bound_in_rp) {
+			current_robustness = upper_robustness;
+		}
+		else {
+			current_robustness = exact_robustness;
+		}
+
+		// Check if the empty relaxed plan is enough
+		if (RelaxedPlan::use_robustness_threshold && current_robustness > robustness_threshold) {
+
+			result.first = 0; // Don't count the goal step
+			if (exact_robustness > robustness_threshold)
+				result.second = exact_robustness;
+			else
+				result.second = current_robustness;
 
 #ifdef DEBUG_EXTRACT
-	cout<<"Current robustness: "<<current_robustness<<endl<<endl;
+				cout<<"End extract_01..."<<__LINE__<<endl<<endl;
 #endif
 
-	if (RelaxedPlan::use_robustness_threshold && current_robustness > robustness_threshold) {
-		result.first = 0;	// Don't count the goal step
-		result.second = current_robustness;
-
-#ifdef DEBUG_EXTRACT
-		cout<<"End extract_01..."<<__LINE__<<endl<<endl;
-#endif
-
-		return true;	// Empty relaxed plan!
+				return true;	// EMPTY RELAXED PLAN RETURNED!!!
+		}
 	}
+	// Otherwise, there exists unsupported known goals in the empty RP. So the robustness is 0.
+	else {
+		current_robustness = 0;
+	}
+
+//	// Compute the current robustness of the plan prefix + current EMPTY relaxed plan
+//	// Check it against the robustness threshold
+//	double current_robustness = compute_robustness();
+//
+//#ifdef DEBUG_EXTRACT
+//	cout<<"Current robustness: "<<current_robustness<<endl<<endl;
+//#endif
+//
+//	if (RelaxedPlan::use_robustness_threshold && current_robustness > robustness_threshold) {
+//		result.first = 0;	// Don't count the goal step
+//		result.second = current_robustness;
+//
+//#ifdef DEBUG_EXTRACT
+//		cout<<"End extract_01..."<<__LINE__<<endl<<endl;
+//#endif
+//
+//		return true;	// Empty relaxed plan!
+//	}
 
 	// During the extraction of the relaxed plan, we keep a robustness value
 	// of the current relaxed plan. We use a clause set constructed taking into account
@@ -385,6 +427,7 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 		CACHET_OUTPUT o;
 		current_clauses_for_heuristics.wmc(o);
 		current_robustness_for_heuristics = o.prob;
+		wmc_time += o.time;
 	}
 
 #ifdef DEBUG_EXTRACT
@@ -530,6 +573,7 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 					CACHET_OUTPUT o;
 					cs_for_heuristics.wmc(o);
 					current_robustness_for_heuristics = o.prob;
+					wmc_time += o.time;
 				}
 				//
 
@@ -600,7 +644,7 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 			}
 		} // end of Case 2
 
-		// If the new action is inserted, add new subgoals into the queue
+		// If the new action is inserted
 		if (new_rp_step) {
 
 			// Whenever we insert a new action into the relaxed plan, we re-compute its robustness
@@ -698,8 +742,6 @@ bool RelaxedPlan::extract(pair<int, double>& result) {
 					assert(SubgoalSet.find(make_pair(itr->first, itr->second)) != SubgoalSet.end());
 				}
 #endif
-
-
 		}
 
 	} // out of Q-loop
@@ -1064,10 +1106,113 @@ double RelaxedPlan::compute_robustness() {
 
 	CACHET_OUTPUT o;
 	all_clauses.wmc(o);
+
 #ifdef DEBUG_ESTIMATE_ROBUSTNESS
 	cout<<"End estimate_robustness... Clauses: "<<all_clauses<<__LINE__<<endl<<endl;
 #endif
+
+	wmc_time += o.time;
+
 	return o.prob;
+}
+
+// As the above function: Estimate both lower bound, upper bound of the plan prefix + the current relaxed plan
+// Except: the upper bound is compared against the robustness threshold, and if it is better then the exact robustness will also be computed
+// (otherwise, it will be set < 0)
+// Return false if there exists unsupported preconditions in the current relaxed plan
+bool RelaxedPlan::compute_robustness(double& lower, double& upper, double& exact) {
+#ifdef DEBUG_ESTIMATE_ROBUSTNESS
+	cout<<"Begin estimate_robustness..."<<endl<<endl;
+#endif
+
+	// Check if any know precondition is not in the corresponding state
+	// In that case, return 0
+	if (num_unsupported_known_preconditions > 0) {
+
+#ifdef DEBUG_ESTIMATE_ROBUSTNESS
+		cout<<"End estimate_robustness... Num unsupported known preconditions: "<<num_unsupported_known_preconditions<<endl<<endl;
+#endif
+
+		return 0;
+	}
+
+	// Now collect the clauses of the plan prefix + relaxed plan
+	ClauseSet all_clauses;
+	e->get_clauses(all_clauses);
+
+	for (RELAXED_PLAN::iterator rp_itr = rp.begin(); rp_itr != rp.end(); rp_itr++) {
+
+		int this_op = (*rp_itr)->a;
+		int layer = (*rp_itr)->layer;
+
+		if (this_op != GOAL_ACTION) {
+
+			assert(gop_conn[this_op].num_E == 1);
+			int ef = gop_conn[this_op].E[0];
+
+			// Consider known preconditions of "this_op"
+			for (int i=0;i<gef_conn[ef].num_PC;i++) {
+				int p = gef_conn[ef].PC[i];
+
+#ifndef NDEBUG
+				// We're here only when all known preconditions present in their rp_states
+				assert(in_rp_state(p, (*rp_itr)->s));
+#endif
+				//			// If this known precondition is not in the state before the action
+				//			if (!in_rp_state(p, (*rp_itr)->s) && RelaxedPlan::clauses_from_rpg_for_false_preconditions) {
+				//				all_clauses.add_clauses((*P[layer]).at(p).best_clauses);
+				//				continue;
+				//			}
+
+				if ((*rp_itr)->pre_clauses.find(p) == (*rp_itr)->pre_clauses.end() ||
+						(*rp_itr)->pre_clauses.at(p)->size() <= 0)
+					continue;
+
+				// Collect this clause set
+				const ClauseSet& cs = *(*rp_itr)->pre_clauses.at(p);
+				all_clauses.add_clauses(cs);
+			}
+
+			// Consider possible preconditions of "this_op"
+			for (int i=0;i<gef_conn[ef].num_poss_PC;i++) {
+				int p = gef_conn[ef].poss_PC[i];
+
+				if ((*rp_itr)->poss_pre_clauses.find(p) == (*rp_itr)->poss_pre_clauses.end() ||
+						(*rp_itr)->poss_pre_clauses.at(p)->size() <= 0)
+					continue;
+
+				// Clause set for this possible precondition
+				const ClauseSet& cs = *(*rp_itr)->poss_pre_clauses.at(p);
+				all_clauses.add_clauses(cs);
+			}
+		}
+		else {
+			RELAXED_PLAN::iterator goal_step_itr = rp.end();
+			goal_step_itr--;
+			assert((*goal_step_itr)->a == GOAL_ACTION);
+			for (int i=0;i<goals->num_F;i++) {
+				int g = goals->F[i];
+				assert(in_rp_state(g, (*goal_step_itr)->s));
+				if ((*goal_step_itr)->pre_clauses.find(g) != (*goal_step_itr)->pre_clauses.end() &&
+						(*goal_step_itr)->pre_clauses.at(g)->size())
+					all_clauses.add_clauses(*((*goal_step_itr)->pre_clauses.at(g)));
+			}
+		}
+	}
+
+	lower = all_clauses.lower_wmc();
+	upper = all_clauses.upper_wmc();
+
+	// We don't always compute the exact robustness, to save time!
+	if (RelaxedPlan::use_robustness_threshold && upper > robustness_threshold) {
+		CACHET_OUTPUT o;
+		all_clauses.wmc(o);
+		exact = o.prob;
+		wmc_time += o.time;
+	}
+	else
+		exact = -1.0;
+	return true;
 }
 
 void RelaxedPlan::print_subgoals(SubGoalQueue Q) {
@@ -1438,6 +1583,7 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 		CACHET_OUTPUT o;
 		new_clauses_for_heuristics.wmc(o);
 		r = o.prob;
+		wmc_time += o.time;
 	}
 
 	// NOW REMOVING THE NEW STEP
@@ -2575,19 +2721,17 @@ void RelaxedPlan::initialize_fact_layer() {
 		FactNode node;
 		e->supporting_constraints(ft, n, node.best_clauses);
 
-		// Clause sets of all actions in the plan prefix
-		ClauseSet all_clauses;
-		e->get_clauses(all_clauses);
-		all_clauses.add_clauses(node.best_clauses);
-
-
-		// WE DON'T NEED THIS PART
+//		// WE DON'T NEED THIS PART
+//		// Clause sets of all actions in the plan prefix
+//		ClauseSet all_clauses;
+//		e->get_clauses(all_clauses);
+//		all_clauses.add_clauses(node.best_clauses);
+//
 //		// Estimating robustness
 //		if (RelaxedPlan::use_lower_bound_in_rp)
 //			node.best_robustness = all_clauses.lower_wmc();
 //		else
 //			node.best_robustness = all_clauses.upper_wmc();
-
 
 		// The supporting action is the last one of the plan prefix, or the INIT_ACTION
 		if (n == 0)
@@ -2724,6 +2868,7 @@ bool RelaxedPlan::grow_action_layer() {
 			CACHET_OUTPUT o;
 			cs.wmc(o);
 			node.robustness = o.prob;
+			wmc_time += o.time;
 		}
 
 		node.in_rp = false;
@@ -2843,6 +2988,7 @@ bool RelaxedPlan::grow_fact_layer() {
 					CACHET_OUTPUT o;
 					cs.wmc(o);
 					r = o.prob;
+					wmc_time += o.time;
 				}
 
 				if (r > best_robustness) {
@@ -2937,17 +3083,23 @@ double RelaxedPlan::goals_prob_in_rpg() {
 		all_goal_clauses.add_clauses(current_fact_layer.at(g).best_clauses);
 	}
 
+	// Clause sets of all actions in the plan prefix
+	ClauseSet all_clauses;
+	e->get_clauses(all_clauses);
+	all_clauses.add_clauses(all_goal_clauses);
+
 	double r;
 	if (RelaxedPlan::use_lower_bound_in_rp) {
-		r = all_goal_clauses.lower_wmc();
+		r = all_clauses.lower_wmc();
 	}
 	else if (RelaxedPlan::use_upper_bound_in_rp) {
-		r = all_goal_clauses.upper_wmc();
+		r = all_clauses.upper_wmc();
 	}
 	else {
 		CACHET_OUTPUT o;
-		all_goal_clauses.wmc(o);
+		all_clauses.wmc(o);
 		r = o.prob;
+		wmc_time += o.time;
 	}
 	return r;
 }
