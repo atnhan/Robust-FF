@@ -559,7 +559,7 @@ int main( int argc, char *argv[] )
 	}
 	fprintf(log, "========================================================\n");
 	fprintf(log, "DOMAIN: %s\n\n", gcmd_line.ops_file_name);
-	fprintf(log, "PROBLEN: %s\n\n", gcmd_line.fct_file_name);
+	fprintf(log, "PROBLEM: %s\n\n", gcmd_line.fct_file_name);
 	/*
 	 * TUAN (end)
 	 */
@@ -712,13 +712,15 @@ int main( int argc, char *argv[] )
 
 	// Start the search
 	StochasticLocalSearch search(&ginitial_state, &ggoal_state);
-	fprintf(log, ">> RESULT (Out of time or something wrong if neither 'successful' nor 'failed'...):\n");
-	if (search.run()) {
-		fprintf(log, ">> SUCCESSFUL!\n\n");
+
+	if (search.run(log)) {
+		fprintf(log, "\n>> SUCCESSFUL!\n\n");
 	}
 	else {
-		fprintf(log, ">> FAILED!\n\n");
+		fprintf(log, "\n>> FAILED!\n\n");
 	}
+	fclose(log);
+
 	return 0;
 
 
@@ -1064,6 +1066,10 @@ Bool process_command_line( int argc, char *argv[] )
 					 * TUAN (begin)
 					 */
 					case 'w':
+						strncpy(gcmd_line.experiment_analysis_file_for_complete_run, *argv, MAX_LENGTH );
+						break;
+
+					case 'u':
 						strncpy(gcmd_line.experiment_analysis_file, *argv, MAX_LENGTH );
 						break;
 

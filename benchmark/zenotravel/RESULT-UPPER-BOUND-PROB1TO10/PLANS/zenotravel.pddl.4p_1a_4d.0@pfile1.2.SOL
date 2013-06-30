@@ -1,0 +1,6 @@
+# Domain file: zenotravel.pddl.4p_1a_4d.0
+# Problem file: pfile1
+# Plan ID: 2
+# Number of actions
+1
+FLY PLANE1CITY0CITY1FL1FL0

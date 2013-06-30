@@ -90,8 +90,10 @@ class StochasticLocalSearch: public Search {
 	// Sample k distinct integers from 0 to n-1
 	void sample_k(int k, int n, std::vector<int>& result);
 
-	// Update the experiment analysis file
-	void update_experiment_analysis_file();
+	// Update the experiment analysis file (if complete run succeeds)
+	void update_experiment_analysis_file_for_complete_run();
+
+	void update_experiment_analysis_file(const Plan& p);
 
 public:
 
@@ -128,7 +130,7 @@ public:
 	StochasticLocalSearch(State *init, State *goals, double desired_robustness = 1.0);
 	virtual ~StochasticLocalSearch();
 
-	bool run();
+	bool run(FILE *log);
 };
 
 #endif /* STOCHASTICLOCALSEARCH_H_ */

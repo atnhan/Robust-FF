@@ -340,6 +340,8 @@ struct _command_line {
 
 	char solution_folder[MAX_LENGTH];
 
+	char experiment_analysis_file_for_complete_run[MAX_LENGTH];
+
 	char experiment_analysis_file[MAX_LENGTH];
 
 	char log_file[MAX_LENGTH];

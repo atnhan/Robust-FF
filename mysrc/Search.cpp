@@ -42,11 +42,11 @@ Search::~Search() {
 ostream& operator<<(std::ostream& os, const std::vector<Search::Plan>& plans) {
 
 	// Domain file
-	os<<"# Domain file";
+	os<<"# Domain file: ";
 	os<<gcmd_line.ops_file_name<<endl;
 
 	// Problem file
-	os<<"# Problem file";
+	os<<"# Problem file: ";
 	os<<gcmd_line.fct_file_name<<endl;
 
 	// Number of plans
@@ -71,10 +71,38 @@ ostream& operator<<(std::ostream& os, const std::vector<Search::Plan>& plans) {
 			Action *a = gop_conn[p.actions[j]].action;
 			os<<a->name<<" ";
 			for (size_t k=0;k<a->num_name_vars;k++) {
-				os<<" "<<gconstants[a->name_inst_table[k]];
+				os<<gconstants[a->name_inst_table[k]];
 			}
 			os<<endl;
 		}
+	}
+
+	return os;
+}
+
+ostream& operator<<(std::ostream& os, const Search::Plan& plan) {
+	// Domain file
+	os<<"# Domain file: ";
+	os<<gcmd_line.ops_file_name<<endl;
+
+	// Problem file
+	os<<"# Problem file: ";
+	os<<gcmd_line.fct_file_name<<endl;
+
+	// Plan ID
+	os<<"# Plan ID: "<<plan.id<<endl;
+
+	// Number of actions
+	os<<"# Number of actions"<<endl;
+	os<<plan.actions.size()<<endl;
+
+	for (size_t j=0; j<plan.actions.size(); j++) {
+		Action *a = gop_conn[plan.actions[j]].action;
+		os<<a->name<<" ";
+		for (size_t k=0;k<a->num_name_vars;k++) {
+			os<<gconstants[a->name_inst_table[k]]<<" ";
+		}
+		os<<endl;
 	}
 
 	return os;

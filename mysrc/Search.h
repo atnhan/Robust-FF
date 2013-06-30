@@ -21,6 +21,7 @@ protected:
 	struct Plan {
 		std::vector<int> actions;
 		double robustness;
+		int id;
 	};
 
 	State *init;
@@ -50,6 +51,7 @@ protected:
 
 	// Output plans to streams
 	friend std::ostream& operator<<(std::ostream& os, const std::vector<Plan>& plans);
+	friend std::ostream& operator<<(std::ostream& os, const Plan& plan);
 
 
 public:
@@ -57,7 +59,7 @@ public:
 	Search(State* init, State* goals, double desired_robustness = 1.0);
 	virtual ~Search();
 
-	virtual bool run() = 0;
+	virtual bool run(FILE *log) = 0;
 
 };
 

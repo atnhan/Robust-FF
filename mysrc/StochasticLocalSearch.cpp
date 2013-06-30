@@ -424,7 +424,7 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 	return better_state_found;
 }
 
-bool StochasticLocalSearch::run() {
+bool StochasticLocalSearch::run(FILE *log) {
 
 //#define DEBUG_SLS_RUN
 #ifdef DEBUG_SLS_RUN
@@ -543,11 +543,37 @@ bool StochasticLocalSearch::run() {
 			// Check if the plan prefix has better robustness than the current best plan (i.e., the relaxed plan is empty)
 			// The local search succeeds
 			if (next_h == 0) {
+
+				// Add search time
+				clock.stop();
+				timer.search_time += clock.time();
+
+				// Update the current best plan
 				best_plan.actions = e->get_actions();
 				best_plan.robustness = next_robustness;
+				best_plan.id = plans.size() + 1;
 
 				// Save this new plan to the set of all plans
 				plans.push_back(best_plan);
+
+				// Update the log
+				fprintf(log, "Plan %d found.\n", plans.size());
+
+				// Update the analysis file
+				update_experiment_analysis_file(best_plan);
+
+				// Save the plan to its individual plan file
+				stringstream ss;
+				ss<<best_plan.id;
+				string this_plan_file = string(gcmd_line.path) + string(gcmd_line.ops_file_name) + string("@") +
+						string(gcmd_line.fct_file_name) + string(".") + ss.str() + string(".SOL");
+				ofstream f;
+				f.open(this_plan_file.c_str());
+				f<<best_plan;
+				f.close();
+
+				// Restart the clock
+				clock.restart();
 
 #ifdef DEBUG_SLS_RUN
 				TAB(2); cout<<"BETTER PLAN FOUND!"<<endl;
@@ -584,16 +610,7 @@ bool StochasticLocalSearch::run() {
 	timer.search_time += clock.time();
 
 	// WRITE TO FILE FOR EXPERIMENT ANALYSIS
-	update_experiment_analysis_file();
-
-	// SAVE PLANS TO FILE...
-	string solution_file_name = string(gcmd_line.path) + string(gcmd_line.ops_file_name) + string("@") +
-			string(gcmd_line.fct_file_name) + string(".SOL");
-	//string solution_file_name = string(gcmd_line.path) + string("plan.out");
-	ofstream f;
-	f.open(solution_file_name.c_str());
-	f<<plans;
-	f.close();
+	update_experiment_analysis_file_for_complete_run();
 
 #ifdef DEBUG_SLS_RUN
 	cout<<endl<<"===== "<<plans.size()<<" PLANS ====="<<endl<<endl;
@@ -627,11 +644,11 @@ void StochasticLocalSearch::sample_k(int k, int n, vector<int>& result) {
 }
 
 // Update the experiment analysis file
-void StochasticLocalSearch::update_experiment_analysis_file() {
+void StochasticLocalSearch::update_experiment_analysis_file_for_complete_run() {
 
 #define tab		"\t"
 
-	string stat_file = string(gcmd_line.path) + string(gcmd_line.experiment_analysis_file);
+	string stat_file = string(gcmd_line.path) + string(gcmd_line.experiment_analysis_file_for_complete_run);
 
 	// Check if the file exists, if not then write the header
 	ifstream f0(stat_file.c_str());
@@ -691,6 +708,91 @@ void StochasticLocalSearch::update_experiment_analysis_file() {
 
 	// Best plan's robustness
 	f<<best_plan.robustness<<tab;
+
+	// Total time
+	f<<timer.total()<<tab;
+
+	// Search time
+	f<<timer.search_time<<tab;
+
+	// Time to extract relaxed plans
+	f<<timer.rp_time<<tab;
+
+	// Time to construct clause sets
+	f<<timer.clause_set_construction_time<<tab;
+
+	// Time to estimate and exactly compute robustness
+	f<<timer.robustness_computation_time<<tab;
+
+	f<<endl;
+
+	f.close();
+
+}
+
+void StochasticLocalSearch::update_experiment_analysis_file(const Plan& p) {
+#define tab		"\t"
+
+	string stat_file = string(gcmd_line.path) + string(gcmd_line.experiment_analysis_file);
+
+	// Check if the file exists, if not then write the header
+	ifstream f0(stat_file.c_str());
+	bool file_exists = f0.good();
+	f0.close();
+
+	ofstream f;
+	f.open(stat_file.c_str(), ios::out | ios::app);
+
+	if (!file_exists) {
+		f<<"#SEARCH PARAMETERS:"<<endl;
+		f<<"#Max restart:\t"<<max_restarts<<endl;
+		f<<"#Max iterations:\t"<<max_iterations<<endl;
+		f<<"#Initial depth bound:\t"<<initial_depth_bound<<endl;
+		f<<"#Probes at depth:\t"<<probes_at_depth<<endl;
+		f<<"#Neighborhood size:\t"<<neighborhood_size<<endl;
+		f<<"#Initial fail bound:\t"<<fail_bound<<endl;
+		f<<"#Min heuristic bias:\t"<<min_heuristic_bias<<endl;
+		f<<"#Max heuristic bias:\t"<<max_heuristic_bias<<endl;
+		f<<"#"<<endl;
+		f<<"#RELAXED PLAN PARAMETERS:"<<endl;
+		f<<"#ignore_poss_del_in_rp:\t"<<RelaxedPlan::ignore_poss_del_in_rp<<endl;
+		f<<"#use_lower_bound_in_rp:\t"<<RelaxedPlan::use_lower_bound_in_rp<<endl;
+		f<<"#use_upper_bound_in_rp:\t"<<RelaxedPlan::use_upper_bound_in_rp<<endl;
+		f<<"#use_robustness_threshold:\t"<<RelaxedPlan::use_robustness_threshold<<endl;
+		f<<"#clauses_from_rpg_for_false_preconditions:\t"<<RelaxedPlan::clauses_from_rpg_for_false_preconditions<<endl;
+		f<<"#current_actions_affect_candidate_action:\t"<<RelaxedPlan::current_actions_affect_candidate_action<<endl;
+		f<<"#candidate_actions_affect_current_actions:\t"<<RelaxedPlan::candidate_actions_affect_current_actions<<endl;
+		f<<"#"<<endl;
+		f<<"#Domain"<<tab
+		 <<"Problem"<<tab
+		 <<"Incompleteness_amount"<<tab
+		 <<"Plan_ID"<<tab
+		 <<"Best-plan-length"<<tab
+		 <<"Best-plan-robustness"<<tab
+		 <<"Total-time"<<tab
+		 <<"Search-time"<<tab
+		 <<"RP-time"<<tab
+		 <<"clause-time"<<tab
+		 <<"WMC-time"<<endl;
+	}
+
+	// Domain
+	f<<gcmd_line.ops_file_name<<tab;
+
+	// Problem
+	f<<gcmd_line.fct_file_name<<tab;
+
+	// The total number of possible preconditions and effects
+	f<<gnum_possible_annotations<<tab;
+
+	// The plan ID
+	f<<p.id<<tab;
+
+	// The plan's length
+	f<<p.actions.size()<<tab;
+
+	// The plan's robustness
+	f<<p.robustness<<tab;
 
 	// Total time
 	f<<timer.total()<<tab;
