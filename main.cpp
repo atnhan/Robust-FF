@@ -63,7 +63,6 @@
 #include "mysrc/RelaxedPlan.h"
 #include "mysrc/ClauseSet.h"
 #include "mysrc/StochasticLocalSearch.h"
-#include "mysrc/Log.h"
 
 using namespace std;
 
