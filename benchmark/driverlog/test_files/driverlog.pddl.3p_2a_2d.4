@@ -1,0 +1,167 @@
+(define (domain driverlog)
+  (:requirements :typing) 
+  (:types         location locatable - object
+		driver truck obj - locatable
+  
+  )
+  (:predicates 
+		(at ?obj - locatable ?loc - location)
+		(in ?obj1 - obj ?obj - truck)
+		(driving ?d - driver ?v - truck)
+		(link ?x ?y - location) (path ?x ?y - location)
+		(empty ?v - truck)
+)
+
+
+(:action LOAD-TRUCK
+  :parameters
+   (?obj - obj
+    ?truck - truck
+    ?loc - location)
+  
+:precondition
+	(and
+		(at ?truck ?loc)
+	)
+:poss-precondition
+	(and
+		(at ?obj ?loc)
+	)
+:effect
+	(and
+		(in ?obj ?truck)
+		(not (at ?obj ?loc))
+	)
+:poss-effect
+	(and
+	)
+)
+
+(:action UNLOAD-TRUCK
+  :parameters
+   (?obj - obj
+    ?truck - truck
+    ?loc - location)
+  
+:precondition
+	(and
+		(at ?truck ?loc)
+		(in ?obj ?truck)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(at ?obj ?loc)
+		(not (in ?obj ?truck))
+	)
+:poss-effect
+	(and
+	)
+)
+
+(:action BOARD-TRUCK
+  :parameters
+   (?driver - driver
+    ?truck - truck
+    ?loc - location)
+  
+:precondition
+	(and
+		(empty ?truck)
+		(at ?driver ?loc)
+	)
+:poss-precondition
+	(and
+		(at ?truck ?loc)
+	)
+:effect
+	(and
+		(driving ?driver ?truck)
+		(not (at ?driver ?loc))
+	)
+:poss-effect
+	(and
+		(not (empty ?truck))
+	)
+)
+
+(:action DISEMBARK-TRUCK
+  :parameters
+   (?driver - driver
+    ?truck - truck
+    ?loc - location)
+  
+:precondition
+	(and
+		(driving ?driver ?truck)
+		(at ?truck ?loc)
+	)
+:poss-precondition
+	(and
+		(driving ?driver ?truck)
+	)
+:effect
+	(and
+		(at ?driver ?loc)
+		(not (driving ?driver ?truck))
+	)
+:poss-effect
+	(and
+		(empty ?truck)
+	)
+)
+
+(:action DRIVE-TRUCK
+  :parameters
+   (?truck - truck
+    ?loc-from - location
+    ?loc-to - location
+    ?driver - driver)
+  
+:precondition
+	(and
+		(driving ?driver ?truck)
+		(at ?truck ?loc-from)
+		(link ?loc-from ?loc-to)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(not (at ?truck ?loc-from))
+	)
+:poss-effect
+	(and
+		(at ?truck ?loc-to)
+	)
+)
+
+(:action WALK
+  :parameters
+   (?driver - driver
+    ?loc-from - location
+    ?loc-to - location)
+  
+:precondition
+	(and
+		(at ?driver ?loc-from)
+		(path ?loc-from ?loc-to)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(at ?driver ?loc-to)
+		(not (at ?driver ?loc-from))
+	)
+:poss-effect
+	(and
+		(not (path ?loc-from ?loc-to))
+	)
+)
+
+)
