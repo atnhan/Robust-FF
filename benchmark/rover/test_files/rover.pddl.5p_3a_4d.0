@@ -1,0 +1,261 @@
+(define (domain Rover)
+(:requirements :typing)
+(:types rover waypoint store camera mode lander objective)
+
+(:predicates (at ?x - rover ?y - waypoint) 
+             (at_lander ?x - lander ?y - waypoint)
+             (can_traverse ?r - rover ?x - waypoint ?y - waypoint)
+	     (equipped_for_soil_analysis ?r - rover)
+             (equipped_for_rock_analysis ?r - rover)
+             (equipped_for_imaging ?r - rover)
+             (empty ?s - store)
+             (have_rock_analysis ?r - rover ?w - waypoint)
+             (have_soil_analysis ?r - rover ?w - waypoint)
+             (full ?s - store)
+	     (calibrated ?c - camera ?r - rover) 
+	     (supports ?c - camera ?m - mode)
+             (available ?r - rover)
+             (visible ?w - waypoint ?p - waypoint)
+             (have_image ?r - rover ?o - objective ?m - mode)
+             (communicated_soil_data ?w - waypoint)
+             (communicated_rock_data ?w - waypoint)
+             (communicated_image_data ?o - objective ?m - mode)
+	     (at_soil_sample ?w - waypoint)
+	     (at_rock_sample ?w - waypoint)
+             (visible_from ?o - objective ?w - waypoint)
+	     (store_of ?s - store ?r - rover)
+	     (calibration_target ?i - camera ?o - objective)
+	     (on_board ?i - camera ?r - rover)
+	     (channel_free ?l - lander)
+
+)
+
+	
+(:action navigate
+:parameters (?x - rover ?y - waypoint ?z - waypoint) 
+:precondition
+	(and
+		(available ?x)
+		(can_traverse ?x ?y ?z)
+		(at ?x ?y)
+		(visible ?y ?z)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(at ?x ?z)
+		(not (at ?x ?y))
+	)
+:poss-effect
+	(and
+		(not (visible ?y ?z))
+	)
+)
+
+(:action sample_soil
+:parameters (?x - rover ?s - store ?p - waypoint)
+:precondition
+	(and
+		(at ?x ?p)
+		(equipped_for_soil_analysis ?x)
+		(at_soil_sample ?p)
+		(store_of ?s ?x)
+	)
+:poss-precondition
+	(and
+		(empty ?s)
+	)
+:effect
+	(and
+		(full ?s)
+		(have_soil_analysis ?x ?p)
+		(not (at_soil_sample ?p))
+	)
+:poss-effect
+	(and
+		(not (empty ?s))
+	)
+)
+
+(:action sample_rock
+:parameters (?x - rover ?s - store ?p - waypoint)
+:precondition
+	(and
+		(at ?x ?p)
+		(equipped_for_rock_analysis ?x)
+		(at_rock_sample ?p)
+		(empty ?s)
+	)
+:poss-precondition
+	(and
+		(store_of ?s ?x)
+	)
+:effect
+	(and
+		(have_rock_analysis ?x ?p)
+		(not (at_rock_sample ?p))
+		(not (empty ?s))
+	)
+:poss-effect
+	(and
+		(full ?s)
+	)
+)
+
+(:action drop
+:parameters (?x - rover ?y - store)
+:precondition
+	(and
+		(full ?y)
+	)
+:poss-precondition
+	(and
+		(store_of ?y ?x)
+	)
+:effect
+	(and
+		(not (full ?y))
+	)
+:poss-effect
+	(and
+		(empty ?y)
+	)
+)
+
+(:action calibrate
+ :parameters (?r - rover ?i - camera ?t - objective ?w - waypoint)
+ 
+:precondition
+	(and
+		(visible_from ?t ?w)
+		(calibration_target ?i ?t)
+		(on_board ?i ?r)
+		(equipped_for_imaging ?r)
+		(at ?r ?w)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(calibrated ?i ?r)
+	)
+:poss-effect
+	(and
+	)
+)
+
+(:action take_image
+ :parameters (?r - rover ?p - waypoint ?o - objective ?i - camera ?m - mode)
+ 
+:precondition
+	(and
+		(supports ?i ?m)
+		(calibrated ?i ?r)
+		(equipped_for_imaging ?r)
+		(at ?r ?p)
+		(on_board ?i ?r)
+		(visible_from ?o ?p)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(have_image ?r ?o ?m)
+		(not (calibrated ?i ?r))
+	)
+:poss-effect
+	(and
+	)
+)
+
+(:action communicate_soil_data
+ :parameters (?r - rover ?l - lander ?p - waypoint ?x - waypoint ?y - waypoint)
+ 
+:precondition
+	(and
+		(at_lander ?l ?y)
+		(channel_free ?l)
+		(at ?r ?x)
+		(have_soil_analysis ?r ?p)
+		(visible ?x ?y)
+		(available ?r)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(communicated_soil_data ?p)
+		(channel_free ?l)
+		(available ?r)
+		(not (available ?r))
+		(not (channel_free ?l))
+	)
+:poss-effect
+	(and
+		(not (have_soil_analysis ?r ?p))
+	)
+)
+
+(:action communicate_rock_data
+ :parameters (?r - rover ?l - lander ?p - waypoint ?x - waypoint ?y - waypoint)
+ 
+:precondition
+	(and
+		(visible ?x ?y)
+		(channel_free ?l)
+		(at_lander ?l ?y)
+		(available ?r)
+		(have_rock_analysis ?r ?p)
+		(at ?r ?x)
+	)
+:poss-precondition
+	(and
+		(channel_free ?l)
+	)
+:effect
+	(and
+		(available ?r)
+		(communicated_rock_data ?p)
+		(channel_free ?l)
+		(not (channel_free ?l))
+	)
+:poss-effect
+	(and
+		(not (available ?r))
+	)
+)
+
+(:action communicate_image_data
+ :parameters (?r - rover ?l - lander ?o - objective ?m - mode ?x - waypoint ?y - waypoint)
+ 
+:precondition
+	(and
+		(channel_free ?l)
+		(visible ?x ?y)
+		(at_lander ?l ?y)
+		(have_image ?r ?o ?m)
+		(available ?r)
+	)
+:poss-precondition
+	(and
+		(at ?r ?x)
+	)
+:effect
+	(and
+		(channel_free ?l)
+		(available ?r)
+		(not (available ?r))
+		(not (channel_free ?l))
+	)
+:poss-effect
+	(and
+		(communicated_image_data ?o ?m)
+	)
+)
+
+)
