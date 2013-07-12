@@ -91,7 +91,10 @@ bool StochasticLocalSearch::sample_next_actions(StripsEncoding* e, double robust
 
 		// Get FF helpful actions
 		get_FF_helpful_actions(current_state, candidate_applicable_actions, &rp);
-		assert(candidate_applicable_actions.size());
+
+		// Note: this set may well be empty!
+		if (candidate_applicable_actions.size() == 0)
+			return false;
 
 	}
 	// Get all applicable actions (including non FF-helpful)
