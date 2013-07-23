@@ -1,0 +1,398 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; FreeCellWorld
+;;; Free cell game playing domain
+;;;
+;;; See Originally written by Nolan Andres and Robert HillHouse (CS
+;;; 486/686 Final Project) 
+;;;
+;;; Typed version adapted by Derek Long
+;;; 
+;;; Adapted from TLPLAN to STRIPS. In particular removed all functions
+;;; and arithmetic. 
+;;;
+;;; Description
+;;; ------------
+;;; Freecell is a solitaire game that comes with Windows.
+;;; If you haven't seen it before:
+;;;  One has 8 columns of cards, 4 freecells and 4 homecells. The
+;;;  cards start in "random" (random according to MS's brain damaged RNG)
+;;;  piles in the 8 columns. We can move a card in the following ways: 
+;;;  1. we can move any card that is on top of a column to an empty free
+;;;     cell. The free cells only take one card each.
+;;;  2. we can move any card from a free cell or from top of a column to
+;;;  a home cell if that home cell contains a card of the same suit
+;;;  and is one lower in value (aces have value 1, Jacks 11, Queens
+;;;  12, Kings 13, and to make things more symmetric we start the
+;;;  homecells off containing "phone" cards with value 0.
+;;;  3. we can move any card from the  top of a column or from a
+;;;  freecell to the top of another column if that column currently holds
+;;;  a card with an opposite colour suit that has one higher
+;;;  value. 
+;;;  4. we can move any card from a free cell or on top of a column to a
+;;;  new column if there are less than 8 columns.
+;;; The aim is to get all of the card home. The problems show quite a
+;;; good variety of difficulty. 
+;;; With macro-moves  (actions that generate worm-holes in the search
+;;; space) and hand-tailored heurisics tlplan is able to solve about
+;;; 90% of the randomly generated games. Unfortunately, the
+;;; macro-moves need action descriptions that include recursive 
+;;; updates...i.e., beyond adl, and the heurisics need functions and
+;;; arithmetic also beyond adl.
+;;;
+;;; However the original version of the domain was done by two
+;;; students in my AI class, and without heuristics and marco moves
+;;; they were able to solve problems containing reduced number of
+;;; cards in each suit. 
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Cards are represented by the symbols 
+;;;		ca, c2, ..., cj, cq, ck. - clubs
+;;;		da, d2, ..., dj, dq, dk. - diamonds
+;;;		ha, h2, ..., hj, hq, gk. - hearts
+;;;		sa, s2, ..., sj, sq, sk. - spaces
+;;;		(c0, d0, h0, s0 indicate an empty card of a certain suit).
+;;; 
+;;; Where:
+;;;		c = clubs, d = diamonds, h = hearts, s = spades.
+;;;		a = ace, j = jack, q = queen, k = king.
+;;;
+;;; Static Predicates (In Tlplan these were functions)
+;;; 
+;;; (value card val)   --- the face value of the card. (1, ..., 13)
+;;; (suit card st)     --- the suit of the card. (c, d, h, s)
+;;;   e.g., (value ca 1) (suit ca c)
+;;; (successor n' n)   --- n' = n+1, for n=0,...,12, n'=1,...,13
+;;;                        a cheap and dirty way to avoid using
+;;;                        numbers. 
+;;;                        Note 0 does not have a predecessor. This
+;;;                        serves act as > 0 precondition
+;;;
+;;;
+;;; Dynamic Predicates:
+;;;
+;;; (on card1 card2)	-- card1 is on card2
+;;; (incell card)	--- card is in a freecell.
+;;; (clear card)	--- card is clear (i.e., on top of a column).
+;;; (cellspace n)	--- there are n free freecells.
+;;;                                n = 0, 1, 2, 3, or 4
+;;; (colspace n)	--- there are n free columns. n=0,..,8
+;;; (home card)		--- card is a top card in a home stack.
+;;;			    we use the special (home c0),
+;;;			    (home d0), (home h0), (home s0).
+;;;			    to indicate that home is empty for a
+;;;			    particular suit.
+;;; (bottomcol card)	--  card is at the bottom of a stack.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (domain freecell)
+  (:requirements :strips :typing)
+  (:types card suitsort denomination) 
+  (:predicates (on ?c1 ?c2 - card)
+	       (incell ?c - card)
+	       (clear ?c - card)
+	       (cellspace ?n - denomination)
+	       (colspace ?n - denomination)
+	       (home ?c - card)
+	       (bottomcol ?c - card)
+	       (canstack ?c1 ?c2 - card)
+	       (suit ?c - card ?s - suitsort)
+	       (value ?c - card ?v - denomination)
+	       (successor ?n1 ?n0 - denomination)
+ )
+
+;;; Move card between columns. Two versions dependent on whether or
+;;; not we generate a new stack.
+
+  (:action move
+	   :parameters (?card ?oldcard ?newcard - card)
+	   
+:precondition
+	(and
+		(on ?card ?oldcard)
+		(canstack ?card ?newcard)
+		(clear ?card)
+		(clear ?newcard)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(on ?card ?newcard)
+		(clear ?oldcard)
+		(not (on ?card ?oldcard))
+		(not (clear ?newcard))
+	)
+:poss-effect
+	(and
+	)
+)
+
+(:action move-b
+	   :parameters (?card ?newcard - card ?cols ?ncols - denomination)
+	   
+:precondition
+	(and
+		(clear ?newcard)
+		(clear ?card)
+		(colspace ?cols)
+		(bottomcol ?card)
+		(successor ?ncols ?cols)
+		(canstack ?card ?newcard)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(on ?card ?newcard)
+		(colspace ?ncols)
+		(not (bottomcol ?card))
+		(not (colspace ?cols))
+		(not (clear ?newcard))
+	)
+:poss-effect
+	(and
+	)
+)
+
+(:action sendtofree 
+	   :parameters (?card ?oldcard - card ?cells ?ncells - denomination)
+	   
+:precondition
+	(and
+		(successor ?cells ?ncells)
+		(cellspace ?cells)
+		(on ?card ?oldcard)
+		(clear ?card)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(incell ?card)
+		(clear ?oldcard)
+		(cellspace ?ncells)
+		(not (clear ?card))
+		(not (cellspace ?cells))
+		(not (on ?card ?oldcard))
+	)
+:poss-effect
+	(and
+	)
+)
+
+(:action sendtofree-b 
+	   :parameters (?card - card ?cells ?ncells ?cols ?ncols - denomination)
+	   
+:precondition
+	(and
+		(successor ?cells ?ncells)
+		(bottomcol ?card)
+		(clear ?card)
+		(colspace ?cols)
+		(successor ?ncols ?cols)
+	)
+:poss-precondition
+	(and
+		(cellspace ?cells)
+	)
+:effect
+	(and
+		(cellspace ?ncells)
+		(colspace ?ncols)
+		(incell ?card)
+		(not (cellspace ?cells))
+		(not (colspace ?cols))
+		(not (bottomcol ?card))
+		(not (clear ?card))
+	)
+:poss-effect
+	(and
+	)
+)
+
+(:action sendtonewcol
+	 :parameters (?card ?oldcard - card ?cols ?ncols - denomination)
+	 
+:precondition
+	(and
+		(colspace ?cols)
+		(on ?card ?oldcard)
+		(clear ?card)
+		(successor ?cols ?ncols)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(bottomcol ?card)
+		(clear ?oldcard)
+		(not (colspace ?cols))
+		(not (on ?card ?oldcard))
+	)
+:poss-effect
+	(and
+		(colspace ?ncols)
+		(not (clear ?card))
+	)
+)
+
+(:action sendtohome
+	 :parameters (?card ?oldcard - card ?suit - suitsort ?vcard - denomination ?homecard - card ?vhomecard - denomination)
+	 
+:precondition
+	(and
+		(suit ?card ?suit)
+		(value ?homecard ?vhomecard)
+		(home ?homecard)
+		(clear ?card)
+		(value ?card ?vcard)
+		(successor ?vcard ?vhomecard)
+		(on ?card ?oldcard)
+	)
+:poss-precondition
+	(and
+		(suit ?homecard ?suit)
+	)
+:effect
+	(and
+		(home ?card)
+		(clear ?oldcard)
+		(not (clear ?card))
+		(not (home ?homecard))
+	)
+:poss-effect
+	(and
+		(not (on ?card ?oldcard))
+	)
+)
+
+(:action sendtohome-b
+	 :parameters (?card - card ?suit - suitsort ?vcard - denomination ?homecard - card
+			    ?vhomecard ?cols ?ncols - denomination)
+	 
+:precondition
+	(and
+		(suit ?homecard ?suit)
+		(suit ?card ?suit)
+		(successor ?vcard ?vhomecard)
+		(successor ?ncols ?cols)
+		(clear ?card)
+		(value ?homecard ?vhomecard)
+		(bottomcol ?card)
+		(colspace ?cols)
+		(home ?homecard)
+		(value ?card ?vcard)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(colspace ?ncols)
+		(home ?card)
+		(not (home ?homecard))
+		(not (colspace ?cols))
+		(not (clear ?card))
+	)
+:poss-effect
+	(and
+		(not (bottomcol ?card))
+	)
+)
+
+(:action homefromfreecell
+	 :parameters (?card - card ?suit - suitsort ?vcard - denomination
+			    ?homecard - card ?vhomecard - denomination ?cells ?ncells - denomination)
+    ;;Send a card home from a free cell.
+	 
+:precondition
+	(and
+		(value ?card ?vcard)
+		(suit ?card ?suit)
+		(home ?homecard)
+		(cellspace ?cells)
+		(incell ?card)
+		(value ?homecard ?vhomecard)
+		(successor ?ncells ?cells)
+		(suit ?homecard ?suit)
+	)
+:poss-precondition
+	(and
+		(successor ?vcard ?vhomecard)
+	)
+:effect
+	(and
+		(cellspace ?ncells)
+		(home ?card)
+		(not (cellspace ?cells))
+		(not (incell ?card))
+		(not (home ?homecard))
+	)
+:poss-effect
+	(and
+	)
+)
+
+(:action colfromfreecell
+	 :parameters (?card ?newcard - card ?cells ?ncells - denomination)
+	 
+:precondition
+	(and
+		(canstack ?card ?newcard)
+		(incell ?card)
+		(clear ?newcard)
+		(cellspace ?cells)
+	)
+:poss-precondition
+	(and
+		(successor ?ncells ?cells)
+	)
+:effect
+	(and
+		(on ?card ?newcard)
+		(cellspace ?ncells)
+		(not (cellspace ?cells))
+		(not (clear ?newcard))
+		(not (incell ?card))
+	)
+:poss-effect
+	(and
+		(clear ?card)
+	)
+)
+
+(:action newcolfromfreecell
+	 :parameters (?card - card ?cols ?ncols ?cells ?ncells - denomination)
+	 
+:precondition
+	(and
+		(successor ?ncells ?cells)
+		(incell ?card)
+		(successor ?cols ?ncols)
+		(colspace ?cols)
+		(cellspace ?cells)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(bottomcol ?card)
+		(cellspace ?ncells)
+		(clear ?card)
+		(colspace ?ncols)
+		(not (cellspace ?cells))
+		(not (colspace ?cols))
+		(not (incell ?card))
+	)
+:poss-effect
+	(and
+	)
+)
+
+)

@@ -1,0 +1,51 @@
+#!/bin/sh
+
+CLASSPATH=.
+export CLASSPATH
+LD_LIBRARY_PATH=.
+export LD_LIBRARY_PATH
+
+# default command line options
+stoptime=900
+ulimit -t $stoptime
+
+echo "***************************************************************************************"
+echo "Running PISA on FREECELL."
+
+for num_poss_pre in 0 1 2 3 4 5
+do
+    for num_poss_add in 0 1 2 3 4 5
+    do
+	for num_poss_del in 0 1 2 3 4 5
+	do
+	    for dom_count in 0
+	    do
+		for prob_count in 1 2 3 4 5 6 7 8 9 10
+		do
+		    n=$((num_poss_pre + num_poss_add + num_poss_del))
+		    if [ "$n" -gt 0 ]
+		    then
+			echo "=============================================="
+			echo "DOMAIN: " freecell.pddl.${num_poss_pre}p_${num_poss_add}a_${num_poss_del}d.${dom_count}
+			echo "PROBLEM: " pfile$prob_count
+			../pisa -p ./test_files/ -o freecell.pddl.${num_poss_pre}p_${num_poss_add}a_${num_poss_del}d.${dom_count} -f pfile$prob_count -l ../LOG-upper_bound_in_rp.txt -upper_bound_in_rp -w ../COMPLETE-RUN-RESULT-upper_bound_in_rp.txt -u ../DETAILED-RESULT-upper_bound_in_rp.txt
+		    fi
+		done
+	    done
+	done
+    done
+done
+
+echo "***************************************************************************************"
+echo "MOVING PLANS"
+
+mkdir RESULT-upper_BOUND_IN_RP-PROB1TO10
+mv LOG-upper_bound_in_rp.txt COMPLETE-RUN-RESULT-upper_bound_in_rp.txt DETAILED-RESULT-upper_bound_in_rp.txt RESULT-upper_BOUND_IN_RP-PROB1TO10
+
+mkdir RESULT-upper_BOUND_IN_RP-PROB1TO10/PLANS
+mv ./test_files/*.SOL RESULT-upper_BOUND_IN_RP-PROB1TO10/PLANS
+
+
+
+
+

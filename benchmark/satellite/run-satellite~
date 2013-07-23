@@ -1,0 +1,33 @@
+#!/bin/sh
+
+CLASSPATH=.
+export CLASSPATH
+LD_LIBRARY_PATH=.
+export LD_LIBRARY_PATH
+
+# default command line options
+stoptime=600
+ulimit -t $stoptime
+
+echo "***************************************************************************************"
+echo "Running PISA on SATELLITE."
+
+for num_poss_pre in 1
+do
+    for num_poss_add in 1
+    do
+	for num_poss_del in 0
+	do
+	    for dom_count in 0
+	    do
+		#for prob_count in {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20}
+		for prob_count in 1
+		do
+		    ../pisa -p ./ -o domains/satellite.pddl.${num_poss_pre}p_${num_poss_add}a_${num_poss_del}d.${dom_count} -f problems/pfile$prob_count -lower_bound_in_rp -w result.txt
+		done
+	    done
+	done
+    done
+done
+
+
