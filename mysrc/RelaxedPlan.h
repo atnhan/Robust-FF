@@ -301,6 +301,31 @@ public:
 	 * DESIGN CHOICES IN THE RELAXED PLAN EXTRACTION
 	 *********************************************************************************************/
 
+	// Each way to extract relaxed plans can be characterized by the following features:
+	// + F1 (true/false): whether fact and action nodes are associated with clause sets
+	// (and will be used in some ways)
+	// + F2 ("first-layer-selection"/"most-robust-selection"):
+	// >> "first-layer-selection": supporting actions for a subgoal are selected at the first layer
+	// at which the subgoal appears in the RPG, breaking ties using the number of conditions (similar to FF heuristic)
+	// >> "most-robust-selection": supporting actions for a subgoal are the most robust ones (using clause sets
+	// associated with actions)
+	// + F3 (true/false): whether robustness of the plan prefix + partial relaxed plan is assessed during the extraction
+	// (in order to stop as soon as it exceeds the current robustness threshold)
+	//
+	// Valid combinations of features:
+	// + F1 = false, F2 = "first-layer-selection", F3 = false (PURE_FF_RP)
+	// + F1 = true, F2 = "first-layer-selection", F3 = true
+	// + F1 = true, F2 = "most-robust-selection", F3 = true (SHORT_ROBUST_RP)
+	// + F1 = true, F2 = "most-robust-selection", F3 = false (MOST_ROBUST_RP)
+
+	enum RELAXED_PLAN_TYPES {
+
+		PURE_FF_RP,
+		SHORT_ROBUST_RP,
+		MOST_ROBUST_RP
+
+	};
+
 	// If possible delete effects should be considered in evaluating robustness during
 	// RPG construction and RP extraction
 	static bool ignore_poss_del_in_rp;
@@ -332,6 +357,14 @@ public:
 	// Return true if a relaxed plan is found. The "result" pair contains its length and
 	// the approximate robustness of the plan prefix + the relaxed plan
 	bool extract(std::pair<int, double>& result);
+
+	bool extract_most_robust_rp(std::pair<int, double>& result);
+
+	// Extract the FF-like relaxed plan
+	bool extract_pure_ff_heuristic(std::pair<int, double>& result);
+
+	// A version of "extract" with multiple options for heuristics
+	bool extract(std::pair<int, double>& result, RELAXED_PLAN_TYPES o);
 
 	// Get FF-style helpful actions
 	void get_FF_helpful_actions(std::vector<int>& helpful_actions) const;
