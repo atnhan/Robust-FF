@@ -106,6 +106,13 @@ class RelaxedPlan {
 	// Estimate probability of goals in the RPG
 	double goals_prob_in_rpg();
 
+	//--- FOR FF-RELAXED PLAN ---
+	void initialize_ff_fact_layer();
+	bool grow_ff_action_layer();
+	bool grow_ff_fact_layer();
+	bool build_ff_relaxed_planning_graph();
+	bool same_ff_fact_layers(FactLayer& factlayer_1, FactLayer& factlayer_2);
+
 	/**************************************************************************************************
 	 * RELAXED PLAN
 	 **************************************************************************************************/
@@ -267,6 +274,20 @@ class RelaxedPlan {
 	double robustness_threshold;
 
 	/*
+	 * DIFFERENT WAYS TO EXTRACT RELAXED PLANS
+	 */
+	// Extract the relaxed plan with incremental robustness value, and stop as soon as its robustness exceeds the threshold
+	// Return true if a relaxed plan is found. The "result" pair contains its length and
+	// the approximate robustness of the plan prefix + the relaxed plan
+	bool extract_incremental_robustness_rp(std::pair<int, double>& result);
+
+	// Extract the relaxed plan consisting of all most robust supporting actions
+	bool extract_rp_with_all_most_robust_supporting_actions(std::pair<int, double>& result);
+
+	// Extract the FF-like relaxed plan
+	bool extract_pure_ff_heuristic(std::pair<int, double>& result);
+
+	/*
 	 * FOR DEBUGGING PURPOSES
 	 */
 	// Check if there exists any unsupported known preconditions in the relaxed plan
@@ -309,22 +330,23 @@ public:
 	// at which the subgoal appears in the RPG, breaking ties using the number of conditions (similar to FF heuristic)
 	// >> "most-robust-selection": supporting actions for a subgoal are the most robust ones (using clause sets
 	// associated with actions)
-	// + F3 (true/false): whether robustness of the plan prefix + partial relaxed plan is assessed during the extraction
-	// (in order to stop as soon as it exceeds the current robustness threshold)
+	// + F3 (true/false): whether the robustness of the plan prefix + the current partial relaxed plan plays a role in choosing
+	// the next actions
 	//
 	// Valid combinations of features:
-	// + F1 = false, F2 = "first-layer-selection", F3 = false (PURE_FF_RP)
-	// + F1 = true, F2 = "first-layer-selection", F3 = true
-	// + F1 = true, F2 = "most-robust-selection", F3 = true (SHORT_ROBUST_RP)
-	// + F1 = true, F2 = "most-robust-selection", F3 = false (MOST_ROBUST_RP)
+	// + F1 = false, F2 = "first-layer-selection", F3 = false (PURE_FF_RP). This approach only cares about extracting a short relaxed plan.
+	// + F1 = true, F2 = "most-robust-selection", F3 = false (ALL_MOST_ROBUST_SUPPORTING_ACTIONS_RP).
+	// + F1 = true, F2 = "most-robust-selection", F3 = true (INCREMENTAL_ROBUSTNESS_RP). This approach tries to extract the shortest relaxed
+	// plan with a just enough robustness value
 
 	enum RELAXED_PLAN_TYPES {
 
 		PURE_FF_RP,
-		SHORT_ROBUST_RP,
-		MOST_ROBUST_RP
+		INCREMENTAL_ROBUSTNESS_RP,
+		ALL_MOST_ROBUST_SUPPORTING_ACTIONS_RP
 
 	};
+	static RELAXED_PLAN_TYPES rp_types;
 
 	// If possible delete effects should be considered in evaluating robustness during
 	// RPG construction and RP extraction
@@ -353,18 +375,8 @@ public:
 	RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals, double robustness_threshold = 0);
 	virtual ~RelaxedPlan();
 
-	// Extract the relaxed plan
-	// Return true if a relaxed plan is found. The "result" pair contains its length and
-	// the approximate robustness of the plan prefix + the relaxed plan
+	// The general extraction of relaxed plan
 	bool extract(std::pair<int, double>& result);
-
-	bool extract_most_robust_rp(std::pair<int, double>& result);
-
-	// Extract the FF-like relaxed plan
-	bool extract_pure_ff_heuristic(std::pair<int, double>& result);
-
-	// A version of "extract" with multiple options for heuristics
-	bool extract(std::pair<int, double>& result, RELAXED_PLAN_TYPES o);
 
 	// Get FF-style helpful actions
 	void get_FF_helpful_actions(std::vector<int>& helpful_actions) const;

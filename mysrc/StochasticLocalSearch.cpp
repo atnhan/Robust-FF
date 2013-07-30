@@ -758,6 +758,19 @@ void StochasticLocalSearch::update_experiment_analysis_file(const Plan& p) {
 		f<<"#Max heuristic bias:\t"<<max_heuristic_bias<<endl;
 		f<<"#"<<endl;
 		f<<"#RELAXED PLAN PARAMETERS:"<<endl;
+		f<<"#Relaxed plan type: ";
+		switch (RelaxedPlan::rp_types) {
+		case RelaxedPlan::PURE_FF_RP:
+			f<<"PURE_FF_RP";
+			break;
+		case RelaxedPlan::INCREMENTAL_ROBUSTNESS_RP:
+			f<<"INCREMENTAL_ROBUSTNESS_RP";
+			break;
+		case RelaxedPlan::ALL_MOST_ROBUST_SUPPORTING_ACTIONS_RP:
+			f<<"ALL_MOST_ROBUST_SUPPORTING_ACTIONS_RP";
+			break;
+		}
+		f<<endl;
 		f<<"#ignore_poss_del_in_rp:\t"<<RelaxedPlan::ignore_poss_del_in_rp<<endl;
 		f<<"#use_lower_bound_in_rp:\t"<<RelaxedPlan::use_lower_bound_in_rp<<endl;
 		f<<"#use_upper_bound_in_rp:\t"<<RelaxedPlan::use_upper_bound_in_rp<<endl;
@@ -809,7 +822,7 @@ void StochasticLocalSearch::update_experiment_analysis_file(const Plan& p) {
 	// Time to construct clause sets
 	f<<timer.clause_set_construction_time<<tab;
 
-	// Time to estimate and exactly compute robustness
+	// Time to compute robustness (WMC time)
 	f<<timer.robustness_computation_time<<tab;
 
 	f<<endl;

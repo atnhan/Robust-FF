@@ -1161,6 +1161,19 @@ Bool process_command_line( int argc, char *argv[] )
 				continue;
 			}
 
+			// rp_types
+			// Default: INCREMENTAL_ROBUSTNESS_RP
+			if (strcmp(str_option,"-pure_ff_rp") == 0) {
+
+				RelaxedPlan::rp_types = RelaxedPlan::PURE_FF_RP;
+				continue;
+			}
+
+			if (strcmp(str_option,"-all_most_robust_supporting_actions") == 0) {
+
+				RelaxedPlan::rp_types = RelaxedPlan::ALL_MOST_ROBUST_SUPPORTING_ACTIONS_RP;
+				continue;
+			}
 
 			if (--argc && ++argv) {
 				if (strcmp(str_option,"-s") == 0) {

@@ -35,7 +35,7 @@ class StochasticLocalSearch: public Search {
 		// Relaxed plan extraction time
 		double rp_time;
 
-		// Robustness computation time (exact or approximate)
+		// Exact robustness computation time
 		double robustness_computation_time;
 
 		// Constructor
