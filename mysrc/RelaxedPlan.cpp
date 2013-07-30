@@ -1312,11 +1312,12 @@ bool RelaxedPlan::extract_pure_ff_heuristic(pair<int, double>& result) {
 
 		assert(last_fact_layer.find(g) != last_fact_layer.end());
 
-		// Ignore goals that are certainly known in the current state
-		if (RelaxedPlan::ignore_poss_del_in_rp && is_known_in_state(g, current)) {
+		// Ignore goals that are possibly or certainly known in the current state
+		// Note: for non-FF like heuristic, we check "certainly known" only
+		if (RelaxedPlan::ignore_poss_del_in_rp && is_in_state(g, current)) {
 
 #ifdef DEBUG_EXTRACT
-			cout<<"Subgoal ignored (known in current state): "<<g<<endl<<endl;
+			cout<<"Subgoal ignored (in current state): "<<g<<endl<<endl;
 #endif
 			continue;
 		}
@@ -1409,6 +1410,24 @@ bool RelaxedPlan::extract_pure_ff_heuristic(pair<int, double>& result) {
 
 			// Continue with the next subgoal
 			continue;
+		}
+
+		// If this subgoal presents in the corresponding rp-state, it is considered "supported"
+		// as in classical planning
+		RELAXED_PLAN::iterator rp_itr_before = rp.begin();
+		for (; rp_itr_before != rp.end(); rp_itr_before++)
+			if ((*rp_itr_before)->a == subgoal.op)
+				break;
+		assert(rp_itr_before != rp.end());
+		if (rp_itr_before == rp.begin()) {
+			if (is_in_state(subgoal.g, current))
+				continue;
+		}
+		else {
+			rp_itr_before--;
+			const RP_STATE& prev_rp_state = (*rp_itr_before)->s;
+			if (in_rp_state(subgoal.g, prev_rp_state))
+				continue;
 		}
 
 		// Find the best action supporting this subgoal.

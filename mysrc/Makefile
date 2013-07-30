@@ -11,7 +11,7 @@
 #CC	= g++ -g3
 
 # For release
-CC	= g++ -O6
+CC	= g++ -O6 -DNDEBUG
 
 ####### COMPILE
 
