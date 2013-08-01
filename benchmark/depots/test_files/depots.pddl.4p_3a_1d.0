@@ -1,0 +1,133 @@
+(define (domain Depot)
+(:requirements :typing)
+(:types place locatable - object
+	depot distributor - place
+        truck hoist surface - locatable
+        pallet crate - surface)
+
+(:predicates (at ?x - locatable ?y - place) 
+             (on ?x - crate ?y - surface)
+             (in ?x - crate ?y - truck)
+             (lifting ?x - hoist ?y - crate)
+             (available ?x - hoist)
+             (clear ?x - surface))
+	
+(:action Drive
+:parameters (?x - truck ?y - place ?z - place) 
+:precondition
+	(and
+		(at ?x ?y)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(at ?x ?z)
+		(not (at ?x ?y))
+	)
+:poss-effect
+	(and
+	)
+)
+
+(:action Lift
+:parameters (?x - hoist ?y - crate ?z - surface ?p - place)
+:precondition
+	(and
+		(available ?x)
+		(on ?y ?z)
+		(at ?y ?p)
+	)
+:poss-precondition
+	(and
+		(clear ?y)
+		(at ?x ?p)
+	)
+:effect
+	(and
+		(lifting ?x ?y)
+		(not (clear ?y))
+		(not (available ?x))
+		(not (at ?y ?p))
+		(not (on ?y ?z))
+	)
+:poss-effect
+	(and
+		(clear ?z)
+	)
+)
+
+(:action Drop 
+:parameters (?x - hoist ?y - crate ?z - surface ?p - place)
+:precondition
+	(and
+		(lifting ?x ?y)
+		(at ?x ?p)
+		(clear ?z)
+	)
+:poss-precondition
+	(and
+		(at ?z ?p)
+		(clear ?z)
+	)
+:effect
+	(and
+		(at ?y ?p)
+		(on ?y ?z)
+		(available ?x)
+		(not (lifting ?x ?y))
+	)
+:poss-effect
+	(and
+		(clear ?y)
+		(not (clear ?z))
+	)
+)
+
+(:action Load
+:parameters (?x - hoist ?y - crate ?z - truck ?p - place)
+:precondition
+	(and
+		(at ?x ?p)
+		(at ?z ?p)
+		(lifting ?x ?y)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(available ?x)
+		(not (lifting ?x ?y))
+	)
+:poss-effect
+	(and
+		(in ?y ?z)
+	)
+)
+
+(:action Unload 
+:parameters (?x - hoist ?y - crate ?z - truck ?p - place)
+:precondition
+	(and
+		(in ?y ?z)
+		(at ?z ?p)
+		(available ?x)
+		(at ?x ?p)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(lifting ?x ?y)
+		(not (in ?y ?z))
+		(not (available ?x))
+	)
+:poss-effect
+	(and
+	)
+)
+
+)

@@ -1,0 +1,136 @@
+(define (domain Depot)
+(:requirements :typing)
+(:types place locatable - object
+	depot distributor - place
+        truck hoist surface - locatable
+        pallet crate - surface)
+
+(:predicates (at ?x - locatable ?y - place) 
+             (on ?x - crate ?y - surface)
+             (in ?x - crate ?y - truck)
+             (lifting ?x - hoist ?y - crate)
+             (available ?x - hoist)
+             (clear ?x - surface))
+	
+(:action Drive
+:parameters (?x - truck ?y - place ?z - place) 
+:precondition
+	(and
+		(at ?x ?y)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(at ?x ?z)
+	)
+:poss-effect
+	(and
+		(not (at ?x ?y))
+	)
+)
+
+(:action Lift
+:parameters (?x - hoist ?y - crate ?z - surface ?p - place)
+:precondition
+	(and
+		(on ?y ?z)
+		(clear ?y)
+		(at ?y ?p)
+		(at ?x ?p)
+	)
+:poss-precondition
+	(and
+		(available ?x)
+	)
+:effect
+	(and
+		(clear ?z)
+		(lifting ?x ?y)
+		(not (available ?x))
+		(not (on ?y ?z))
+		(not (at ?y ?p))
+	)
+:poss-effect
+	(and
+		(not (clear ?y))
+		(not (at ?x ?p))
+	)
+)
+
+(:action Drop 
+:parameters (?x - hoist ?y - crate ?z - surface ?p - place)
+:precondition
+	(and
+		(clear ?z)
+		(at ?x ?p)
+		(lifting ?x ?y)
+	)
+:poss-precondition
+	(and
+		(at ?z ?p)
+	)
+:effect
+	(and
+		(at ?y ?p)
+		(not (clear ?z))
+		(not (lifting ?x ?y))
+	)
+:poss-effect
+	(and
+		(clear ?y)
+		(available ?x)
+		(on ?y ?z)
+		(not (at ?z ?p))
+	)
+)
+
+(:action Load
+:parameters (?x - hoist ?y - crate ?z - truck ?p - place)
+:precondition
+	(and
+		(at ?z ?p)
+		(at ?x ?p)
+		(lifting ?x ?y)
+	)
+:poss-precondition
+	(and
+		(lifting ?x ?y)
+	)
+:effect
+	(and
+		(available ?x)
+		(in ?y ?z)
+		(not (lifting ?x ?y))
+	)
+:poss-effect
+	(and
+	)
+)
+
+(:action Unload 
+:parameters (?x - hoist ?y - crate ?z - truck ?p - place)
+:precondition
+	(and
+		(available ?x)
+		(at ?z ?p)
+		(at ?x ?p)
+		(in ?y ?z)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(not (available ?x))
+		(not (in ?y ?z))
+	)
+:poss-effect
+	(and
+		(lifting ?x ?y)
+		(not (at ?x ?p))
+	)
+)
+
+)

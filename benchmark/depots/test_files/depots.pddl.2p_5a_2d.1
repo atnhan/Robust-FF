@@ -1,0 +1,135 @@
+(define (domain Depot)
+(:requirements :typing)
+(:types place locatable - object
+	depot distributor - place
+        truck hoist surface - locatable
+        pallet crate - surface)
+
+(:predicates (at ?x - locatable ?y - place) 
+             (on ?x - crate ?y - surface)
+             (in ?x - crate ?y - truck)
+             (lifting ?x - hoist ?y - crate)
+             (available ?x - hoist)
+             (clear ?x - surface))
+	
+(:action Drive
+:parameters (?x - truck ?y - place ?z - place) 
+:precondition
+	(and
+		(at ?x ?y)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(not (at ?x ?y))
+	)
+:poss-effect
+	(and
+		(at ?x ?z)
+	)
+)
+
+(:action Lift
+:parameters (?x - hoist ?y - crate ?z - surface ?p - place)
+:precondition
+	(and
+		(available ?x)
+		(clear ?y)
+		(at ?x ?p)
+		(on ?y ?z)
+	)
+:poss-precondition
+	(and
+		(at ?y ?p)
+	)
+:effect
+	(and
+		(not (on ?y ?z))
+		(not (clear ?y))
+		(not (available ?x))
+		(not (at ?y ?p))
+	)
+:poss-effect
+	(and
+		(clear ?z)
+		(lifting ?x ?y)
+	)
+)
+
+(:action Drop 
+:parameters (?x - hoist ?y - crate ?z - surface ?p - place)
+:precondition
+	(and
+		(lifting ?x ?y)
+		(at ?z ?p)
+		(at ?x ?p)
+		(clear ?z)
+	)
+:poss-precondition
+	(and
+		(lifting ?x ?y)
+	)
+:effect
+	(and
+		(at ?y ?p)
+		(available ?x)
+		(clear ?y)
+		(not (lifting ?x ?y))
+		(not (clear ?z))
+	)
+:poss-effect
+	(and
+		(on ?y ?z)
+		(not (at ?x ?p))
+	)
+)
+
+(:action Load
+:parameters (?x - hoist ?y - crate ?z - truck ?p - place)
+:precondition
+	(and
+		(lifting ?x ?y)
+		(at ?z ?p)
+		(at ?x ?p)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(in ?y ?z)
+		(not (lifting ?x ?y))
+	)
+:poss-effect
+	(and
+		(available ?x)
+	)
+)
+
+(:action Unload 
+:parameters (?x - hoist ?y - crate ?z - truck ?p - place)
+:precondition
+	(and
+		(available ?x)
+		(at ?z ?p)
+		(at ?x ?p)
+		(in ?y ?z)
+	)
+:poss-precondition
+	(and
+	)
+:effect
+	(and
+		(lifting ?x ?y)
+		(not (in ?y ?z))
+		(not (available ?x))
+	)
+:poss-effect
+	(and
+		(not (at ?z ?p))
+	)
+)
+
+)
