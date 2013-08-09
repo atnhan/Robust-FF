@@ -30,6 +30,9 @@ bool RelaxedPlan::candidate_actions_affect_current_actions = true;	// and that o
 
 RelaxedPlan::RELAXED_PLAN_TYPES RelaxedPlan::rp_types = INCREMENTAL_ROBUSTNESS_RP;
 
+int RelaxedPlan::num_rp_calls = 0;
+int RelaxedPlan::num_successful_rp_calls = 0;
+
 RelaxedPlan::RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals, double robustness_threshold) {
 	assert(e && goals);
 
@@ -1658,6 +1661,9 @@ bool RelaxedPlan::extract(std::pair<int, double>& result) {
 		ret = extract_rp_with_all_most_robust_supporting_actions(result);
 		break;
 	}
+	RelaxedPlan::num_rp_calls++;
+	if (ret)
+		RelaxedPlan::num_successful_rp_calls++;
 	return ret;
 }
 

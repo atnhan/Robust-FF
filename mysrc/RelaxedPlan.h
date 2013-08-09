@@ -371,6 +371,10 @@ public:
 	// If we are searching for a plan with more than a robustness threshold
 	static bool use_robustness_threshold;
 
+	// Count number of relaxed plan calls, and number of times successful relaxed plans has been found
+	static int num_rp_calls;
+	static int num_successful_rp_calls;
+
 	// Constructors
 	RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals, double robustness_threshold = 0);
 	virtual ~RelaxedPlan();

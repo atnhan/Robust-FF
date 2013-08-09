@@ -735,6 +735,7 @@ void StochasticLocalSearch::update_experiment_analysis_file_for_complete_run() {
 
 void StochasticLocalSearch::update_experiment_analysis_file(const Plan& p) {
 #define tab		"\t"
+#define sep		","
 
 	string stat_file = string(gcmd_line.path) + string(gcmd_line.experiment_analysis_file);
 
@@ -779,51 +780,55 @@ void StochasticLocalSearch::update_experiment_analysis_file(const Plan& p) {
 		f<<"#current_actions_affect_candidate_action:\t"<<RelaxedPlan::current_actions_affect_candidate_action<<endl;
 		f<<"#candidate_actions_affect_current_actions:\t"<<RelaxedPlan::candidate_actions_affect_current_actions<<endl;
 		f<<"#"<<endl;
-		f<<"#Domain"<<tab
-		 <<"Problem"<<tab
-		 <<"Incompleteness_amount"<<tab
-		 <<"Plan_ID"<<tab
-		 <<"Best-plan-length"<<tab
-		 <<"Best-plan-robustness"<<tab
-		 <<"Total-time"<<tab
-		 <<"Search-time"<<tab
-		 <<"RP-time"<<tab
-		 <<"clause-time"<<tab
-		 <<"WMC-time"<<endl;
+		f<<"domain"<<sep
+		 <<"problem"<<sep
+		 <<"inc_amount"<<sep
+		 <<"plan_id"<<sep
+		 <<"plan_length"<<sep
+		 <<"plan_robustness"<<sep
+		 <<"total_time"<<sep
+		 <<"search_time"<<sep
+		 <<"rp_time"<<sep
+		 <<"clause_time"<<sep
+		 <<"wmc_time"<<sep
+		 <<"rp_success_rate"<<endl;
 	}
 
 	// Domain
-	f<<gcmd_line.ops_file_name<<tab;
+	f<<gcmd_line.ops_file_name<<sep;
 
 	// Problem
-	f<<gcmd_line.fct_file_name<<tab;
+	f<<gcmd_line.fct_file_name<<sep;
 
 	// The total number of possible preconditions and effects
-	f<<gnum_possible_annotations<<tab;
+	f<<gnum_possible_annotations<<sep;
 
 	// The plan ID
-	f<<p.id<<tab;
+	f<<p.id<<sep;
 
 	// The plan's length
-	f<<p.actions.size()<<tab;
+	f<<p.actions.size()<<sep;
 
 	// The plan's robustness
-	f<<p.robustness<<tab;
+	f<<p.robustness<<sep;
 
 	// Total time
-	f<<timer.total()<<tab;
+	f<<timer.total()<<sep;
 
 	// Search time
-	f<<timer.search_time<<tab;
+	f<<timer.search_time<<sep;
 
 	// Time to extract relaxed plans
-	f<<timer.rp_time<<tab;
+	f<<timer.rp_time<<sep;
 
 	// Time to construct clause sets
-	f<<timer.clause_set_construction_time<<tab;
+	f<<timer.clause_set_construction_time<<sep;
 
 	// Time to compute robustness (WMC time)
-	f<<timer.robustness_computation_time<<tab;
+	f<<timer.robustness_computation_time<<sep;
+
+	// Successful rate of relaxed plans
+	f<<double(RelaxedPlan::num_successful_rp_calls) / RelaxedPlan::num_rp_calls;
 
 	f<<endl;
 
