@@ -129,6 +129,10 @@ void ClauseSet::wmc(CACHET_OUTPUT& r) const {
 
 	// Read the answer file to get the resulting information
 	read_wmc_answer_file(result_file, r);
+
+	// Remove the files
+	remove(cnf_file.c_str());
+	remove(result_file.c_str());
 }
 
 double ClauseSet::lower_wmc() const {
@@ -233,7 +237,7 @@ void ClauseSet::write_cnf_file(const char* filename) const {
 	FILE *CNF;
 	if ( (CNF = fopen(filename,"w")) == NULL )
 	{
-		printf("Can not open CNF file! File %s, line %d.\n",__FILE__,__LINE__);
+		printf("Can not open CNF file %s! File %s, line %d.\n", filename, __FILE__,__LINE__);
 		exit(1);
 	}
 

@@ -703,7 +703,7 @@ int main( int argc, char *argv[] )
 	/******************************************************************************************************************
 	 * TUAN: Begin search for robust plans
 	 ******************************************************************************************************************/
-
+	gproblem_file = string(gcmd_line.fct_file_name);
 	// Weights of annotations. Uniform just for now!
 	// The weights have not been updated directly from the parser
 	vector<double> weights(gnum_possible_annotations, 0.5);
