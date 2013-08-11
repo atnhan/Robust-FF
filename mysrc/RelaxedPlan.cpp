@@ -32,6 +32,10 @@ RelaxedPlan::RELAXED_PLAN_TYPES RelaxedPlan::rp_types = INCREMENTAL_ROBUSTNESS_R
 
 int RelaxedPlan::num_rp_calls = 0;
 int RelaxedPlan::num_successful_rp_calls = 0;
+int RelaxedPlan::num_better_supporting_action_checks_in_rpg = 0;
+int RelaxedPlan::num_better_supporting_actions_found_in_rpg = 0;
+int RelaxedPlan::num_rp_robustness_increasing_checks = 0;
+int RelaxedPlan::num_rp_robustness_increasing_check_success = 0;
 
 RelaxedPlan::RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals, double robustness_threshold) {
 	assert(e && goals);
@@ -366,7 +370,7 @@ bool RelaxedPlan::extract_incremental_robustness_rp(pair<int, double>& result) {
 		}
 
 		// Check if the empty relaxed plan is enough
-		if (RelaxedPlan::use_robustness_threshold && current_robustness > robustness_threshold) {
+		if (RelaxedPlan::use_robustness_threshold && exact_robustness > robustness_threshold) {
 
 			result.first = 0; // Don't count the goal step
 			if (exact_robustness > robustness_threshold)
@@ -647,6 +651,9 @@ bool RelaxedPlan::extract_incremental_robustness_rp(pair<int, double>& result) {
 			// a possible precondition not having any support in a relaxed plan,
 			// we only insert the candidate action if it increases the robustness
 			else {
+
+				RelaxedPlan::num_rp_robustness_increasing_checks++;
+
 				// Evaluate the candidate action, return the POTENTIAL robustness
 				// In computing this potential robustness, for preconditions not present in the rp_states
 				// we use the clause sets constructed during the RPG construction
@@ -656,6 +663,8 @@ bool RelaxedPlan::extract_incremental_robustness_rp(pair<int, double>& result) {
 				if (new_robustness_for_heuristics > current_robustness_for_heuristics) {
 					new_rp_step = insert_action_into_relaxed_plan(candidate_action, layer_of_candidate_action);
 					current_robustness_for_heuristics = new_robustness_for_heuristics;
+
+					RelaxedPlan::num_rp_robustness_increasing_check_success++;
 
 #ifdef DEBUG_EXTRACT
 					TAB(3);	cout<<"Candidate action "<<candidate_action<<" inserted."<<endl<<endl;
@@ -675,6 +684,9 @@ bool RelaxedPlan::extract_incremental_robustness_rp(pair<int, double>& result) {
 		// Case 2: this subgoal is present in the state before it
 		// Evaluate the action and insert only if it increases the robustness
 		else {
+
+			RelaxedPlan::num_rp_robustness_increasing_checks++;
+
 			// Evaluate the candidate action, return the POTENTIAL robustness
 			// In computing this potential robustness, for preconditions not present in the rp_states
 			// we use the clause sets constructed during the RPG construction
@@ -684,6 +696,8 @@ bool RelaxedPlan::extract_incremental_robustness_rp(pair<int, double>& result) {
 			if (new_robustness_for_heuristics > current_robustness_for_heuristics) {
 				new_rp_step = insert_action_into_relaxed_plan(candidate_action, layer_of_candidate_action);
 				current_robustness_for_heuristics = new_robustness_for_heuristics;
+
+				RelaxedPlan::num_rp_robustness_increasing_check_success++;
 
 #ifdef DEBUG_EXTRACT
 				TAB(3); cout<<"Candidate action "<<candidate_action<<" ignored."<<endl<<endl;
@@ -905,7 +919,7 @@ bool RelaxedPlan::extract_rp_with_all_most_robust_supporting_actions(pair<int, d
 		}
 
 		// Check if the empty relaxed plan is enough
-		if (RelaxedPlan::use_robustness_threshold && current_robustness > robustness_threshold) {
+		if (RelaxedPlan::use_robustness_threshold && exact_robustness > robustness_threshold) {
 
 			result.first = 0; // Don't count the goal step
 			if (exact_robustness > robustness_threshold)
@@ -1089,9 +1103,23 @@ bool RelaxedPlan::extract_rp_with_all_most_robust_supporting_actions(pair<int, d
 		// If the new action is inserted
 		if (new_rp_step) {
 
+			// Whenever we insert a new action into the relaxed plan, we re-compute its robustness
+			// This will quickly return 0 if there exists unsupported known preconditions
+			current_robustness = compute_robustness();
+
 #ifdef DEBUG_EXTRACT
 			TAB(3); cout<<"current_robustness: "<<current_robustness<<endl<<endl;
 #endif
+
+			// RELAXED PLAN FOUND!!!!
+			if (RelaxedPlan::use_robustness_threshold && current_robustness > robustness_threshold) {
+
+#ifdef DEBUG_EXTRACT
+				cout<<"Out Q-loop "<<__LINE__<<endl<<endl;
+#endif
+
+				break;
+			}
 
 			//
 			// Add new subgoals
@@ -1281,7 +1309,7 @@ bool RelaxedPlan::extract_pure_ff_heuristic(pair<int, double>& result) {
 		}
 
 		// Check if the empty relaxed plan is enough
-		if (RelaxedPlan::use_robustness_threshold && current_robustness > robustness_threshold) {
+		if (RelaxedPlan::use_robustness_threshold && exact_robustness > robustness_threshold) {
 
 			result.first = 0; // Don't count the goal step
 			if (exact_robustness > robustness_threshold)
@@ -3929,10 +3957,15 @@ bool RelaxedPlan::grow_fact_layer() {
 			// Among actions certainly adding this fact, find the one with the highest robustness
 			for (int i = 0; i < certainly_supporting_actions.size(); i++) {
 				int op = certainly_supporting_actions[i];
+
+				RelaxedPlan::num_better_supporting_action_checks_in_rpg++;
+
 				if (current_action_layer[op].robustness > best_robustness) {
 					best_robustness = current_action_layer[op].robustness;
 					best_supporting_action = op;
 					best_clauses = current_action_layer[op].clauses;
+
+					RelaxedPlan::num_better_supporting_actions_found_in_rpg++;
 				}
 			}
 
@@ -3961,10 +3994,14 @@ bool RelaxedPlan::grow_fact_layer() {
 					wmc_time += o.time;
 				}
 
+				RelaxedPlan::num_better_supporting_action_checks_in_rpg++;
+
 				if (r > best_robustness) {
 					best_robustness = r;
 					best_supporting_action = op;
 					best_clauses = cs;
+
+					RelaxedPlan::num_better_supporting_actions_found_in_rpg++;
 				}
 			}
 		}

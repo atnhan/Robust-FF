@@ -375,6 +375,16 @@ public:
 	static int num_rp_calls;
 	static int num_successful_rp_calls;
 
+	// Count number of times we check if a proposition in the RPG has better supporting action
+	// And number of times such checks really succeeds (i.e., a more robust supporting action is found)
+	static int num_better_supporting_action_checks_in_rpg;
+	static int num_better_supporting_actions_found_in_rpg;
+
+	// Count number of times we check if inserting an action increases the (potential) robustness of the current
+	// relaxed plan, and the number of times such checks result in an insertion
+	static int num_rp_robustness_increasing_checks;
+	static int num_rp_robustness_increasing_check_success;
+
 	// Constructors
 	RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals, double robustness_threshold = 0);
 	virtual ~RelaxedPlan();

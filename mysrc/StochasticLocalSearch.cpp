@@ -472,7 +472,9 @@ bool StochasticLocalSearch::run(FILE *log) {
 	clock.restart();
 	//
 
-	RelaxedPlan rp_0(e_0, init, goals, best_plan.robustness);
+	RelaxedPlan::num_rp_calls = RelaxedPlan::num_successful_rp_calls = 0;
+
+	RelaxedPlan rp_0(e_0, init, goals, initial_robustness_threshold);
 	pair<int, double> rp_0_info;
 	if (!rp_0.extract(rp_0_info)) {
 
@@ -501,7 +503,7 @@ bool StochasticLocalSearch::run(FILE *log) {
 
 	// We try to find better plans in at most "max_restarts" restarts from the initial state
 	int restarts = 0;
-	while (restarts < max_restarts && best_plan.robustness < desired_robustness) {
+	while (restarts < max_restarts) {
 
 #ifdef DEBUG_SLS_RUN
 		cout<<"Restart from initial state: restarts = "<<restarts<<endl<<endl;
@@ -527,7 +529,8 @@ bool StochasticLocalSearch::run(FILE *log) {
 
 			int next_h;
 			double next_robustness;
-			bool better_state_found = local_search_for_a_better_state(e, best_plan.robustness, h, next_h, next_robustness, fail_count);
+			double current_robustness = (best_plan.robustness < initial_robustness_threshold) ? initial_robustness_threshold : best_plan.robustness;
+			bool better_state_found = local_search_for_a_better_state(e, current_robustness, h, next_h, next_robustness, fail_count);
 
 			// Two cases to restart the local search from the initial state
 			// (1) fails count reached
@@ -577,6 +580,17 @@ bool StochasticLocalSearch::run(FILE *log) {
 
 				// Restart the clock
 				clock.restart();
+
+				// Reset counting on relaxed plan constructions
+				RelaxedPlan::num_rp_calls = RelaxedPlan::num_successful_rp_calls = 0;
+
+				// Reset counting on checking better supporting actions in RPG
+				RelaxedPlan::num_better_supporting_action_checks_in_rpg = 0;
+				RelaxedPlan::num_better_supporting_actions_found_in_rpg = 0;
+
+				// Reset counting on checking the increase of relaxed plan robustness
+				RelaxedPlan::num_rp_robustness_increasing_checks = 0;
+				RelaxedPlan::num_rp_robustness_increasing_check_success = 0;
 
 #ifdef DEBUG_SLS_RUN
 				TAB(2); cout<<"BETTER PLAN FOUND!"<<endl;
@@ -749,6 +763,7 @@ void StochasticLocalSearch::update_experiment_analysis_file(const Plan& p) {
 
 	if (!file_exists) {
 		f<<"#SEARCH PARAMETERS:"<<endl;
+		f<<"#Initial robustness threshold:\t"<<initial_robustness_threshold<<endl;
 		f<<"#Max restart:\t"<<max_restarts<<endl;
 		f<<"#Max iterations:\t"<<max_iterations<<endl;
 		f<<"#Initial depth bound:\t"<<initial_depth_bound<<endl;
@@ -791,7 +806,9 @@ void StochasticLocalSearch::update_experiment_analysis_file(const Plan& p) {
 		 <<"rp_time"<<sep
 		 <<"clause_time"<<sep
 		 <<"wmc_time"<<sep
-		 <<"rp_success_rate"<<endl;
+		 <<"rp_success_rate"<<sep
+		 <<"rpg_better_supporting_actions_rate"<<sep
+		 <<"rp_increasing_robustness_rate"<<endl;
 	}
 
 	// Domain
@@ -828,7 +845,13 @@ void StochasticLocalSearch::update_experiment_analysis_file(const Plan& p) {
 	f<<timer.robustness_computation_time<<sep;
 
 	// Successful rate of relaxed plans
-	f<<double(RelaxedPlan::num_successful_rp_calls) / RelaxedPlan::num_rp_calls;
+	f<<double(RelaxedPlan::num_successful_rp_calls) / RelaxedPlan::num_rp_calls<<sep;
+
+	// Better supporting actions rate in building RPG
+	f<<double(RelaxedPlan::num_better_supporting_actions_found_in_rpg) / RelaxedPlan::num_better_supporting_action_checks_in_rpg<<sep;
+
+	// Increasing relaxed plan robustness rate
+	f<<double(RelaxedPlan::num_rp_robustness_increasing_check_success) / RelaxedPlan::num_rp_robustness_increasing_checks;
 
 	f<<endl;
 
