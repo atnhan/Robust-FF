@@ -779,6 +779,9 @@ void StochasticLocalSearch::update_experiment_analysis_file(const Plan& p) {
 		case RelaxedPlan::PURE_FF_RP:
 			f<<"PURE_FF_RP";
 			break;
+		case RelaxedPlan::ROBUST_FF_RP:
+			f<<"ROBUST_FF_RP";
+			break;
 		case RelaxedPlan::INCREMENTAL_ROBUSTNESS_RP:
 			f<<"INCREMENTAL_ROBUSTNESS_RP";
 			break;

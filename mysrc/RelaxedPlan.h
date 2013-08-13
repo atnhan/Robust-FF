@@ -113,6 +113,7 @@ class RelaxedPlan {
 	bool build_ff_relaxed_planning_graph();
 	bool same_ff_fact_layers(FactLayer& factlayer_1, FactLayer& factlayer_2);
 
+
 	/**************************************************************************************************
 	 * RELAXED PLAN
 	 **************************************************************************************************/
@@ -292,6 +293,8 @@ class RelaxedPlan {
 
 	bool extract_greedy_robustness_rp(std::pair<int, double>& result);
 
+	bool extract_robust_ff_heuristic(std::pair<int, double>& result);
+
 	/*
 	 * FOR DEBUGGING PURPOSES
 	 */
@@ -347,6 +350,7 @@ public:
 	enum RELAXED_PLAN_TYPES {
 
 		PURE_FF_RP,
+		ROBUST_FF_RP,
 		INCREMENTAL_ROBUSTNESS_RP,
 		LOCALLY_INCREMENTAL_ROBUSTNESS_RP,
 		GREEDY_ROBUSTNESS_RP,

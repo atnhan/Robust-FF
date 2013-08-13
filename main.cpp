@@ -1171,6 +1171,12 @@ Bool process_command_line( int argc, char *argv[] )
 				continue;
 			}
 
+			if (strcmp(str_option,"-robust_ff_rp") == 0) {
+
+				RelaxedPlan::rp_types = RelaxedPlan::ROBUST_FF_RP;
+				continue;
+			}
+
 			if (strcmp(str_option,"-all_most_robust_supporting_actions") == 0) {
 
 				RelaxedPlan::rp_types = RelaxedPlan::ALL_MOST_ROBUST_SUPPORTING_ACTIONS_RP;
