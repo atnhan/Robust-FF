@@ -240,10 +240,17 @@ RelaxedPlan::RP_STEP *RelaxedPlan::create_rp_step_for_goals() {
 	goal_step->a = GOAL_ACTION;
 	goal_step->layer = n;
 
-	// Update its the rp_state before it
+	// Update the rp_state before it
+	// first, for known propositions
+	for (int i=0;i<current->num_known_F;i++) {
+		int f = current->known_F[i];
+		goal_step->s[f] = std::make_pair(1,0);
+	}
+	// second, for propositions that are not certainly known, but have probability of being true
 	for (int i=0;i<current->num_F;i++) {
 		int f = current->F[i];
-		goal_step->s[f] = 1;	// facts in the current state are assumed to be supported by the INIT_ACTION
+		if (goal_step->s.find(f) == goal_step->s.end())
+			goal_step->s[f] = std::make_pair(0,1);
 	}
 
 	// Update its clause set, and count the number of goals not in the current rp_state
@@ -855,6 +862,835 @@ bool RelaxedPlan::extract_incremental_robustness_rp(pair<int, double>& result) {
 
 	return true;
 }
+
+bool RelaxedPlan::extract_locally_incremental_robustness_rp(pair<int, double>& result) {
+
+//#define DEBUG_EXTRACT
+//
+//#define DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+
+#ifdef DEBUG_EXTRACT
+	cout<<"Begin extract_01... Robustness threshold: "<<robustness_threshold<<endl<<endl;
+#endif
+
+
+	if (!build_relaxed_planning_graph()) {
+
+#ifdef DEBUG_EXTRACT
+		cout<<"End extract_01..."<<__LINE__<<endl<<endl;
+#endif
+
+		return false;
+	}
+
+	// The level at which all goals appear. So this is also the layer at which GOAL_ACTION is put
+	int n = P.size() - 1;
+
+	// The first and last fact layer
+	const FactLayer& first_fact_layer = *(P[0]);
+	const FactLayer& last_fact_layer = *(P[n]);
+
+	// Initialize the number of actions chosen to the relaxed plan at each layer of the RPG
+	num_chosen_actions.reserve(n+1);
+	for (int i=0;i<=n;i++) num_chosen_actions[i] = 0;
+
+	// Initialize the number of unsupported known preconditions
+	num_unsupported_known_preconditions = 0;
+
+	// Create the step containing goal action of the relaxed plan
+	RP_STEP *goal_step = create_rp_step_for_goals();
+
+	// Initialize the relaxed plan with the goal step, and increase the counter
+	// REMINDER: release memory for "rp"
+	assert(rp.size() == 0);
+	rp.push_back(goal_step);
+	num_chosen_actions[n] = 1;
+
+	// The robustness of plan prefix + the current relaxed plan (0 if there exists an unsupported known preconditions in the RP)
+	// Note that this can be either lower bound, upper bound or exact value of the robustness, depending on the flags
+	// "-use_lower_bound_in_rp" and "-use_upper_bound_in_rp;"
+	double current_robustness;
+
+	// The lower bound, upper bound of the robustness of the plan prefix + the empty relaxed plan
+	double lower_robustness, upper_robustness, exact_robustness;
+	if (compute_robustness(lower_robustness, upper_robustness, exact_robustness)) {	// Succeed only if no unsupported known preconditions exist
+
+		if (RelaxedPlan::use_lower_bound_in_rp) {
+			current_robustness = lower_robustness;
+		}
+		else if (RelaxedPlan::use_upper_bound_in_rp) {
+			current_robustness = upper_robustness;
+		}
+		else {
+			current_robustness = exact_robustness;
+		}
+
+		// Check if the empty relaxed plan is enough
+		if (RelaxedPlan::use_robustness_threshold && exact_robustness > robustness_threshold) {
+
+			result.first = 0; // Don't count the goal step
+			if (exact_robustness > robustness_threshold)
+				result.second = exact_robustness;
+			else
+				result.second = current_robustness;
+
+#ifdef DEBUG_EXTRACT
+				cout<<"End extract_01..."<<__LINE__<<endl<<endl;
+#endif
+
+				return true;	// EMPTY RELAXED PLAN RETURNED!!!
+		}
+	}
+	// Otherwise, there exists unsupported known goals in the empty RP. So the robustness is 0.
+	else {
+		current_robustness = 0;
+	}
+
+	// Clause set of the current plan prefix
+	ClauseSet clauses_of_plan_prefix;
+	e->get_clauses(clauses_of_plan_prefix);
+
+	// The queue to store all subgoals
+	SubGoalQueue Q;
+
+	// Initialize Q with the all the top level goals
+	for (int i=0;i<goals->num_F;i++) {
+
+		int g = goals->F[i];
+
+		assert(last_fact_layer.find(g) != last_fact_layer.end());
+
+		// Ignore goals that are certainly known in the current state
+		if (RelaxedPlan::ignore_poss_del_in_rp && is_known_in_state(g, current)) {
+
+#ifdef DEBUG_EXTRACT
+			cout<<"Subgoal ignored (known in current state): "<<g<<endl<<endl;
+#endif
+			continue;
+		}
+
+		// Now the goal is either not in the state or in the state but not certainly known to be true
+
+		SubGoal subgoal(g, GOAL_ACTION, n, false, &goal_step->s);
+		Q.push(subgoal);
+
+#ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+		SubgoalSet.insert(make_pair(g, GOAL_ACTION));
+#endif
+
+
+#ifdef DEBUG_EXTRACT
+		cout<<"New subgoal added: ";
+		subgoal.print();
+		cout<<endl<<endl;
+
+		cout<<"Current Q'top: ";
+		Q.top().print();
+		cout<<endl<<endl;
+#endif
+
+	}
+
+#ifdef DEBUG_EXTRACT
+	cout<<"current_clauses_for_heuristics: "<<current_clauses_for_heursitcis<<endl<<endl;
+	cout<<"current_robustness_for_heuristics: "<<current_robustness_for_heuristics<<endl<<endl;
+#endif
+
+
+#ifdef DEBUG_EXTRACT
+	cout<<"Num unsupported known preconditions: "<<num_unsupported_known_preconditions<<endl<<endl;
+	cout<<"In Q-loop"<<endl<<endl;
+#endif
+
+#ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+	cout<<"Unsupported known precondition set: ";
+	print_unsupported_known_precondition_set();
+	cout<<endl<<endl;
+
+	cout<<"Subgoal set: ";
+	print_subgoal_set();
+	cout<<endl<<endl;
+#endif
+
+	// Extracting actions in the relaxed planning graph to support subgoals in Q
+	while (!Q.empty()) {
+
+		// Retrieve the next subgoal
+		SubGoal subgoal = Q.top();
+		Q.pop();
+
+#ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+		SubgoalSet.erase(make_pair(subgoal.g, subgoal.op));
+#endif
+
+
+#ifdef DEBUG_EXTRACT
+		TAB(2);	cout<<"Subgoal popped: "<<subgoal.g<<"..."<<endl<<endl;
+		TAB(2); cout<<"State before subgoal:";
+		const RP_STATE& sg = *subgoal.state_before_op;
+		for (int ft=0;ft<gnum_ft_conn;ft++) {
+			if (in_rp_state(ft, sg))
+				cout<<"F"<<ft<<" ";
+		}
+		cout<<endl<<endl;
+#endif
+
+#ifndef NDEBUG
+		// This action must be found in the relaxed plan
+		RELAXED_PLAN::iterator rp_itr = rp.begin();
+		for (; rp_itr != rp.end(); rp_itr++)
+			if ((*rp_itr)->a == subgoal.op)
+				break;
+		assert(rp_itr != rp.end());
+#endif
+
+		// If this subgoal is not in its fact layer in the RPG, which also means
+		// it is the possible precondition subgoal, we simply ignore this subgoal
+		// (since there is not any best supporting action for it)
+		if (!fact_present(subgoal.g, subgoal.l)) {
+			assert(subgoal.possible_precondition);
+
+#ifdef DEBUG_EXTRACT
+			TAB(3);
+			cout<<"Subgoal ignored (possible precondition not in fact layer "<<subgoal.l<<")."<<endl<<endl;
+#endif
+
+			// Continue with the next subgoal
+			continue;
+		}
+
+		// Find the best action supporting this subgoal.
+		// CURRENT STRATEGY: take the one found in the RPG construction
+		int l = subgoal.l;
+		while (l > 0 && P[l]->at(subgoal.g).best_supporting_action == NOOP) {
+			l--;
+		}
+
+		if (l==0) {
+
+			if (!fact_present(subgoal.g, l))
+				assert(subgoal.possible_precondition);
+			else {
+				assert(P[l]->at(subgoal.g).best_supporting_action == e->get_actions()[e->get_actions().size()-1] ||
+						P[l]->at(subgoal.g).best_supporting_action == INIT_ACTION);
+			}
+
+#ifdef DEBUG_EXTRACT
+			TAB(3);
+			cout<<"Subgoal ignored (possible precondition not in fact layer "<<l<<")."<<endl<<endl;
+#endif
+
+
+			// The best supporting action is the last action in the plan prefix, or the INIT_ACTION.
+			// Continue with the next subgoal
+			continue;
+
+		}
+
+		const int candidate_action = (P[l])->at(subgoal.g).best_supporting_action;
+		int layer_of_candidate_action = l - 1;
+		assert(candidate_action >= 0 && candidate_action < gnum_op_conn);
+
+		// If this candidate action has been chosen, we don't add it again
+		// We're done with this subgoal
+		if (A[layer_of_candidate_action]->at(candidate_action).in_rp) {
+
+#ifdef DEBUG_EXTRACT
+			TAB(3);
+			cout<<"Candidate action "<<candidate_action<<" ignored."<<endl<<endl;
+#endif
+
+
+			continue;	// Consider next subgoals
+		}
+
+		// Pointer to the new RP_STEP (if insertion happens)
+		//boost::shared_ptr<RP_STEP> new_rp_step;
+		RP_STEP *new_rp_step = 0;
+
+		// Case 1: this subgoal is not present in the state before it
+		// Whether it is known or possible precondition, inserting the supporting action always
+		// helps increase *its* probability of being true!
+		if (!in_rp_state(subgoal.g, *subgoal.state_before_op)) {
+
+			new_rp_step = insert_action_into_relaxed_plan(candidate_action, layer_of_candidate_action);
+
+		}
+
+		// Case 2: this subgoal is present in the state before it
+		else {
+			// Sub-case 1: if this subgoal is *known* at its rp-state, then adding the supporting action
+			// does not increase the subgoal probability of being true
+			// So for this sub-case, we simply do not insert this supporting action
+
+			// Sub-case 2:  otherwise, inserting this supporting action will increase the probability of being
+			// true of this subgoal. The amount of this increasing is: probability for this supporting action
+			// to be executable \times the probability of this subgoal being its realized add effect
+			RelaxedPlan::num_rp_robustness_increasing_checks++;
+
+			if (!known_in_rp_state(subgoal.g, *subgoal.state_before_op)) {
+				new_rp_step = insert_action_into_relaxed_plan(candidate_action, layer_of_candidate_action);
+				RelaxedPlan::num_rp_robustness_increasing_check_success++;
+			}
+		} // end of Case 2
+
+		// If the new action is inserted
+		if (new_rp_step) {
+
+			// Whenever we insert a new action into the relaxed plan, we re-compute its robustness
+			// This will quickly return 0 if there exists unsupported known preconditions
+			current_robustness = compute_robustness();
+
+#ifdef DEBUG_EXTRACT
+			TAB(3); cout<<"current_robustness: "<<current_robustness<<endl<<endl;
+#endif
+
+			// RELAXED PLAN FOUND!!!!
+			if (RelaxedPlan::use_robustness_threshold && current_robustness > robustness_threshold) {
+
+#ifdef DEBUG_EXTRACT
+				cout<<"Out Q-loop "<<__LINE__<<endl<<endl;
+#endif
+
+				break;
+			}
+
+			//
+			// Add new subgoals
+			assert(gop_conn[candidate_action].num_E == 1);
+			int ef = gop_conn[candidate_action].E[0];
+			for (int i=0;i<gef_conn[ef].num_PC;i++) {
+				int p = gef_conn[ef].PC[i];
+
+				// This can be improved: we need only check if "p" is known at the rp_state
+				// To do this, known facts at rp_states must be maintained
+				if (RelaxedPlan::ignore_poss_del_in_rp && is_known_in_state(p, current)) {
+
+#ifdef DEBUG_EXTRACT
+					TAB(3); cout<<"Subgoal ignored (known in current state): "<<p<<endl<<endl;
+#endif
+
+					continue;
+				}
+
+				SubGoal subgoal(p, candidate_action, layer_of_candidate_action, false, &new_rp_step->s);
+				Q.push(subgoal);
+
+#ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+				SubgoalSet.insert(make_pair(p, candidate_action));
+#endif
+
+
+#ifdef DEBUG_EXTRACT
+				TAB(3); cout<<"New subgoal added: ";
+				subgoal.print();
+				cout<<endl<<endl;
+
+				TAB(3); cout<<"Current Q'top: ";
+				Q.top().print();
+				cout<<endl<<endl;
+#endif
+
+
+			}
+			for (int i=0;i<gef_conn[ef].num_poss_PC;i++) {
+				int p = gef_conn[ef].poss_PC[i];
+
+				if (RelaxedPlan::ignore_poss_del_in_rp && is_known_in_state(p, current))
+					continue;
+				SubGoal subgoal(p, candidate_action, layer_of_candidate_action, true, &new_rp_step->s);
+				Q.push(subgoal);
+
+#ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+				SubgoalSet.insert(make_pair(p, candidate_action));
+#endif
+
+
+#ifdef DEBUG_EXTRACT
+				TAB(3); cout<<"New subgoal added: ";
+				subgoal.print();
+				cout<<endl<<endl;
+
+				TAB(3); cout<<"Current Q'top: ";
+				Q.top().print();
+				cout<<endl<<endl;
+#endif
+			}
+
+#ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+				cout<<"Unsupported known precondition set: ";
+				print_unsupported_known_precondition_set();
+				cout<<endl<<endl;
+
+				cout<<"Subgoal set: ";
+				print_subgoal_set();
+				cout<<endl<<endl;
+
+				// Check if all unsupported known preconditions present in the queue
+				for (std::set<std::pair<int,int> >::const_iterator itr = unsupported_known_precondition_set.begin();
+						itr != unsupported_known_precondition_set.end(); itr++) {
+					assert(SubgoalSet.find(make_pair(itr->first, itr->second)) != SubgoalSet.end());
+				}
+#endif
+		}
+
+	} // out of Q-loop
+
+#ifdef DEBUG_EXTRACT
+	cout<<"Out Q-loop "<<__LINE__<<endl<<endl;
+	cout<<"Num unsupported known preconditions: "<<num_unsupported_known_preconditions<<endl<<endl;
+	cout<<"current_robustness_for_heuristics: "<<current_robustness_for_heuristics<<endl<<endl;
+	cout<<"current_robustness: "<<compute_robustness()<<endl<<endl;
+	cout<<"RP length: "<<rp.size()<<endl<<endl;
+	cout<<"End extract_01..."<<__LINE__<<endl<<endl;
+#endif
+
+#ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+	cout<<"Unsupported known precondition set: ";
+	for (set<pair<int,int> >::const_iterator itr = unsupported_known_precondition_set.begin();
+			itr != unsupported_known_precondition_set.end(); itr++) {
+		cout<<"("<<itr->first<<", "<<itr->second<<") ";
+	}
+	cout<<endl<<endl;
+#endif
+
+
+#ifndef NDEBUG
+	assert(!unsupported_known_precondition_exists());
+#endif
+
+	// This must be satisfied, since a trivial relaxed plan includes all "best actions", with which
+	// all known preconditions are supported
+	assert(num_unsupported_known_preconditions == 0);
+
+	// This must be true, because when all known preconditions are supported, clause sets from RPG no longer need
+	//assert(current_robustness_for_heuristics == current_robustness);
+
+	result.first = rp.size() - 1;	// Ignore the goal step
+	result.second = current_robustness;
+
+	// Check if the relaxed plan returned has enough robustness
+	if (current_robustness <= robustness_threshold) {
+		return false;
+	}
+
+	return true;
+}
+
+bool RelaxedPlan::extract_greedy_robustness_rp(pair<int, double>& result) {
+
+//#define DEBUG_EXTRACT
+//
+//#define DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+
+#ifdef DEBUG_EXTRACT
+	cout<<"Begin extract_01... Robustness threshold: "<<robustness_threshold<<endl<<endl;
+#endif
+
+
+	if (!build_relaxed_planning_graph()) {
+
+#ifdef DEBUG_EXTRACT
+		cout<<"End extract_01..."<<__LINE__<<endl<<endl;
+#endif
+
+		return false;
+	}
+
+	// The level at which all goals appear. So this is also the layer at which GOAL_ACTION is put
+	int n = P.size() - 1;
+
+	// The first and last fact layer
+	const FactLayer& first_fact_layer = *(P[0]);
+	const FactLayer& last_fact_layer = *(P[n]);
+
+	// Initialize the number of actions chosen to the relaxed plan at each layer of the RPG
+	num_chosen_actions.reserve(n+1);
+	for (int i=0;i<=n;i++) num_chosen_actions[i] = 0;
+
+	// Initialize the number of unsupported known preconditions
+	num_unsupported_known_preconditions = 0;
+
+	// Create the step containing goal action of the relaxed plan
+	RP_STEP *goal_step = create_rp_step_for_goals();
+
+	// Initialize the relaxed plan with the goal step, and increase the counter
+	// REMINDER: release memory for "rp"
+	assert(rp.size() == 0);
+	rp.push_back(goal_step);
+	num_chosen_actions[n] = 1;
+
+	// The robustness of plan prefix + the current relaxed plan (0 if there exists an unsupported known preconditions in the RP)
+	// Note that this can be either lower bound, upper bound or exact value of the robustness, depending on the flags
+	// "-use_lower_bound_in_rp" and "-use_upper_bound_in_rp;"
+	double current_robustness;
+
+	// The lower bound, upper bound of the robustness of the plan prefix + the empty relaxed plan
+	double lower_robustness, upper_robustness, exact_robustness;
+	if (compute_robustness(lower_robustness, upper_robustness, exact_robustness)) {	// Succeed only if no unsupported known preconditions exist
+
+		if (RelaxedPlan::use_lower_bound_in_rp) {
+			current_robustness = lower_robustness;
+		}
+		else if (RelaxedPlan::use_upper_bound_in_rp) {
+			current_robustness = upper_robustness;
+		}
+		else {
+			current_robustness = exact_robustness;
+		}
+
+		// Check if the empty relaxed plan is enough
+		if (RelaxedPlan::use_robustness_threshold && exact_robustness > robustness_threshold) {
+
+			result.first = 0; // Don't count the goal step
+			if (exact_robustness > robustness_threshold)
+				result.second = exact_robustness;
+			else
+				result.second = current_robustness;
+
+#ifdef DEBUG_EXTRACT
+				cout<<"End extract_01..."<<__LINE__<<endl<<endl;
+#endif
+
+				return true;	// EMPTY RELAXED PLAN RETURNED!!!
+		}
+	}
+	// Otherwise, there exists unsupported known goals in the empty RP. So the robustness is 0.
+	else {
+		current_robustness = 0;
+	}
+
+	// Clause set of the current plan prefix
+	ClauseSet clauses_of_plan_prefix;
+	e->get_clauses(clauses_of_plan_prefix);
+
+	// The queue to store all subgoals
+	SubGoalQueue Q;
+
+	// Initialize Q with the all the top level goals
+	for (int i=0;i<goals->num_F;i++) {
+
+		int g = goals->F[i];
+
+		assert(last_fact_layer.find(g) != last_fact_layer.end());
+
+		// Ignore goals that are certainly known in the current state
+		if (RelaxedPlan::ignore_poss_del_in_rp && is_known_in_state(g, current)) {
+
+#ifdef DEBUG_EXTRACT
+			cout<<"Subgoal ignored (known in current state): "<<g<<endl<<endl;
+#endif
+			continue;
+		}
+
+		// Now the goal is either not in the state or in the state but not certainly known to be true
+
+		SubGoal subgoal(g, GOAL_ACTION, n, false, &goal_step->s);
+		Q.push(subgoal);
+
+#ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+		SubgoalSet.insert(make_pair(g, GOAL_ACTION));
+#endif
+
+
+#ifdef DEBUG_EXTRACT
+		cout<<"New subgoal added: ";
+		subgoal.print();
+		cout<<endl<<endl;
+
+		cout<<"Current Q'top: ";
+		Q.top().print();
+		cout<<endl<<endl;
+#endif
+
+	}
+
+#ifdef DEBUG_EXTRACT
+	cout<<"current_clauses_for_heuristics: "<<current_clauses_for_heursitcis<<endl<<endl;
+	cout<<"current_robustness_for_heuristics: "<<current_robustness_for_heuristics<<endl<<endl;
+#endif
+
+
+#ifdef DEBUG_EXTRACT
+	cout<<"Num unsupported known preconditions: "<<num_unsupported_known_preconditions<<endl<<endl;
+	cout<<"In Q-loop"<<endl<<endl;
+#endif
+
+#ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+	cout<<"Unsupported known precondition set: ";
+	print_unsupported_known_precondition_set();
+	cout<<endl<<endl;
+
+	cout<<"Subgoal set: ";
+	print_subgoal_set();
+	cout<<endl<<endl;
+#endif
+
+	// Extracting actions in the relaxed planning graph to support subgoals in Q
+	while (!Q.empty()) {
+
+		// Retrieve the next subgoal
+		SubGoal subgoal = Q.top();
+		Q.pop();
+
+#ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+		SubgoalSet.erase(make_pair(subgoal.g, subgoal.op));
+#endif
+
+
+#ifdef DEBUG_EXTRACT
+		TAB(2);	cout<<"Subgoal popped: "<<subgoal.g<<"..."<<endl<<endl;
+		TAB(2); cout<<"State before subgoal:";
+		const RP_STATE& sg = *subgoal.state_before_op;
+		for (int ft=0;ft<gnum_ft_conn;ft++) {
+			if (in_rp_state(ft, sg))
+				cout<<"F"<<ft<<" ";
+		}
+		cout<<endl<<endl;
+#endif
+
+#ifndef NDEBUG
+		// This action must be found in the relaxed plan
+		RELAXED_PLAN::iterator rp_itr = rp.begin();
+		for (; rp_itr != rp.end(); rp_itr++)
+			if ((*rp_itr)->a == subgoal.op)
+				break;
+		assert(rp_itr != rp.end());
+#endif
+
+		// If this subgoal is not in its fact layer in the RPG, which also means
+		// it is the possible precondition subgoal, we simply ignore this subgoal
+		// (since there is not any best supporting action for it)
+		if (!fact_present(subgoal.g, subgoal.l)) {
+			assert(subgoal.possible_precondition);
+
+#ifdef DEBUG_EXTRACT
+			TAB(3);
+			cout<<"Subgoal ignored (possible precondition not in fact layer "<<subgoal.l<<")."<<endl<<endl;
+#endif
+
+			// Continue with the next subgoal
+			continue;
+		}
+
+		// Find the best action supporting this subgoal.
+		// CURRENT STRATEGY: take the one found in the RPG construction
+		int l = subgoal.l;
+		while (l > 0 && P[l]->at(subgoal.g).best_supporting_action == NOOP) {
+			l--;
+		}
+
+		if (l==0) {
+
+			if (!fact_present(subgoal.g, l))
+				assert(subgoal.possible_precondition);
+			else {
+				assert(P[l]->at(subgoal.g).best_supporting_action == e->get_actions()[e->get_actions().size()-1] ||
+						P[l]->at(subgoal.g).best_supporting_action == INIT_ACTION);
+			}
+
+#ifdef DEBUG_EXTRACT
+			TAB(3);
+			cout<<"Subgoal ignored (possible precondition not in fact layer "<<l<<")."<<endl<<endl;
+#endif
+
+
+			// The best supporting action is the last action in the plan prefix, or the INIT_ACTION.
+			// Continue with the next subgoal
+			continue;
+
+		}
+
+		const int candidate_action = (P[l])->at(subgoal.g).best_supporting_action;
+		int layer_of_candidate_action = l - 1;
+		assert(candidate_action >= 0 && candidate_action < gnum_op_conn);
+
+		// If this candidate action has been chosen, we don't add it again
+		// We're done with this subgoal
+		if (A[layer_of_candidate_action]->at(candidate_action).in_rp) {
+
+#ifdef DEBUG_EXTRACT
+			TAB(3);
+			cout<<"Candidate action "<<candidate_action<<" ignored."<<endl<<endl;
+#endif
+
+
+			continue;	// Consider next subgoals
+		}
+
+		// Pointer to the new RP_STEP (if insertion happens)
+		//boost::shared_ptr<RP_STEP> new_rp_step;
+		RP_STEP *new_rp_step = 0;
+
+		// Case 1: this subgoal is not present in the state before it
+		// Whether it is known or possible precondition, inserting the supporting action always
+		// helps increase *its* probability of being true!
+		if (!in_rp_state(subgoal.g, *subgoal.state_before_op)) {
+
+			new_rp_step = insert_action_into_relaxed_plan(candidate_action, layer_of_candidate_action);
+
+		}
+
+		// Case 2: this subgoal is present in the state before it
+		else if (false) { // THE ONLY DIFFERENCE WITH LOCALLY_INCREMENTAL_ROBUSTNESS
+			// Sub-case 1: if this subgoal is *known* at its rp-state, then adding the supporting action
+			// does not increase the subgoal probability of being true
+			// So for this sub-case, we simply do not insert this supporting action
+
+			// Sub-case 2:  otherwise, inserting this supporting action will increase the probability of being
+			// true of this subgoal. The amount of this increasing is: probability for this supporting action
+			// to be executable \times the probability of this subgoal being its realized add effect
+			RelaxedPlan::num_rp_robustness_increasing_checks++;
+
+			if (!known_in_rp_state(subgoal.g, *subgoal.state_before_op)) {
+				new_rp_step = insert_action_into_relaxed_plan(candidate_action, layer_of_candidate_action);
+				RelaxedPlan::num_rp_robustness_increasing_check_success++;
+			}
+		} // end of Case 2
+
+		// If the new action is inserted
+		if (new_rp_step) {
+
+			// Whenever we insert a new action into the relaxed plan, we re-compute its robustness
+			// This will quickly return 0 if there exists unsupported known preconditions
+			current_robustness = compute_robustness();
+
+#ifdef DEBUG_EXTRACT
+			TAB(3); cout<<"current_robustness: "<<current_robustness<<endl<<endl;
+#endif
+
+			// RELAXED PLAN FOUND!!!!
+			if (RelaxedPlan::use_robustness_threshold && current_robustness > robustness_threshold) {
+
+#ifdef DEBUG_EXTRACT
+				cout<<"Out Q-loop "<<__LINE__<<endl<<endl;
+#endif
+
+				break;
+			}
+
+			//
+			// Add new subgoals
+			assert(gop_conn[candidate_action].num_E == 1);
+			int ef = gop_conn[candidate_action].E[0];
+			for (int i=0;i<gef_conn[ef].num_PC;i++) {
+				int p = gef_conn[ef].PC[i];
+
+				// This can be improved: we need only check if "p" is known at the rp_state
+				// To do this, known facts at rp_states must be maintained
+				if (RelaxedPlan::ignore_poss_del_in_rp && is_known_in_state(p, current)) {
+
+#ifdef DEBUG_EXTRACT
+					TAB(3); cout<<"Subgoal ignored (known in current state): "<<p<<endl<<endl;
+#endif
+
+					continue;
+				}
+
+				SubGoal subgoal(p, candidate_action, layer_of_candidate_action, false, &new_rp_step->s);
+				Q.push(subgoal);
+
+#ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+				SubgoalSet.insert(make_pair(p, candidate_action));
+#endif
+
+
+#ifdef DEBUG_EXTRACT
+				TAB(3); cout<<"New subgoal added: ";
+				subgoal.print();
+				cout<<endl<<endl;
+
+				TAB(3); cout<<"Current Q'top: ";
+				Q.top().print();
+				cout<<endl<<endl;
+#endif
+
+
+			}
+			for (int i=0;i<gef_conn[ef].num_poss_PC;i++) {
+				int p = gef_conn[ef].poss_PC[i];
+
+				if (RelaxedPlan::ignore_poss_del_in_rp && is_known_in_state(p, current))
+					continue;
+				SubGoal subgoal(p, candidate_action, layer_of_candidate_action, true, &new_rp_step->s);
+				Q.push(subgoal);
+
+#ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+				SubgoalSet.insert(make_pair(p, candidate_action));
+#endif
+
+
+#ifdef DEBUG_EXTRACT
+				TAB(3); cout<<"New subgoal added: ";
+				subgoal.print();
+				cout<<endl<<endl;
+
+				TAB(3); cout<<"Current Q'top: ";
+				Q.top().print();
+				cout<<endl<<endl;
+#endif
+			}
+
+#ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+				cout<<"Unsupported known precondition set: ";
+				print_unsupported_known_precondition_set();
+				cout<<endl<<endl;
+
+				cout<<"Subgoal set: ";
+				print_subgoal_set();
+				cout<<endl<<endl;
+
+				// Check if all unsupported known preconditions present in the queue
+				for (std::set<std::pair<int,int> >::const_iterator itr = unsupported_known_precondition_set.begin();
+						itr != unsupported_known_precondition_set.end(); itr++) {
+					assert(SubgoalSet.find(make_pair(itr->first, itr->second)) != SubgoalSet.end());
+				}
+#endif
+		}
+
+	} // out of Q-loop
+
+#ifdef DEBUG_EXTRACT
+	cout<<"Out Q-loop "<<__LINE__<<endl<<endl;
+	cout<<"Num unsupported known preconditions: "<<num_unsupported_known_preconditions<<endl<<endl;
+	cout<<"current_robustness_for_heuristics: "<<current_robustness_for_heuristics<<endl<<endl;
+	cout<<"current_robustness: "<<compute_robustness()<<endl<<endl;
+	cout<<"RP length: "<<rp.size()<<endl<<endl;
+	cout<<"End extract_01..."<<__LINE__<<endl<<endl;
+#endif
+
+#ifdef DEBUG_UNSUPPORTED_KNOWN_PRECONDITIONS
+	cout<<"Unsupported known precondition set: ";
+	for (set<pair<int,int> >::const_iterator itr = unsupported_known_precondition_set.begin();
+			itr != unsupported_known_precondition_set.end(); itr++) {
+		cout<<"("<<itr->first<<", "<<itr->second<<") ";
+	}
+	cout<<endl<<endl;
+#endif
+
+
+#ifndef NDEBUG
+	assert(!unsupported_known_precondition_exists());
+#endif
+
+	// This must be satisfied, since a trivial relaxed plan includes all "best actions", with which
+	// all known preconditions are supported
+	assert(num_unsupported_known_preconditions == 0);
+
+	// This must be true, because when all known preconditions are supported, clause sets from RPG no longer need
+	//assert(current_robustness_for_heuristics == current_robustness);
+
+	result.first = rp.size() - 1;	// Ignore the goal step
+	result.second = current_robustness;
+
+	// Check if the relaxed plan returned has enough robustness
+	if (current_robustness <= robustness_threshold) {
+		return false;
+	}
+
+	return true;
+}
+
 
 bool RelaxedPlan::extract_rp_with_all_most_robust_supporting_actions(pair<int, double>& result) {
 
@@ -1685,6 +2521,12 @@ bool RelaxedPlan::extract(std::pair<int, double>& result) {
 	case INCREMENTAL_ROBUSTNESS_RP:
 		ret = extract_incremental_robustness_rp(result);
 		break;
+	case LOCALLY_INCREMENTAL_ROBUSTNESS_RP:
+		ret = extract_locally_incremental_robustness_rp(result);
+		break;
+	case GREEDY_ROBUSTNESS_RP:
+		ret = extract_greedy_robustness_rp(result);
+		break;
 	case ALL_MOST_ROBUST_SUPPORTING_ACTIONS_RP:
 		ret = extract_rp_with_all_most_robust_supporting_actions(result);
 		break;
@@ -1990,7 +2832,9 @@ double RelaxedPlan::compute_robustness() {
 			assert((*goal_step_itr)->a == GOAL_ACTION);
 			for (int i=0;i<goals->num_F;i++) {
 				int g = goals->F[i];
+
 				assert(in_rp_state(g, (*goal_step_itr)->s));
+
 				if ((*goal_step_itr)->pre_clauses.find(g) != (*goal_step_itr)->pre_clauses.end() &&
 						(*goal_step_itr)->pre_clauses.at(g)->size())
 					all_clauses.add_clauses(*((*goal_step_itr)->pre_clauses.at(g)));
@@ -2163,13 +3007,16 @@ void RelaxedPlan::collect_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator 
 				}
 
 				// CASE 2: Otherwise, use the clause set established during RPG construction
-				else if (RelaxedPlan::clauses_from_rpg_for_false_preconditions) {
+				else {
 
-					// "p" must be present in the fact layer of the RPG
-					assert(current_fact_layer.find(p) != current_fact_layer.end());
+					if (RelaxedPlan::clauses_from_rpg_for_false_preconditions) {
 
-					if (current_fact_layer.at(p).best_clauses.size())
-						clauses.add_clauses(current_fact_layer.at(p).best_clauses);
+						// "p" must be present in the fact layer of the RPG
+						assert(current_fact_layer.find(p) != current_fact_layer.end());
+
+						if (current_fact_layer.at(p).best_clauses.size())
+							clauses.add_clauses(current_fact_layer.at(p).best_clauses);
+					}
 				}
 			}
 
@@ -2183,6 +3030,8 @@ void RelaxedPlan::collect_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator 
 				if (in_rp_state(p, (*itr)->s)) { //  (*itr)->s.find(p) != (*itr)->s.end()) {
 					if ((*itr)->poss_pre_clauses.find(p) != (*itr)->poss_pre_clauses.end() &&
 						(*itr)->poss_pre_clauses.at(p)->size())
+
+					// Note: this already includes the negative boolean var for this possible precondition (see the insertion of rp_step part)
 					clauses.add_clauses(*((*itr)->poss_pre_clauses.at(p)));
 				}
 
@@ -2226,7 +3075,7 @@ void RelaxedPlan::collect_rp_step_clauses_for_heuristics(RELAXED_PLAN::iterator 
 					assert((*itr)->poss_pre_clauses.find(p) != (*itr)->poss_pre_clauses.end() &&
 						(*itr)->poss_pre_clauses.at(p)->size());
 
-					clauses.add_clauses(*((*itr)->poss_pre_clauses.at(p)));
+					clauses.add_clauses(*((*itr)->poss_pre_clauses.at(p))); // this clause establishes in the insertion phase
 				}
 			}
 		}
@@ -2385,8 +3234,8 @@ void RelaxedPlan::update_rp_states_for_step_removal(RELAXED_PLAN::iterator& new_
 		while (itr != rp.end()) {
 			RP_STEP& step = **itr;
 			assert(step.s.find(p) != step.s.end());
-			assert(step.s[p] >= 1);
-			step.s[p]--;
+			assert(step.s[p].first >= 1);
+			step.s[p].first--;
 			itr++;
 		}
 	}
@@ -2400,8 +3249,8 @@ void RelaxedPlan::update_rp_states_for_step_removal(RELAXED_PLAN::iterator& new_
 		while (itr != rp.end()) {
 			RP_STEP& step = **itr;
 			assert(step.s.find(p) != step.s.end());
-			assert(step.s[p] >= 1);
-			step.s[p]--;
+			assert(step.s[p].second >= 1);
+			step.s[p].second--;
 			itr++;
 		}
 	}
@@ -2421,8 +3270,6 @@ double RelaxedPlan::evaluate_candidate_action(int action, int layer) {
 	const FactLayer& current_fact_layer = *(P[layer]);
 
 	// The new step to be evaluated
-	//boost::shared_ptr<RP_STEP> new_step(new RP_STEP);
-
 	RP_STEP *new_step = new RP_STEP;
 	new_step->a = action;
 	new_step->layer = layer;
@@ -2943,8 +3790,12 @@ int RelaxedPlan::update_rp_state(const RELAXED_PLAN::iterator& rp_step_itr, bool
 	(*rp_step_itr)->s.clear();
 
 	if (rp_step_itr == rp.begin()) {
+		for (int i=0;i<current->num_known_F; i++)
+			(*rp_step_itr)->s[current->known_F[i]] = std::make_pair(1,0);
+
 		for (int i=0;i<current->num_F; i++)
-			(*rp_step_itr)->s[current->F[i]] = 1;
+			if ((*rp_step_itr)->s.find(current->F[i]) == (*rp_step_itr)->s.end())
+				(*rp_step_itr)->s[current->F[i]] = std::make_pair(0,1);
 	}
 	else {
 		RELAXED_PLAN::iterator itr = rp_step_itr;
@@ -2956,7 +3807,7 @@ int RelaxedPlan::update_rp_state(const RELAXED_PLAN::iterator& rp_step_itr, bool
 
 		// Copy all facts from the previous state
 		for (RP_STATE::const_iterator i = prev_state.begin(); i != prev_state.end(); i++) {
-			if (i->second > 0)
+			if ((i->second).first || (i->second).second)
 				(*rp_step_itr)->s[i->first] = i->second;
 		}
 
@@ -2965,16 +3816,20 @@ int RelaxedPlan::update_rp_state(const RELAXED_PLAN::iterator& rp_step_itr, bool
 		int ef = gop_conn[prev_action].E[0];
 
 		for (int j = 0; j < gef_conn[ef].num_A; j++)
-			if (in_rp_state(gef_conn[ef].A[j], (*rp_step_itr)->s)) //  (*rp_step_itr)->s.find(gef_conn[ef].A[j]) != (*rp_step_itr)->s.end())
-				++((*rp_step_itr)->s[gef_conn[ef].A[j]]);
+			if (in_rp_state(gef_conn[ef].A[j], (*rp_step_itr)->s)) {
+				if (known_in_rp_state(gef_conn[ef].A[j], (*rp_step_itr)->s))
+					++((*rp_step_itr)->s[gef_conn[ef].A[j]]).first;
+				else
+					((*rp_step_itr)->s[gef_conn[ef].A[j]]).first = 1;
+			}
 			else
-				(*rp_step_itr)->s[gef_conn[ef].A[j]] = 1;
+				(*rp_step_itr)->s[gef_conn[ef].A[j]] = std::make_pair(1,0);
 
 		for (int j = 0; j < gef_conn[ef].num_poss_A; j++)
-			if (in_rp_state(gef_conn[ef].poss_A[j], (*rp_step_itr)->s)) //   (*rp_step_itr)->s.find(gef_conn[ef].poss_A[j]) != (*rp_step_itr)->s.end())
-				++((*rp_step_itr)->s[gef_conn[ef].poss_A[j]]);
+			if (in_rp_state(gef_conn[ef].poss_A[j], (*rp_step_itr)->s))
+				++((*rp_step_itr)->s[gef_conn[ef].poss_A[j]]).second;
 			else
-				(*rp_step_itr)->s[gef_conn[ef].poss_A[j]] = 1;
+				(*rp_step_itr)->s[gef_conn[ef].poss_A[j]] = std::make_pair(0,1);
 	}
 
 	if (compute_unsupported_known_preconditions) {
@@ -3028,10 +3883,10 @@ int RelaxedPlan::update_rp_states_after(const RELAXED_PLAN::iterator& rp_step_it
 
 			// If this proposition is already in the rp_state before this action,
 			// then increase its count
-			if (in_rp_state(p, step.s)) step.s[p]++;
+			if (in_rp_state(p, step.s)) step.s[p].first++;
 			// Otherwise, "p" is not in the rp_state. Initialize its count to make it belong to the state
 			else {
-				step.s[p] = 1;
+				step.s[p] = std::make_pair(1,0);
 
 				// Update the count if required
 				if (compute_new_supported_preconditions) {
@@ -3076,9 +3931,9 @@ int RelaxedPlan::update_rp_states_after(const RELAXED_PLAN::iterator& rp_step_it
 		itr++;
 		while (itr != rp.end()) {
 			RP_STEP& step = **itr;
-			if (in_rp_state(p, step.s)) step.s[p]++;
+			if (in_rp_state(p, step.s)) step.s[p].second++;
 			else {
-				step.s[p] = 1;
+				step.s[p] = std::make_pair(0,1);
 
 				// Update the count if required
 				if (compute_new_supported_preconditions) {
@@ -4239,7 +5094,14 @@ bool RelaxedPlan::same_ff_fact_layers(FactLayer& factlayer_1, FactLayer& factlay
 
 // Check if a proposition is in a RP-STATE
 bool RelaxedPlan::in_rp_state(int p, const RP_STATE& s) const {
-	if (s.find(p) != s.end() && s.at(p) > 0)
+	if (s.find(p) != s.end() && (s.at(p).first || s.at(p).second))
+		return true;
+	return false;
+}
+
+// Check if a proposition is in a RP-STATE
+bool RelaxedPlan::known_in_rp_state(int p, const RP_STATE& s) const {
+	if (s.find(p) != s.end() && s.at(p).first)
 		return true;
 	return false;
 }

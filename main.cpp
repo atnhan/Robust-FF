@@ -1177,6 +1177,18 @@ Bool process_command_line( int argc, char *argv[] )
 				continue;
 			}
 
+			if (strcmp(str_option,"-locally_incremental_robustness") == 0) {
+
+				RelaxedPlan::rp_types = RelaxedPlan::LOCALLY_INCREMENTAL_ROBUSTNESS_RP;
+				continue;
+			}
+
+			if (strcmp(str_option,"-greedy_robustness_rp") == 0) {
+
+				RelaxedPlan::rp_types = RelaxedPlan::GREEDY_ROBUSTNESS_RP;
+				continue;
+			}
+
 			if (--argc && ++argv) {
 				if (strcmp(str_option,"-s") == 0) {
 					strcpy(gcmd_line.solution_file,*argv);

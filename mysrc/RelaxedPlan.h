@@ -120,7 +120,7 @@ class RelaxedPlan {
 	// In the relaxed plan, actions at the same layer of the relaxed planning graph are stored in a list
 	// For each action, we also store (1) the state before it, (2) clause set associated with known preconditions
 	// (3) clause set associated with possible preconditions.
-	typedef boost::unordered_map<int, int> RP_STATE;	// A proposition is in the state if and only if (a) it is in the map,
+	typedef boost::unordered_map<int, std::pair<int,int> > RP_STATE;	// A proposition is in the state if and only if (a) it is in the map,
 														// AND (b) the second field is POSITIVE (the number of add or possible added effects
 														// supporting this proposition at the state)
 	typedef boost::unordered_map<int, ClauseSet*> PRE_2_CLAUSES;
@@ -257,6 +257,7 @@ class RelaxedPlan {
 
 	// Check if a proposition is in a RP-STATE
 	bool in_rp_state(int p, const RP_STATE& s) const;
+	bool known_in_rp_state(int p, const RP_STATE& s) const;
 
 	// Estimate the robustness of the plan prefix + the current relaxed plan, depending on the flags
 	double compute_robustness();
@@ -286,6 +287,10 @@ class RelaxedPlan {
 
 	// Extract the FF-like relaxed plan
 	bool extract_pure_ff_heuristic(std::pair<int, double>& result);
+
+	bool extract_locally_incremental_robustness_rp(std::pair<int, double>& result);
+
+	bool extract_greedy_robustness_rp(std::pair<int, double>& result);
 
 	/*
 	 * FOR DEBUGGING PURPOSES
@@ -343,6 +348,8 @@ public:
 
 		PURE_FF_RP,
 		INCREMENTAL_ROBUSTNESS_RP,
+		LOCALLY_INCREMENTAL_ROBUSTNESS_RP,
+		GREEDY_ROBUSTNESS_RP,
 		ALL_MOST_ROBUST_SUPPORTING_ACTIONS_RP
 
 	};
