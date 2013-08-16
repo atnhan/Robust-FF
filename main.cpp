@@ -1171,6 +1171,12 @@ Bool process_command_line( int argc, char *argv[] )
 				continue;
 			}
 
+			if (strcmp(str_option,"-annotations_free_ff_rp") == 0) {
+
+				RelaxedPlan::rp_types = RelaxedPlan::ANNOTATIONS_FREE_FF_RP;
+				continue;
+			}
+
 			if (strcmp(str_option,"-robust_ff_rp") == 0) {
 
 				RelaxedPlan::rp_types = RelaxedPlan::ROBUST_FF_RP;

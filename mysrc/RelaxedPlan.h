@@ -109,8 +109,8 @@ class RelaxedPlan {
 	//--- FOR FF-RELAXED PLAN ---
 	void initialize_ff_fact_layer();
 	bool grow_ff_action_layer();
-	bool grow_ff_fact_layer();
-	bool build_ff_relaxed_planning_graph();
+	bool grow_ff_fact_layer(bool ignore_annotations = false);
+	bool build_ff_relaxed_planning_graph(bool ignore_annotations = false);
 	bool same_ff_fact_layers(FactLayer& factlayer_1, FactLayer& factlayer_2);
 
 
@@ -223,22 +223,24 @@ class RelaxedPlan {
 
 	// Update state before an RP_STEP
 	// If required, return the number of known preconditions that are not supported
-	int update_rp_state(const RELAXED_PLAN::iterator& rp_step_itr, bool compute_unsupported_known_preconditions = true);
+	int update_rp_state(const RELAXED_PLAN::iterator& rp_step_itr, bool compute_unsupported_known_preconditions = true, bool ignore_annotations = false);
 
 	// Update states of all steps after a particular step.
 	// If required, return the number of unsupported known preconditions that are supported by the new action
-	int update_rp_states_after(const RELAXED_PLAN::iterator& rp_step_itr, bool compute_new_supported_preconditions = true);
+	int update_rp_states_after(const RELAXED_PLAN::iterator& rp_step_itr, bool compute_new_supported_preconditions = true, bool ignore_annotations = false);
 
 	// Update all clauses for a new RP_STEP
-	void update_rp_step_clauses(const RELAXED_PLAN::iterator& rp_step_itr);
+	void update_rp_step_clauses(const RELAXED_PLAN::iterator& rp_step_itr, bool ignore_annotations = false);
 
 	// Update all clauses for steps after a particular step
-	void update_rp_step_clauses_after(const RELAXED_PLAN::iterator& rp_step_itr);
+	void update_rp_step_clauses_after(const RELAXED_PLAN::iterator& rp_step_itr, bool ignore_annotations = false);
 
 	// Insert an action "a" at layer "l" into a relaxed plan.
 	// Return the new RP_STEP
 	//boost::shared_ptr<RP_STEP> insert_action_into_relaxed_plan(int a, int l);
-	RP_STEP *insert_action_into_relaxed_plan(int a, int l);
+	RP_STEP *insert_action_into_relaxed_plan(int a, int l, bool ignore_annotations = false);
+
+
 	//-------
 
 	// Create an RP_STEP containing the goal action
@@ -289,6 +291,8 @@ class RelaxedPlan {
 	// Extract the FF-like relaxed plan
 	bool extract_pure_ff_heuristic(std::pair<int, double>& result);
 
+	bool extract_annotations_free_ff_heuristic(std::pair<int, double>& result);
+
 	bool extract_locally_incremental_robustness_rp(std::pair<int, double>& result);
 
 	bool extract_greedy_robustness_rp(std::pair<int, double>& result);
@@ -325,6 +329,22 @@ class RelaxedPlan {
 	}
 
 public:
+	/////////////////////////////////////////////////////////////////
+	// THESE MEMBERS ARE JUST FOR OBSERVATION
+	// Count number of relaxed plan calls, and number of times successful relaxed plans has been found
+	static int num_rp_calls;
+	static int num_successful_rp_calls;
+
+	// Count number of times we check if a proposition in the RPG has better supporting action
+	// And number of times such checks really succeeds (i.e., a more robust supporting action is found)
+	static int num_better_supporting_action_checks_in_rpg;
+	static int num_better_supporting_actions_found_in_rpg;
+
+	// Count number of times we check if inserting an action increases the (potential) robustness of the current
+	// relaxed plan, and the number of times such checks result in an insertion
+	static int num_rp_robustness_increasing_checks;
+	static int num_rp_robustness_increasing_check_success;
+	/////////////////////////////////////////////////////////////////
 
 	/*********************************************************************************************
 	 * DESIGN CHOICES IN THE RELAXED PLAN EXTRACTION
@@ -350,6 +370,7 @@ public:
 	enum RELAXED_PLAN_TYPES {
 
 		PURE_FF_RP,
+		ANNOTATIONS_FREE_FF_RP,
 		ROBUST_FF_RP,
 		INCREMENTAL_ROBUSTNESS_RP,
 		LOCALLY_INCREMENTAL_ROBUSTNESS_RP,
@@ -381,20 +402,6 @@ public:
 
 	// If we are searching for a plan with more than a robustness threshold
 	static bool use_robustness_threshold;
-
-	// Count number of relaxed plan calls, and number of times successful relaxed plans has been found
-	static int num_rp_calls;
-	static int num_successful_rp_calls;
-
-	// Count number of times we check if a proposition in the RPG has better supporting action
-	// And number of times such checks really succeeds (i.e., a more robust supporting action is found)
-	static int num_better_supporting_action_checks_in_rpg;
-	static int num_better_supporting_actions_found_in_rpg;
-
-	// Count number of times we check if inserting an action increases the (potential) robustness of the current
-	// relaxed plan, and the number of times such checks result in an insertion
-	static int num_rp_robustness_increasing_checks;
-	static int num_rp_robustness_increasing_check_success;
 
 	// Constructors
 	RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals, double robustness_threshold = 0);
