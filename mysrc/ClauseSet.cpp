@@ -16,6 +16,8 @@ using namespace std;
 
 extern string gproblem_file;
 
+bool ClauseSet::UPPER_WMC = true;
+
 ClauseSet::ClauseSet() {
 	max_component_id = 0;
 }
@@ -46,44 +48,59 @@ void ClauseSet::add_clause(const Clause& c) {
 			return;
 	}
 
-	// Remove any clause "c'" that is a superset of "c"
-	// Also record components that must be merged
-	boost::unordered_set<int> components_to_be_merged;
-	ClauseComponentMap::const_iterator itr = clause_components.cbegin();
-	while (itr != clause_components.cend()) {
-		if (c.subset(itr->first)) {
-			// Erase this superset clause from the clause set
-			clauses.erase(itr->first);
+	if (ClauseSet::UPPER_WMC) {
+		// Remove any clause "c'" that is a superset of "c"
+		// Also record components that must be merged
+		boost::unordered_set<int> components_to_be_merged;
+		ClauseComponentMap::const_iterator itr = clause_components.cbegin();
+		while (itr != clause_components.cend()) {
+			if (c.subset(itr->first)) {
+				// Erase this superset clause from the clause set
+				clauses.erase(itr->first);
 
-			// Erase this clause from the mapping, and move to the next one
-			itr = clause_components.erase(itr);
-		}
-		else {
-			// If "c" is not subset of this clause, but they share common literals
-			// then all clauses in the same components with this clause (including itself)
-			// will be put into the same component with "c"
-			if (c.share_literals(itr->first))
-				components_to_be_merged.insert(itr->second);
+				// Erase this clause from the mapping, and move to the next one
+				itr = clause_components.erase(itr);
+			}
+			else {
+				// If "c" is not subset of this clause, but they share common literals
+				// then all clauses in the same components with this clause (including itself)
+				// will be put into the same component with "c"
+				if (c.share_literals(itr->first))
+					components_to_be_merged.insert(itr->second);
 
-			// Move to the next node
-			itr++;
-		}
-	}
-
-	// Add the new clause "c", and reorganize the connected components
-	if (components_to_be_merged.size() == 0) {
-		clauses.insert(c);
-		clause_components[c] = ++max_component_id;
-	}
-	else {
-		int component = *(components_to_be_merged.begin());
-		for (ClauseComponentMap::const_iterator itr = clause_components.cbegin(); itr != clause_components.cend(); itr++) {
-			if (components_to_be_merged.find(itr->second) != components_to_be_merged.end()) {
-				clause_components[itr->first] = component;
+				// Move to the next node
+				itr++;
 			}
 		}
+
+		// Add the new clause "c", and reorganize the connected components
+		if (components_to_be_merged.size() == 0) {
+			clauses.insert(c);
+			clause_components[c] = ++max_component_id;
+		}
+		else {
+			int component = *(components_to_be_merged.begin());
+			for (ClauseComponentMap::const_iterator itr = clause_components.cbegin(); itr != clause_components.cend(); itr++) {
+				if (components_to_be_merged.find(itr->second) != components_to_be_merged.end()) {
+					clause_components[itr->first] = component;
+				}
+			}
+			clauses.insert(c);
+			clause_components[c] = component;
+		}
+	}
+	else {
+		// Remove any clause "c'" that is a superset of "c"
+		const_iterator itr = cbegin();
+		while (itr != cend()) {
+			if (c.subset(*itr))
+				clauses.erase(itr);
+			else
+				itr++;
+		}
+
+		// Add the new clause "c"
 		clauses.insert(c);
-		clause_components[c] = component;
 	}
 }
 
@@ -97,8 +114,11 @@ void ClauseSet::add_clauses(const ClauseSet& cs) {
 
 void ClauseSet::clear() {
 	clauses.clear();
-	clause_components.clear();
-	max_component_id = 0;
+
+	if (ClauseSet::UPPER_WMC) {
+		clause_components.clear();
+		max_component_id = 0;
+	}
 }
 
 void ClauseSet::wmc(CACHET_OUTPUT& r) const {
@@ -148,6 +168,10 @@ double ClauseSet::lower_wmc() const {
 // (1) for each connected component, get the minimal probability of clauses
 // (2) take the product of these mins
 double ClauseSet::upper_wmc() const{
+
+	if (!ClauseSet::UPPER_WMC) {
+		return 1;
+	}
 
 	// Empty clause set
 	if (size() == 0)
@@ -331,8 +355,10 @@ bool operator==(ClauseSet const& cs1, ClauseSet const& cs2) {
 
 // Print out components
 void ClauseSet::print_components() {
-	for (ClauseComponentMap::const_iterator itr = clause_components.cbegin(); itr != clause_components.cend(); itr++) {
-		cout<<itr->first<<": "<<itr->second<<endl;
+	if (ClauseSet::UPPER_WMC) {
+		for (ClauseComponentMap::const_iterator itr = clause_components.cbegin(); itr != clause_components.cend(); itr++) {
+			cout<<itr->first<<": "<<itr->second<<endl;
+		}
 	}
 }
 

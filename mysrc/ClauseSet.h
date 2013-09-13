@@ -53,6 +53,8 @@ class ClauseSet {
 
 public:
 
+	static bool UPPER_WMC;	// whether we will compute the upper bound of clause sets
+
 	ClauseSet();
 	ClauseSet(const ClauseSet& clauses);
 	virtual ~ClauseSet();

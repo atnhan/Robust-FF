@@ -299,6 +299,9 @@ class RelaxedPlan {
 
 	bool extract_robust_ff_heuristic(std::pair<int, double>& result);
 
+	bool extract_local_robustness_evaluation_rp(std::pair<int, double>& result);
+
+
 	/*
 	 * FOR DEBUGGING PURPOSES
 	 */

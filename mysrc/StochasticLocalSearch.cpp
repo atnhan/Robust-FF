@@ -571,7 +571,7 @@ bool StochasticLocalSearch::run(FILE *log) {
 				// Save the plan to its individual plan file
 				stringstream ss;
 				ss<<best_plan.id;
-				string this_plan_file = string(gcmd_line.path) + string(gcmd_line.ops_file_name) + string("@") +
+				string this_plan_file = string(gcmd_line.path_to_plan_files) + string(gcmd_line.ops_file_name) + string("@") +
 						string(gcmd_line.fct_file_name) + string(".") + ss.str() + string(".SOL");
 				ofstream f;
 				f.open(this_plan_file.c_str());
@@ -665,7 +665,7 @@ void StochasticLocalSearch::update_experiment_analysis_file_for_complete_run() {
 
 #define tab		"\t"
 
-	string stat_file = string(gcmd_line.path) + string(gcmd_line.experiment_analysis_file_for_complete_run);
+	string stat_file = string(gcmd_line.path_to_experiment_result_files) + string(gcmd_line.experiment_analysis_file_for_complete_run);
 
 	// Check if the file exists, if not then write the header
 	ifstream f0(stat_file.c_str());
@@ -751,7 +751,7 @@ void StochasticLocalSearch::update_experiment_analysis_file(const Plan& p) {
 #define tab		"\t"
 #define sep		","
 
-	string stat_file = string(gcmd_line.path) + string(gcmd_line.experiment_analysis_file);
+	string stat_file = string(gcmd_line.path_to_experiment_result_files) + string(gcmd_line.experiment_analysis_file);
 
 	// Check if the file exists, if not then write the header
 	ifstream f0(stat_file.c_str());

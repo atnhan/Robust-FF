@@ -551,7 +551,7 @@ int main( int argc, char *argv[] )
 	/*
 	 * TUAN (begin)
 	 */
-	string logfile(gcmd_line.path);
+	string logfile(gcmd_line.path_to_experiment_result_files);
 	logfile += string(gcmd_line.log_file);
 	FILE *log = fopen(logfile.c_str(), "a");
 	if (!log) {
@@ -723,143 +723,6 @@ int main( int argc, char *argv[] )
 	fclose(log);
 
 	return 0;
-
-
-	/******************************************************************************************************************
-	 * TUAN: End
-	 ******************************************************************************************************************/
-
-
-
-
-
-
-
-
-
-
-
-
-
-	/*
-	 * TUAN (begin)
-	 */
-	//test_adding_removing_clauses();
-//	test_estimate_robustness();
-//	exit(0);
-
-	/*
-	 * TUAN (end)
-	 */
-
-	/*
-	 * TUAN (begin)
-	 * Test the correctness constraints by testing plan robustness assessment
-	 */
-//	gproblem_file = string(gcmd_line.fct_file_name);
-//	vector<double> weights(gnum_possible_annotations, 0.5);
-//	Clause::set_weights(weights);
-//	string sol_file("zenotravel.pddl.0p_0a_4d.1@pfile2.SOL");
-//	test_evaluate_plan_robustness(sol_file, &ginitial_state, &ggoal_state);
-//
-//	exit(0);
-	/*
-	 * TUAN (end)
-	 */
-
-
-	/*
-	 * TUAN (begin)
-	 */
-//	RelaxedPlan::ignore_poss_del_in_rp = true;
-//	RelaxedPlan::use_lower_bound_in_rp = true;
-//	RelaxedPlan::use_robustness_threshold = true;
-//	RelaxedPlan::clauses_from_rpg_for_false_preconditions = true;
-//	RelaxedPlan::candidate_actions_affect_current_actions = true;
-//	RelaxedPlan::current_actions_affect_candidate_action = true;
-//	vector<double> weights(gnum_possible_annotations, 0.5);
-//	Clause::set_weights(weights);
-//	string sol_file("pfile10.partial.sol");
-//	test_relaxed_plan(sol_file, &ginitial_state, &ggoal_state);
-//	exit(0);
-	/*
-	 * TUAN (end)
-	 */
-
-	//	ClauseSet::weights.resize(gnum_possible_annotations);
-//	for (int i=0;i<gnum_possible_annotations;i++)
-//		ClauseSet::weights[i] = 0.5;
-//	test_estimate_robustness();
-//	exit(0);
-
-	/*
-	 * TUAN (begin)
-	 */
-
-	/*
-	 * TUAN (end)
-	 */
-
-
-	/***********************************************************
-	 * we are finally through with preprocessing and can worry *
-	 * bout finding a plan instead.                            *
-	 ***********************************************************/
-
-	times( &start );
-
-	/* another quick preprocess: approximate goal orderings and split
-	 * goal set into sequence of smaller sets, the goal agenda
-	 */
-	compute_goal_agenda();
-
-	/* make space in plan states info, and relax
-	 */
-	for ( i = 0; i < MAX_PLAN_LENGTH + 1; i++ ) {
-		make_state( &(gplan_states[i]), gnum_ft_conn );
-		gplan_states[i].max_F = gnum_ft_conn;
-	}
-	make_state( &current_start, gnum_ft_conn );
-	current_start.max_F = gnum_ft_conn;
-	make_state( &current_end, gnum_ft_conn );
-	current_end.max_F = gnum_ft_conn;
-	initialize_relax();
-
-	source_to_dest( &(gplan_states[0]), &ginitial_state );
-	source_to_dest( &current_start, &ginitial_state );
-	source_to_dest( &current_end, &(ggoal_agenda[0]) );
-
-	for ( i = 0; i < gnum_goal_agenda; i++ ) {
-		if ( !do_enforced_hill_climbing( &current_start, &current_end ) ) {
-			break;
-		}
-		source_to_dest( &current_start, &(gplan_states[gnum_plan_ops]) );
-		if ( i < gnum_goal_agenda - 1 ) {
-			for ( j = 0; j < ggoal_agenda[i+1].num_F; j++ ) {
-				current_end.F[current_end.num_F++] = ggoal_agenda[i+1].F[j];
-			}
-		}
-	}
-	found_plan = ( i == gnum_goal_agenda ) ? TRUE : FALSE;
-
-	if ( !found_plan ) {
-		printf("\n\nEnforced Hill-climbing failed !");
-		printf("\nswitching to Best-first Search now.\n");
-		found_plan = do_best_first_search();
-	}
-
-	times( &end );
-	TIME( gsearch_time );
-
-	if ( found_plan ) {
-		print_plan();
-	}
-
-	output_planner_info();
-
-	printf("\n\n");
-	exit( 0 );
-
 }
 
 
@@ -1204,6 +1067,18 @@ Bool process_command_line( int argc, char *argv[] )
 			if (--argc && ++argv) {
 				if (strcmp(str_option,"-s") == 0) {
 					strcpy(gcmd_line.solution_file,*argv);
+				}
+
+				if (strcmp(str_option,"-path_to_experiment_result_files") == 0) {
+					strncpy( gcmd_line.path_to_experiment_result_files, *argv, MAX_LENGTH );
+				}
+
+				if (strcmp(str_option,"-path_to_plan_files") == 0) {
+					strncpy( gcmd_line.path_to_plan_files, *argv, MAX_LENGTH );
+				}
+
+				if (strcmp(str_option,"-path_to_wmc") == 0) {
+					strncpy( gcmd_line.path_to_wmc, *argv, MAX_LENGTH );
 				}
 
 				/*
