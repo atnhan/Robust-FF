@@ -345,6 +345,16 @@ struct _command_line {
 	char experiment_analysis_file[MAX_LENGTH];
 
 	char log_file[MAX_LENGTH];
+
+	// Path to experiment result files
+	char path_to_experiment_result_files[MAX_LENGTH];
+
+	// Path to solution plan files
+	char path_to_plan_files[MAX_LENGTH];
+
+	// Path to WMC (Cachet)
+	char path_to_wmc[MAX_LENGTH];
+
 	/*
 	 * TUAN (end)
 	 */
