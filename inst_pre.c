@@ -2585,6 +2585,7 @@ void make_normal_possible_preconditions(NormOperator **nop, Operator *op) {
 		break;
 	default:
 		printf("\n\nInvalid possible preconditions. File: %s, line %d\n\n",__FILE__, __LINE__);
+		print_Operator(op);
 		exit(1);
 	}
 

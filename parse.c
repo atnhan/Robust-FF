@@ -1073,11 +1073,17 @@ Bool is_wff( PlNode *n )
 
 
 Bool make_effects( PlNode **n )
-
 {
 
 	PlNode *tmp, *i, *literals, *j, *k, *next;
 	int m = 0;
+
+	// Tuan (begin)
+	if (!(*n)) return TRUE;
+
+	// Debugging only
+	//print_PlNode(*n,1);
+	// Tuan (end)
 
 	if ( (*n)->connective != AND ) {
 		if ( !is_eff_literal( *n ) &&
