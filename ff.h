@@ -352,8 +352,8 @@ struct _command_line {
 	// Path to solution plan files
 	char path_to_plan_files[MAX_LENGTH];
 
-	// Path to WMC (Cachet)
-	char path_to_wmc[MAX_LENGTH];
+	// WMC file
+	char wmc_file[MAX_LENGTH];
 
 	/*
 	 * TUAN (end)
