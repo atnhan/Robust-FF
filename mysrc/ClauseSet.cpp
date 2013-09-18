@@ -130,7 +130,8 @@ void ClauseSet::wmc(CACHET_OUTPUT& r) const {
 
 	// Check the model counting file
 	FILE *f;
-	if ((f = fopen ("./cachet-wmc", "r")) == NULL)
+	string wmc_file = string(gcmd_line.path_to_wmc) + string("cachet-wmc");
+	if ((f = fopen (wmc_file.c_str(), "r")) == NULL)
 	{
 		printf("Model counting software not found! File %s, line %d.\n",__FILE__,__LINE__);
 		exit(1);
@@ -138,11 +139,12 @@ void ClauseSet::wmc(CACHET_OUTPUT& r) const {
 	fclose(f);
 
 	// CNF and result file
-	string cnf_file = gproblem_file + string(".cnf");
-	string result_file = gproblem_file + string(".cnf") + string(".cachet");
+
+	string cnf_file = string(gcmd_line.ops_file_name) + string("__") + string(gcmd_line.fct_file_name) + string(".cnf");
+	string result_file = cnf_file + string(".cachet");
 
 	write_cnf_file(cnf_file.c_str());
-	string cmd = "./cachet-wmc " + cnf_file + " > " + result_file;
+	string cmd = wmc_file + " " + cnf_file + " > " + result_file;
 
 	// Calling the model counting and write the answer to "A" file
 	system(cmd.c_str());

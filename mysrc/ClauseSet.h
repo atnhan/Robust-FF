@@ -8,6 +8,7 @@
 #ifndef CLAUSESET_H_
 #define CLAUSESET_H_
 
+#include "../ff.h"
 #include <set>
 #include <vector>
 #include <iostream>
