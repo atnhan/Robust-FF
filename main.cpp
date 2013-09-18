@@ -511,11 +511,6 @@ int main( int argc, char *argv[] )
 
 	struct tms start, end;
 
-	State current_start, current_end;
-	int i, j;
-	Bool found_plan;
-
-
 	times ( &lstart );
 
 
@@ -1077,8 +1072,8 @@ Bool process_command_line( int argc, char *argv[] )
 					strncpy( gcmd_line.path_to_plan_files, *argv, MAX_LENGTH );
 				}
 
-				if (strcmp(str_option,"-path_to_wmc") == 0) {
-					strncpy( gcmd_line.path_to_wmc, *argv, MAX_LENGTH );
+				if (strcmp(str_option,"-wmc_file") == 0) {
+					strncpy( gcmd_line.wmc_file, *argv, MAX_LENGTH );
 				}
 
 				/*

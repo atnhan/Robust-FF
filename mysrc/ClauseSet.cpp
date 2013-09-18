@@ -130,7 +130,7 @@ void ClauseSet::wmc(CACHET_OUTPUT& r) const {
 
 	// Check the model counting file
 	FILE *f;
-	string wmc_file = string(gcmd_line.path_to_wmc) + string("cachet-wmc");
+	string wmc_file(gcmd_line.wmc_file);
 	if ((f = fopen (wmc_file.c_str(), "r")) == NULL)
 	{
 		printf("Model counting software not found! File %s, line %d.\n",__FILE__,__LINE__);
