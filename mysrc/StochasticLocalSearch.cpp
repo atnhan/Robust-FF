@@ -22,7 +22,7 @@ extern bool gannotations_at_grounded_level;
 
 // Default search parameters
 bool StochasticLocalSearch::FF_helpful_actions = true;
-int StochasticLocalSearch::max_restarts = 10000;
+int StochasticLocalSearch::max_restarts = 10000000; // This should be infinite: we keep finding a better plan
 int StochasticLocalSearch::initial_depth_bound = 10;
 int StochasticLocalSearch::max_iterations = 5;
 int StochasticLocalSearch::probes_at_depth = 60;
@@ -504,7 +504,7 @@ bool StochasticLocalSearch::run(FILE *log) {
 
 	// We try to find better plans in at most "max_restarts" restarts from the initial state
 	int restarts = 0;
-	while (restarts < max_restarts) {
+	while (restarts < max_restarts && best_plan.robustness < 0.9999999) {
 
 #ifdef DEBUG_SLS_RUN
 		cout<<"Restart from initial state: restarts = "<<restarts<<endl<<endl;
