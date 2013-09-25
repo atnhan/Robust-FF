@@ -701,6 +701,25 @@ int main( int argc, char *argv[] )
 	 * TUAN: Begin search for robust plans
 	 ******************************************************************************************************************/
 	gproblem_file = string(gcmd_line.fct_file_name);
+
+	// If the annotations are supposed to be at the grounded level, then we reinitialize the boolean variables
+	// associated with possible preconditions and effects.
+	if (gcmd_line.annotations_at_grounded_level) {
+		gnum_possible_annotations = 0;
+		for (int i = 0; i < gnum_ef_conn; i++ ) {
+			if ( gef_conn[i].removed ) continue;
+
+			for (int j = 0; j < gef_conn[i].num_poss_PC; j++ )
+				gef_conn[i].poss_PC_annotation_id[j] = ++gnum_possible_annotations;
+
+			for (int j = 0; j < gef_conn[i].num_poss_A; j++ )
+				gef_conn[i].poss_A_annotation_id[j] = ++gnum_possible_annotations;
+
+			for (int j = 0; j < gef_conn[i].num_poss_D; j++ )
+				gef_conn[i].poss_D_annotation_id[j] = ++gnum_possible_annotations;
+		}
+	}
+
 	// Weights of annotations. Uniform just for now!
 	// The weights have not been updated directly from the parser
 	vector<double> weights(gnum_possible_annotations, 0.5);
@@ -957,6 +976,13 @@ Bool process_command_line( int argc, char *argv[] )
 			// Robustness evaluation
 			if (strcmp(str_option,"-r") == 0) {
 				gcmd_line.robustness_evaluation = true;
+				continue;
+			}
+
+			// If the annotations are interpreted as at the grounded level
+			// By default, it must be at schema level
+			if (strcmp(str_option,"-annotations_at_grounded_level") == 0) {
+				gcmd_line.annotations_at_grounded_level = true;
 				continue;
 			}
 
