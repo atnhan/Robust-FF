@@ -356,9 +356,6 @@ struct _command_line {
 	// WMC file
 	char wmc_file[MAX_LENGTH];
 
-	// If annotations are at grounded level
-	bool annotations_at_grounded_level;
-
 	/*
 	 * TUAN (end)
 	 */

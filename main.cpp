@@ -82,6 +82,8 @@ string gproblem_file;
 
 double ginitial_robustness_threshold = 0;
 
+bool gannotations_at_grounded_level = false;
+
 /*
  * TUAN (end)
  */
@@ -704,7 +706,7 @@ int main( int argc, char *argv[] )
 
 	// If the annotations are supposed to be at the grounded level, then we reinitialize the boolean variables
 	// associated with possible preconditions and effects.
-	if (gcmd_line.annotations_at_grounded_level) {
+	if (gannotations_at_grounded_level) {
 		gnum_possible_annotations = 0;
 		for (int i = 0; i < gnum_ef_conn; i++ ) {
 			if ( gef_conn[i].removed ) continue;
@@ -982,7 +984,7 @@ Bool process_command_line( int argc, char *argv[] )
 			// If the annotations are interpreted as at the grounded level
 			// By default, it must be at schema level
 			if (strcmp(str_option,"-annotations_at_grounded_level") == 0) {
-				gcmd_line.annotations_at_grounded_level = true;
+				gannotations_at_grounded_level = true;
 				continue;
 			}
 
