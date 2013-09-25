@@ -18,6 +18,7 @@
 using namespace std;
 
 extern int gnum_possible_annotations;
+extern bool gannotations_at_grounded_level;
 
 // Default search parameters
 bool StochasticLocalSearch::FF_helpful_actions = true;
@@ -799,6 +800,7 @@ void StochasticLocalSearch::update_experiment_analysis_file(const Plan& p) {
 			break;
 		}
 		f<<endl;
+		f<<"#annotations_at_grounded_level:\t"<<gannotations_at_grounded_level<<endl;
 		f<<"#ignore_poss_del_in_rp:\t"<<RelaxedPlan::ignore_poss_del_in_rp<<endl;
 		f<<"#use_lower_bound_in_rp:\t"<<RelaxedPlan::use_lower_bound_in_rp<<endl;
 		f<<"#use_upper_bound_in_rp:\t"<<RelaxedPlan::use_upper_bound_in_rp<<endl;
