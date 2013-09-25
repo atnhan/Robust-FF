@@ -706,7 +706,7 @@ int main( int argc, char *argv[] )
 
 	// If the annotations are supposed to be at the grounded level, then we reinitialize the boolean variables
 	// associated with possible preconditions and effects.
-	if (gannotations_at_grounded_level) {
+	if (true || gannotations_at_grounded_level) {
 		gnum_possible_annotations = 0;
 		for (int i = 0; i < gnum_ef_conn; i++ ) {
 			if ( gef_conn[i].removed ) continue;
