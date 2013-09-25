@@ -336,6 +336,7 @@ struct _command_line {
 	 * TUAN (begin)
 	 */
 	bool robustness_evaluation;
+
 	char solution_file[MAX_LENGTH];				// Plan to evaluate
 
 	char solution_folder[MAX_LENGTH];
@@ -354,6 +355,9 @@ struct _command_line {
 
 	// WMC file
 	char wmc_file[MAX_LENGTH];
+
+	// If annotations are at grounded level
+	bool annotations_at_grounded_level;
 
 	/*
 	 * TUAN (end)
