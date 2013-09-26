@@ -720,7 +720,7 @@ void StochasticLocalSearch::sample_k(const StripsEncoding* e, int k, const std::
 	// Sampling step
 	std::list<std::list<int> > array_buckets;
 	for (int i=0;i<buckets.bucket_count();i++) {
-		boost::unordered_map<std::pair<std::string, int>, std::list<int> >::local_iterator itr = buckets.begin(i); itr != buckets.end(i); itr++) {
+		for (boost::unordered_map<std::pair<std::string, int>, std::list<int> >::local_iterator itr = buckets.begin(i); itr != buckets.end(i); itr++) {
 
 		}
 	}
