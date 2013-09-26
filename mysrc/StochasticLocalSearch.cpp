@@ -122,7 +122,10 @@ bool StochasticLocalSearch::sample_next_actions(StripsEncoding* e, double robust
 	// Now sample "n" actions
 	if (n < candidate_applicable_actions.size()) {
 		vector<int> indices;
-		sample_k(n, candidate_applicable_actions.size(), indices);
+		if (StochasticLocalSearch::action_bucketing)
+			sample_k(e, n, candidate_applicable_actions, indices);
+		else
+			sample_k(n, candidate_applicable_actions.size(), indices);
 		for (int i=0;i<indices.size();i++) {
 			actions.push_back(candidate_applicable_actions[indices[i]]);
 		}
@@ -415,7 +418,7 @@ bool StochasticLocalSearch::local_search_for_a_better_state(StripsEncoding* e,
 						break;	// out of building the current probe
 					}
 				}
-				// If we cannot sample a state from which a relaxed plan (with >= a robustness threshold) exists,
+				// If we cannot sample a state (not necessarily one from which a relaxed plan with >= a robustness threshold exists),
 				// then we roll back and start a new probe.
 				else {
 
@@ -690,10 +693,14 @@ void StochasticLocalSearch::sample_k(int k, int n, vector<int>& result) {
 	}
 }
 
-void StochasticLocalSearch::sample_k(const StripsEncoding*& e, int k, const std::vector<int>& candidate_applicable_actions, std::vector<int>& resulting_indices) {
-	boost::unordered_map<std::pair<std::string, int>, std::vector<int> > buckets;
+void StochasticLocalSearch::sample_k(const StripsEncoding* e, int k, const std::vector<int>& candidate_applicable_actions, std::vector<int>& resulting_indices) {
+
 	const std::vector<int>& actions = e->get_actions();
 	int previous_action = actions.at(actions.size()-1);
+
+	// Partition the indices [0..candidate_applicable_actions.size()-1] into buckets wrt the operator's name and
+	// number of parameters having in common with the previous action
+	boost::unordered_map<std::pair<std::string, int>, std::list<int> > buckets;
 	for (int i=0;i<candidate_applicable_actions.size();i++) {
 		int op = candidate_applicable_actions[i];
 		std::string name = gop_conn[op].action->name;
@@ -706,10 +713,37 @@ void StochasticLocalSearch::sample_k(const StripsEncoding*& e, int k, const std:
 			}
 		}
 		std::pair<std::string, int> p = std::make_pair(name, common_parameter_count);
-		std::vector<int>& indices = buckets[p];
-		indices.push_back(i);
+		std::list<int>& indices = buckets[p];
+		indices.push_back(i); // Make sure this is "i", not "op"
 	}
 
+	// Sampling step
+	std::list<std::list<int> > array_buckets;
+	for (int i=0;i<buckets.bucket_count();i++) {
+		boost::unordered_map<std::pair<std::string, int>, std::list<int> >::local_iterator itr = buckets.begin(i); itr != buckets.end(i); itr++) {
+
+		}
+	}
+	int remaining_indices_count = candidate_applicable_actions.size();
+	while (remaining_indices_count > 0 && resulting_indices.size() < k) {
+
+		int bucket_id = int_dist(generator, boost::random::uniform_int_distribution<>::param_type(0, array_buckets.size()-1));
+		std::list<std::list<int> >::iterator bucket_itr = array_buckets.begin();
+		std::advance(bucket_itr, bucket_id);
+		assert(bucket_itr->size());
+
+		int index_id = int_dist(generator, boost::random::uniform_int_distribution<>::param_type(0, bucket_itr->size()-1));
+		std::list<int>::iterator index_itr = bucket_itr->begin();
+		std::advance(index_itr, index_id);
+
+		resulting_indices.push_back(*index_itr);
+		bucket_itr->erase(index_itr);
+		remaining_indices_count--;
+
+		if (bucket_itr->size() == 0) {
+			array_buckets.erase(bucket_itr);
+		}
+	}
 }
 
 // Update the experiment analysis file

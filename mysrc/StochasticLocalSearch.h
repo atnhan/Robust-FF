@@ -100,7 +100,8 @@ class StochasticLocalSearch: public Search {
 	// Sample k distinct integers from 0 to n-1
 	void sample_k(int k, int n, std::vector<int>& result);
 
-	void sample_k(const StripsEncoding*& e, int k, const std::vector<int>& candidate_applicable_actions, std::vector<int>& resulting_indices);
+	// Sample k indices in [0, candidate_applicable_actions.size()-1]
+	void sample_k(const StripsEncoding* e, int k, const std::vector<int>& candidate_applicable_actions, std::vector<int>& resulting_indices);
 
 	// Update the experiment analysis file (if complete run succeeds)
 	void update_experiment_analysis_file_for_complete_run();
