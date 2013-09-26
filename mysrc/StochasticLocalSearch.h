@@ -13,6 +13,7 @@
 #include <boost/random/uniform_int_distribution.hpp>
 #include <boost/random/uniform_real_distribution.hpp>
 #include <boost/random/mersenne_twister.hpp>
+#include <boost/unordered_set.hpp>
 
 class StochasticLocalSearch: public Search {
 
@@ -75,6 +76,15 @@ class StochasticLocalSearch: public Search {
 		}
 	} neighbor_comparison_obj;
 
+	// Action information for bucketing
+	struct ActionInfoForBucketing {
+		int op; // [0..gnum_op_conn)
+		std::string name;	// e.g., "move", "pickup"
+		boost::unordered_set<int> related_parameters; // each is a proposition id in [0..gnum_ft_conn)
+	};
+	std::vector<ActionInfoForBucketing> bucketed_action_info;
+	void initialize_action_information_for_bucketing();
+
 	// Using local search to find a better state than the current one
 	bool local_search_for_a_better_state(StripsEncoding* e,
 			double current_robustness, int h, int& next_h, double& next_robustness, int& fail_count, int tab = 0);
@@ -89,6 +99,8 @@ class StochasticLocalSearch: public Search {
 
 	// Sample k distinct integers from 0 to n-1
 	void sample_k(int k, int n, std::vector<int>& result);
+
+	void sample_k(const StripsEncoding*& e, int k, const std::vector<int>& candidate_applicable_actions, std::vector<int>& resulting_indices);
 
 	// Update the experiment analysis file (if complete run succeeds)
 	void update_experiment_analysis_file_for_complete_run();
@@ -126,6 +138,9 @@ public:
 	// The max and min of heuristic-bias parameter (beta, in Coles's work)
 	static double max_heuristic_bias;
 	static double min_heuristic_bias;
+
+	// Whether we bucket actions
+	static bool action_bucketing;
 
 	StochasticLocalSearch(State *init, State *goals, double desired_robustness = 1.0);
 	virtual ~StochasticLocalSearch();

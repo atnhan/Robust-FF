@@ -14,6 +14,7 @@
 #include <fstream>
 #include "Helpful.h"
 #include "StripsEncoding.h"
+#include <boost/unordered_map.hpp>
 
 using namespace std;
 
@@ -22,7 +23,7 @@ extern bool gannotations_at_grounded_level;
 
 // Default search parameters
 bool StochasticLocalSearch::FF_helpful_actions = true;
-int StochasticLocalSearch::max_restarts = 10000000; // This should be infinite: we keep finding a better plan
+int StochasticLocalSearch::max_restarts = INT_MAX; // This should be infinite: we keep finding a better plan
 int StochasticLocalSearch::initial_depth_bound = 10;
 int StochasticLocalSearch::max_iterations = 5;
 int StochasticLocalSearch::probes_at_depth = 60;
@@ -30,9 +31,14 @@ int StochasticLocalSearch::neighborhood_size = 5;
 int StochasticLocalSearch::fail_bound = 32;
 double StochasticLocalSearch::max_heuristic_bias = 1.5;
 double StochasticLocalSearch::min_heuristic_bias = 0.5;
+bool StochasticLocalSearch::action_bucketing = false;
+
 
 StochasticLocalSearch::StochasticLocalSearch(State *init, State *goals, double desired_robustness):
 	Search(init, goals, desired_robustness) {
+
+	if (StochasticLocalSearch::action_bucketing)
+		initialize_action_information_for_bucketing();
 
 }
 
@@ -178,12 +184,6 @@ bool StochasticLocalSearch::sample_next_state(StripsEncoding* e, double current_
 		// record the action and relaxed plan length
 		if (rp.extract(rp_info)) {
 
-			// Add RP time
-			clock.stop();
-			timer.rp_time += clock.time();
-			clock.restart();
-			//
-
 			assert(rp_info.second > current_robustness);
 
 			if (rp_info.first < h) {
@@ -274,6 +274,35 @@ bool StochasticLocalSearch::sample_next_state(StripsEncoding* e, double current_
 	// Return the selected neighbor
 	selected_neighbor = neighbors[k];
 	return true;
+}
+
+void StochasticLocalSearch::initialize_action_information_for_bucketing() {
+	bucketed_action_info.reserve(gnum_op_conn);
+	for (int i=0;i<gnum_op_conn;i++) {
+		bucketed_action_info[i].op = i;
+		bucketed_action_info[i].name = gop_conn[i].action->name;
+		assert(gop_conn[i].num_E == 1);
+		int ef = gop_conn[i].E[0];
+		// Adding known and possible preconditions and effects into the related parameters
+		for (int j=0;j<gef_conn[ef].num_PC;j++) {
+			bucketed_action_info[i].related_parameters.insert(gef_conn[ef].PC[j]);
+		}
+		for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
+			bucketed_action_info[i].related_parameters.insert(gef_conn[ef].poss_PC[j]);
+		}
+		for (int j=0;j<gef_conn[ef].num_A;j++) {
+			bucketed_action_info[i].related_parameters.insert(gef_conn[ef].A[j]);
+		}
+		for (int j=0;j<gef_conn[ef].num_poss_A;j++) {
+			bucketed_action_info[i].related_parameters.insert(gef_conn[ef].poss_A[j]);
+		}
+		for (int j=0;j<gef_conn[ef].num_D;j++) {
+			bucketed_action_info[i].related_parameters.insert(gef_conn[ef].D[j]);
+		}
+		for (int j=0;j<gef_conn[ef].num_poss_D;j++) {
+			bucketed_action_info[i].related_parameters.insert(gef_conn[ef].poss_D[j]);
+		}
+	}
 }
 
 // Using local search to find a better state than the current one (i.e., having heuristic value < "h")
@@ -659,6 +688,28 @@ void StochasticLocalSearch::sample_k(int k, int n, vector<int>& result) {
 		result.push_back(a[t]);
 		a.erase(a.begin() + t);
 	}
+}
+
+void StochasticLocalSearch::sample_k(const StripsEncoding*& e, int k, const std::vector<int>& candidate_applicable_actions, std::vector<int>& resulting_indices) {
+	boost::unordered_map<std::pair<std::string, int>, std::vector<int> > buckets;
+	const std::vector<int>& actions = e->get_actions();
+	int previous_action = actions.at(actions.size()-1);
+	for (int i=0;i<candidate_applicable_actions.size();i++) {
+		int op = candidate_applicable_actions[i];
+		std::string name = gop_conn[op].action->name;
+		int common_parameter_count = 0;
+		for (boost::unordered_set<int>::const_iterator itr = bucketed_action_info[op].related_parameters.cbegin();
+				itr != bucketed_action_info[op].related_parameters.cend(); itr++) {
+			if (bucketed_action_info[previous_action].related_parameters.find(*itr) !=
+					bucketed_action_info[previous_action].related_parameters.end()) {
+				common_parameter_count++;
+			}
+		}
+		std::pair<std::string, int> p = std::make_pair(name, common_parameter_count);
+		std::vector<int>& indices = buckets[p];
+		indices.push_back(i);
+	}
+
 }
 
 // Update the experiment analysis file
