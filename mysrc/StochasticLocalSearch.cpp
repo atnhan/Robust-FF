@@ -122,10 +122,14 @@ bool StochasticLocalSearch::sample_next_actions(StripsEncoding* e, double robust
 	// Now sample "n" actions
 	if (n < candidate_applicable_actions.size()) {
 		vector<int> indices;
-		if (StochasticLocalSearch::action_bucketing)
-			sample_k(e, n, candidate_applicable_actions, indices);
+		const std::vector<int>& prefix = e->get_actions();
+		if (StochasticLocalSearch::action_bucketing && prefix.size()) {
+			int previous_action = prefix.at(prefix.size()-1);
+			sample_k(previous_action, n, candidate_applicable_actions, indices);
+		}
 		else
 			sample_k(n, candidate_applicable_actions.size(), indices);
+
 		for (int i=0;i<indices.size();i++) {
 			actions.push_back(candidate_applicable_actions[indices[i]]);
 		}
@@ -280,32 +284,52 @@ bool StochasticLocalSearch::sample_next_state(StripsEncoding* e, double current_
 }
 
 void StochasticLocalSearch::initialize_action_information_for_bucketing() {
-	bucketed_action_info.reserve(gnum_op_conn);
 	for (int i=0;i<gnum_op_conn;i++) {
-		bucketed_action_info[i].op = i;
-		bucketed_action_info[i].name = gop_conn[i].action->name;
+		ActionInfoForBucketing a;
+		a.op = i;
+		a.name = std::string(gop_conn[i].action->name);
 		assert(gop_conn[i].num_E == 1);
 		int ef = gop_conn[i].E[0];
 		// Adding known and possible preconditions and effects into the related parameters
 		for (int j=0;j<gef_conn[ef].num_PC;j++) {
-			bucketed_action_info[i].related_parameters.insert(gef_conn[ef].PC[j]);
+			a.related_parameters.insert(gef_conn[ef].PC[j]);
 		}
 		for (int j=0;j<gef_conn[ef].num_poss_PC;j++) {
-			bucketed_action_info[i].related_parameters.insert(gef_conn[ef].poss_PC[j]);
+			a.related_parameters.insert(gef_conn[ef].poss_PC[j]);
 		}
 		for (int j=0;j<gef_conn[ef].num_A;j++) {
-			bucketed_action_info[i].related_parameters.insert(gef_conn[ef].A[j]);
+			a.related_parameters.insert(gef_conn[ef].A[j]);
 		}
 		for (int j=0;j<gef_conn[ef].num_poss_A;j++) {
-			bucketed_action_info[i].related_parameters.insert(gef_conn[ef].poss_A[j]);
+			a.related_parameters.insert(gef_conn[ef].poss_A[j]);
 		}
 		for (int j=0;j<gef_conn[ef].num_D;j++) {
-			bucketed_action_info[i].related_parameters.insert(gef_conn[ef].D[j]);
+			a.related_parameters.insert(gef_conn[ef].D[j]);
 		}
 		for (int j=0;j<gef_conn[ef].num_poss_D;j++) {
-			bucketed_action_info[i].related_parameters.insert(gef_conn[ef].poss_D[j]);
+			a.related_parameters.insert(gef_conn[ef].poss_D[j]);
+		}
+		bucketed_action_info.push_back(a);
+	}
+
+//#define DEBUG_initialize_action_information_for_bucketing
+#ifdef DEBUG_initialize_action_information_for_bucketing
+	for (int i=0;i<gnum_op_conn;i++) {
+		print_op_name(i);
+		cout<<endl<<"NAME: "<<bucketed_action_info[i].name<<endl;
+		cout<<"Related parameters: ";
+		std::copy(bucketed_action_info[i].related_parameters.begin(), bucketed_action_info[i].related_parameters.end(), ostream_iterator<int>(cout, " "));
+		cout<<endl;
+		for (boost::unordered_set<int>::const_iterator it = bucketed_action_info[i].related_parameters.begin();
+				it != bucketed_action_info[i].related_parameters.end(); it++) {
+			cout<<*it<<": ";
+			print_ft_name(*it);
+			cout<<endl;
 		}
 	}
+
+	exit(0);
+#endif
 }
 
 // Using local search to find a better state than the current one (i.e., having heuristic value < "h")
@@ -693,14 +717,23 @@ void StochasticLocalSearch::sample_k(int k, int n, vector<int>& result) {
 	}
 }
 
-void StochasticLocalSearch::sample_k(const StripsEncoding* e, int k, const std::vector<int>& candidate_applicable_actions, std::vector<int>& resulting_indices) {
+void StochasticLocalSearch::sample_k(int previous_action, int k, const std::vector<int>& candidate_applicable_actions, std::vector<int>& resulting_indices) {
 
-	const std::vector<int>& actions = e->get_actions();
-	int previous_action = actions.at(actions.size()-1);
+//#define DEBUG_sample_k
+#ifdef DEBUG_sample_k
+	cout<<endl<<endl<<"================================================================================"<<endl;
+	cout<<"Previous action:"<<endl;
+	print_op_name(previous_action);
+	cout<<endl<<"Related parameters: ";
+	std::copy(bucketed_action_info[previous_action].related_parameters.begin(),
+			bucketed_action_info[previous_action].related_parameters.end(), ostream_iterator<int>(cout, " "));
+	cout<<endl;
+#endif
 
 	// Partition the indices [0..candidate_applicable_actions.size()-1] into buckets wrt the operator's name and
 	// number of parameters having in common with the previous action
-	boost::unordered_map<std::pair<std::string, int>, std::list<int> > buckets;
+	typedef std::list<std::pair<std::pair<std::string, int> /*name and common parameter count*/, std::list<int> /*indices*/> >::iterator bucket_iterator;
+	std::list<std::pair<std::pair<std::string, int>, std::list<int> > > my_buckets;
 	for (int i=0;i<candidate_applicable_actions.size();i++) {
 		int op = candidate_applicable_actions[i];
 		std::string name = gop_conn[op].action->name;
@@ -712,38 +745,82 @@ void StochasticLocalSearch::sample_k(const StripsEncoding* e, int k, const std::
 				common_parameter_count++;
 			}
 		}
-		std::pair<std::string, int> p = std::make_pair(name, common_parameter_count);
-		std::list<int>& indices = buckets[p];
-		indices.push_back(i); // Make sure this is "i", not "op"
-	}
 
-	// Sampling step
-	std::list<std::list<int> > array_buckets;
-	for (int i=0;i<buckets.bucket_count();i++) {
-		for (boost::unordered_map<std::pair<std::string, int>, std::list<int> >::local_iterator itr = buckets.begin(i); itr != buckets.end(i); itr++) {
+#ifdef DEBUG_sample_k
+		cout<<endl<<"CANDIDATE ACTIONS: "<<op<<endl;
+		print_op_name(op);
+		cout<<endl<<"Related parameters: ";
+		std::copy(bucketed_action_info[op].related_parameters.begin(),
+				bucketed_action_info[op].related_parameters.end(), ostream_iterator<int>(cout, " "));
+		cout<<endl;
+		cout<<"NAME: "<<name<<endl;
+		cout<<"Number of common parameters: "<<common_parameter_count<<endl;
+#endif
 
+		// Find the bucket with the same name and common parameter count, or a newly bucket is needed
+		bucket_iterator it = my_buckets.begin();
+		for (; it != my_buckets.end(); it++) {
+			const std::pair<std::string, int>& p = it->first;
+			std::list<int>& l = it->second;
+			if (p.first == name && p.second == common_parameter_count) {
+				l.push_back(i); // Make sure this is "i", not "op"
+				break;
+			}
+		}
+		if (it == my_buckets.end()) {
+			std::pair<std::string, int> p = std::make_pair(name, common_parameter_count);
+			std::list<int> l;
+			l.push_back(i);
+			my_buckets.push_back(std::make_pair(p,l));
 		}
 	}
+
+#ifdef DEBUG_sample_k
+	int count = 0;
+	cout<<endl;
+	for (bucket_iterator it = my_buckets.begin(); it != my_buckets.end(); it++) {
+		const std::pair<std::string, int>& p = it->first;
+		std::list<int>& l = it->second;
+		cout<<"=== Bucket "<<count++<<" ==="<<endl;
+		cout<<"Name: "<<p.first<<", count: "<<p.second<<endl;
+		cout<<"Actions: ";
+		for (std::list<int>::const_iterator it2 = l.begin(); it2 != l.end(); it2++) {
+			cout<<candidate_applicable_actions[*it2]<<" ";
+		}
+		cout<<endl<<endl;
+	}
+
+#endif
+
+	// Sampling step
 	int remaining_indices_count = candidate_applicable_actions.size();
 	while (remaining_indices_count > 0 && resulting_indices.size() < k) {
-
-		int bucket_id = int_dist(generator, boost::random::uniform_int_distribution<>::param_type(0, array_buckets.size()-1));
-		std::list<std::list<int> >::iterator bucket_itr = array_buckets.begin();
+		int bucket_id = int_dist(generator, boost::random::uniform_int_distribution<>::param_type(0, my_buckets.size()-1));
+		bucket_iterator bucket_itr = my_buckets.begin();
 		std::advance(bucket_itr, bucket_id);
-		assert(bucket_itr->size());
+		std::list<int>& l = bucket_itr->second;
+		assert(l.size());
 
-		int index_id = int_dist(generator, boost::random::uniform_int_distribution<>::param_type(0, bucket_itr->size()-1));
-		std::list<int>::iterator index_itr = bucket_itr->begin();
+		int index_id = int_dist(generator, boost::random::uniform_int_distribution<>::param_type(0, l.size()-1));
+		std::list<int>::iterator index_itr = l.begin();
 		std::advance(index_itr, index_id);
 
 		resulting_indices.push_back(*index_itr);
-		bucket_itr->erase(index_itr);
+		l.erase(index_itr);
 		remaining_indices_count--;
 
-		if (bucket_itr->size() == 0) {
-			array_buckets.erase(bucket_itr);
+		if (l.size() == 0) {
+			my_buckets.erase(bucket_itr);
 		}
 	}
+
+#ifdef DEBUG_sample_k
+	cout<<endl<<"Sampled actions ("<<k<<"): ";
+	for (std::vector<int>::const_iterator it = resulting_indices.begin(); it != resulting_indices.end(); it++) {
+		cout<<candidate_applicable_actions[*it]<<" ";
+	}
+	cout<<endl;
+#endif
 }
 
 // Update the experiment analysis file
