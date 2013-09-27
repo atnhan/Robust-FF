@@ -990,14 +990,6 @@ Bool process_command_line( int argc, char *argv[] )
 			}
 
 			/*
-			 * SEARCH OPTIONS
-			 */
-			if (strcmp(str_option,"-action_bucketing") == 0) {
-				StochasticLocalSearch::action_bucketing = true;
-				continue;
-			}
-
-			/*
 			 * OPTIONS RELATED TO RELAXED PLAN EXTRACTION
 			 */
 

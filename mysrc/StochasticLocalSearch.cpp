@@ -31,7 +31,7 @@ int StochasticLocalSearch::neighborhood_size = 5;
 int StochasticLocalSearch::fail_bound = 32;
 double StochasticLocalSearch::max_heuristic_bias = 1.5;
 double StochasticLocalSearch::min_heuristic_bias = 0.5;
-bool StochasticLocalSearch::action_bucketing = false;
+bool StochasticLocalSearch::action_bucketing = true;
 
 
 StochasticLocalSearch::StochasticLocalSearch(State *init, State *goals, double desired_robustness):
