@@ -560,7 +560,7 @@ bool StochasticLocalSearch::run(FILE *log) {
 
 	// We try to find better plans in at most "max_restarts" restarts from the initial state
 	int restarts = 0;
-	while (restarts < max_restarts && best_plan.robustness < 1) {
+	while (/*restarts < max_restarts && */ best_plan.robustness < 1) {
 
 #ifdef DEBUG_SLS_RUN
 		cout<<"Restart from initial state: restarts = "<<restarts<<endl<<endl;
