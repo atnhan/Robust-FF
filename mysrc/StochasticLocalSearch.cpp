@@ -23,7 +23,7 @@ extern bool gannotations_at_grounded_level;
 
 // Default search parameters
 bool StochasticLocalSearch::FF_helpful_actions = true;
-int StochasticLocalSearch::max_restarts = INT_MAX; // This should be infinite: we keep finding a better plan
+int StochasticLocalSearch::max_restarts = INT_MAX - 100; // This should be infinite: we keep finding a better plan
 int StochasticLocalSearch::initial_depth_bound = 10;
 int StochasticLocalSearch::max_iterations = 5;
 int StochasticLocalSearch::probes_at_depth = 60;
