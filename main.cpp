@@ -702,6 +702,7 @@ int main( int argc, char *argv[] )
 	/******************************************************************************************************************
 	 * TUAN: Begin search for robust plans
 	 ******************************************************************************************************************/
+
 	gproblem_file = string(gcmd_line.fct_file_name);
 
 	// If the annotations are supposed to be at the grounded level, then we reinitialize the boolean variables
