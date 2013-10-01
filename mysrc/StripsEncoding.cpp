@@ -27,9 +27,15 @@ StripsEncoding::StripsEncoding(State *init) {
 }
 
 StripsEncoding::~StripsEncoding() {
-	for (int i=0;i<this->states.size();i++)
-		if (this->states[i])
+	for (int i=0;i<this->states.size();i++) {
+		if (this->states[i]) {
+			if (this->states[i]->F)
+				free(this->states[i]->F);
+			if (this->states[i]->known_F)
+				free(this->states[i]->known_F);
 			free(this->states[i]);
+		}
+	}
 
 //	if (clauses)
 //		delete clauses;
@@ -152,6 +158,10 @@ bool StripsEncoding::remove_last() {
 	actions.pop_back();
 	action_clauses.pop_back();
 	State* last_state = states[states.size()-1];
+	if (last_state->F)
+		free(last_state->F);
+	if (last_state->known_F)
+		free(last_state->known_F);
 	free(last_state);
 	last_state = 0;
 	states.pop_back();

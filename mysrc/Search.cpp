@@ -30,12 +30,18 @@ Search::Search(State* init, State* goals, double initial_robustness_threshold) {
 
 Search::~Search() {
 	if (goals) {
-		delete goals;
-		goals = 0;
+		if (goals->F)
+			free(goals->F);
+		if (goals->known_F)
+			free(goals->known_F);
+		free(goals);
 	}
 	if (init) {
-		delete init;
-		init = 0;
+		if (init->F)
+			free(init->F);
+		if (init->known_F)
+			free(init->known_F);
+		free(init);
 	}
 }
 

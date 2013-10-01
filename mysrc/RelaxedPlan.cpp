@@ -5702,17 +5702,16 @@ void RelaxedPlan::initialize_fact_layer() {
 		FactNode node;
 		e->supporting_constraints(ft, n, node.best_clauses);
 
-//		// WE DON'T NEED THIS PART
-//		// Clause sets of all actions in the plan prefix
-//		ClauseSet all_clauses;
-//		e->get_clauses(all_clauses);
-//		all_clauses.add_clauses(node.best_clauses);
-//
-//		// Estimating robustness
-//		if (RelaxedPlan::use_lower_bound_in_rp)
-//			node.best_robustness = all_clauses.lower_wmc();
-//		else
-//			node.best_robustness = all_clauses.upper_wmc();
+		// Clause sets of all actions in the plan prefix
+		ClauseSet all_clauses;
+		e->get_clauses(all_clauses);	// Doing this for each proposition is quite costly...
+		all_clauses.add_clauses(node.best_clauses);
+
+		// Estimating robustness
+		if (RelaxedPlan::use_lower_bound_in_rp)
+			node.best_robustness = all_clauses.lower_wmc();
+		else
+			node.best_robustness = all_clauses.upper_wmc();
 
 		// The supporting action is the last one of the plan prefix, or the INIT_ACTION
 		if (n == 0)

@@ -723,6 +723,17 @@ int main( int argc, char *argv[] )
 		}
 	}
 
+//#define DEBUG_main
+#ifdef DEBUG_main
+	cout<<"============ GROUNDED ACTIONS ============"<<endl<<endl;
+	for (int i=0;i<gnum_op_conn;i++) {
+		Action *a = gop_conn[i].action;
+		print_Action(a);
+		cout<<endl<<endl;
+	}
+	exit(0);
+#endif
+
 	// Weights of annotations. Uniform just for now!
 	// The weights have not been updated directly from the parser
 	vector<double> weights(gnum_possible_annotations, 0.5);
