@@ -701,10 +701,10 @@ bool RelaxedPlan::extract_incremental_robustness_rp(pair<int, double>& result) {
 
 			// We insert it only if the "robustness for heuristics" increases
 			if (new_robustness_for_heuristics > current_robustness_for_heuristics) {
+				RelaxedPlan::num_rp_robustness_increasing_check_success++;
+
 				new_rp_step = insert_action_into_relaxed_plan(candidate_action, layer_of_candidate_action);
 				current_robustness_for_heuristics = new_robustness_for_heuristics;
-
-				RelaxedPlan::num_rp_robustness_increasing_check_success++;
 
 #ifdef DEBUG_EXTRACT
 				TAB(3); cout<<"Candidate action "<<candidate_action<<" ignored."<<endl<<endl;
