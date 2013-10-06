@@ -143,7 +143,7 @@ public:
 	// Whether we bucket actions
 	static bool action_bucketing;
 
-	StochasticLocalSearch(State *init, State *goals, double desired_robustness = 1.0);
+	StochasticLocalSearch(State *init, State *goals);
 	virtual ~StochasticLocalSearch();
 
 	bool run(FILE *log);

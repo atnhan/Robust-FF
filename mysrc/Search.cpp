@@ -14,7 +14,7 @@ using namespace std;
 extern void source_to_dest( State *dest, State *source );
 extern void make_state( State *S, int n );
 
-Search::Search(State* init, State* goals, double initial_robustness_threshold) {
+Search::Search(State* init, State* goals) {
 	this->init = (State*) calloc(1, sizeof(State));
 	make_state(this->init, gnum_ft_conn);
 	this->init->max_F = gnum_ft_conn;
@@ -25,7 +25,6 @@ Search::Search(State* init, State* goals, double initial_robustness_threshold) {
 	this->goals->max_F = gnum_ft_conn;
 	source_to_dest(this->goals, goals);
 
-	this->initial_robustness_threshold = initial_robustness_threshold;
 }
 
 Search::~Search() {

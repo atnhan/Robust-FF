@@ -80,8 +80,6 @@ string gproblem_file;
 //tlib::Log glog;
 
 
-double ginitial_robustness_threshold = 0;
-
 bool gannotations_at_grounded_level = false;
 
 /*
@@ -741,7 +739,7 @@ int main( int argc, char *argv[] )
 	Clause::set_weights(weights);
 
 	// Start the search
-	StochasticLocalSearch search(&ginitial_state, &ggoal_state, ginitial_robustness_threshold);
+	StochasticLocalSearch search(&ginitial_state, &ggoal_state);
 
 	if (search.run(log)) {
 		fprintf(log, "\n>> SUCCESSFUL!\n\n");
@@ -1144,11 +1142,6 @@ Bool process_command_line( int argc, char *argv[] )
 				if (strcmp(str_option,"-fail_bound") == 0) {
 					sscanf(*argv, "%d", &StochasticLocalSearch::fail_bound);
 				}
-
-				if (strcmp(str_option,"-initial_robustness_threshold") == 0) {
-					sscanf(*argv, "%lf", &ginitial_robustness_threshold);
-				}
-
 
 			}
 		}

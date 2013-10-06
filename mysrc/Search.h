@@ -29,8 +29,6 @@ protected:
 	std::vector<Plan> plans;
 	Plan best_plan;
 
-	double initial_robustness_threshold;
-
 	/*
 	 * FUNCTIONS
 	 */
@@ -56,7 +54,7 @@ protected:
 
 public:
 
-	Search(State* init, State* goals, double initial_robustness_threshold = 0);
+	Search(State* init, State* goals);
 	virtual ~Search();
 
 	virtual bool run(FILE *log) = 0;

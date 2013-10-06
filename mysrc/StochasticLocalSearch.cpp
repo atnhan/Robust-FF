@@ -34,8 +34,8 @@ double StochasticLocalSearch::min_heuristic_bias = 0.5;
 bool StochasticLocalSearch::action_bucketing = true;
 
 
-StochasticLocalSearch::StochasticLocalSearch(State *init, State *goals, double desired_robustness):
-	Search(init, goals, desired_robustness) {
+StochasticLocalSearch::StochasticLocalSearch(State *init, State *goals):
+	Search(init, goals) {
 
 	if (StochasticLocalSearch::action_bucketing)
 		initialize_action_information_for_bucketing();
@@ -504,9 +504,6 @@ bool StochasticLocalSearch::run(FILE *log) {
 	// To store output by Cachet
 	CACHET_OUTPUT r;
 
-	// Number of plans found
-	int num_plans = 0;
-
 #ifdef DEBUG_SLS_RUN
 		cout<<"Best plan: "<<best_plan.actions.size()<<" actions. Robustness: "<<best_plan.robustness<<endl<<endl;
 
@@ -515,68 +512,92 @@ bool StochasticLocalSearch::run(FILE *log) {
 		cout<<endl<<endl;
 #endif
 
-	// Add search time
-	clock.stop();
-	timer.search_time += clock.time();
-	clock.restart();
+	RelaxedPlan::num_rp_calls = RelaxedPlan::num_successful_rp_calls = 0;
 
-	// Find the relaxed plan from the initial state
+	// Initial clause set
 	StripsEncoding *e_0 = new StripsEncoding(init);
-
-	// Add encoding time
 	clock.stop();
 	timer.clause_set_construction_time += clock.time();
 	clock.restart();
-	//
 
-	RelaxedPlan::num_rp_calls = RelaxedPlan::num_successful_rp_calls = 0;
-
-	RelaxedPlan rp_0(e_0, init, goals, initial_robustness_threshold);
+	// The first relaxed plan wrt the zero robustness
+	RelaxedPlan rp_0(e_0, init, goals, best_plan.robustness);
 	pair<int, double> rp_0_info;
-	if (!rp_0.extract(rp_0_info)) {
+	bool ret = rp_0.extract(rp_0_info);
+	clock.stop();
+	timer.rp_time += clock.time();
+	clock.restart();
+	delete e_0;
 
+	if (!ret) {
 #ifdef DEBUG_SLS_RUN
 		cout<<"Relaxed plan extraction fails! Line: "<<__LINE__<<endl<<endl;
 		cout<<"END StochasticLocalSearch::run()..."<<endl<<endl;
 #endif
 
-		// RP time
-		clock.stop();
-		timer.rp_time += clock.time();
-
 		return false;		// No relaxed plan found.
 	}
 
-	// RP time
-	clock.stop();
-	timer.rp_time += clock.time();
-	clock.restart();
-
-#ifdef DEBUG_SLS_RUN
-	cout<<"Relaxed plan: "<<rp_0_info.first<<" actions. Robustness (plan prefix + relaxed plan): "<<rp_0_info.second<<endl<<endl;
-
-	cout<<"Now searching for a plan with more than "<<best_plan.robustness<<" robustness..."<<endl<<endl;
-#endif
+	// Current heuristic.
+	int h = rp_0_info.first;
+	if (h == 0) {
+		// If h==0, empty plan is 1.0 robustness. Later...
+	}
 
 	// We try to find better plans in at most "max_restarts" restarts from the initial state
 	int restarts = 0;
+	bool new_plan_just_found = false;
 	while (restarts < max_restarts && best_plan.robustness < 1) {
 
 #ifdef DEBUG_SLS_RUN
 		cout<<"Restart from initial state: restarts = "<<restarts<<endl<<endl;
 #endif
 
-		// This is where we restart from the initial state
+		// Add search time
 		clock.stop();
+		timer.search_time += clock.time();
+		clock.restart();
+
+		// Add clause time
 		StripsEncoding *e = new StripsEncoding(init);
+		clock.stop();
 		timer.clause_set_construction_time += clock.time();
 		clock.restart();
 
 		// Reset the number of fails. Each fail corresponds to a complete probe without finding a better state
 		int fail_count = 0;
 
-		// Current heuristic
-		int h = rp_0_info.first;
+		// Reinitialize the heuristic wrt the new robustness if a new plan has just been found
+		if (new_plan_just_found) {
+			RelaxedPlan rp_0(e, init, goals, best_plan.robustness);
+			pair<int, double> rp_0_info;
+			ret = rp_0.extract(rp_0_info);
+			// RP time
+			clock.stop();
+			timer.rp_time += clock.time();
+			clock.restart();
+
+			if (!ret) {
+#ifdef DEBUG_SLS_RUN
+				cout<<"Relaxed plan extraction fails! Line: "<<__LINE__<<endl<<endl;
+				cout<<"END StochasticLocalSearch::run()..."<<endl<<endl;
+#endif
+				delete e;
+				return false;		// No relaxed plan found from the initial state wrt the new robustness
+			}
+
+#ifdef DEBUG_SLS_RUN
+			cout<<"Relaxed plan: "<<rp_0_info.first<<" actions. Robustness (plan prefix + relaxed plan): "<<rp_0_info.second<<endl<<endl;
+
+			cout<<"Now searching for a plan with more than "<<best_plan.robustness<<" robustness..."<<endl<<endl;
+#endif
+
+			// Current heuristic
+			h = rp_0_info.first;
+
+			// Need to find a new plan in order for invoking a new relaxed plan from the initial state
+			new_plan_just_found = false;
+		}
 
 #ifdef DEBUG_SLS_RUN
 		TAB(2); cout<<"Current h = "<<h<<endl<<endl;
@@ -586,8 +607,7 @@ bool StochasticLocalSearch::run(FILE *log) {
 
 			int next_h;
 			double next_robustness;
-			double current_robustness = (best_plan.robustness < initial_robustness_threshold) ? initial_robustness_threshold : best_plan.robustness;
-			bool better_state_found = local_search_for_a_better_state(e, current_robustness, h, next_h, next_robustness, fail_count);
+			bool better_state_found = local_search_for_a_better_state(e, best_plan.robustness, h, next_h, next_robustness, fail_count);
 
 			// Two cases to restart the local search from the initial state
 			// (1) fails count reached
@@ -606,6 +626,8 @@ bool StochasticLocalSearch::run(FILE *log) {
 			// Check if the plan prefix has better robustness than the current best plan (i.e., the relaxed plan is empty)
 			// The local search succeeds
 			if (next_h == 0) {
+
+				new_plan_just_found = true;
 
 				// Add search time
 				clock.stop();
@@ -699,8 +721,6 @@ bool StochasticLocalSearch::run(FILE *log) {
 		cout<<"ROBUSTNESS: "<<plans[i].robustness<<endl;
 	}
 #endif
-
-	delete e_0;
 
 	return true;
 }
@@ -926,7 +946,6 @@ void StochasticLocalSearch::update_experiment_analysis_file(const Plan& p) {
 
 	if (!file_exists) {
 		f<<"#SEARCH PARAMETERS:"<<endl;
-		f<<"#Initial robustness threshold:\t"<<initial_robustness_threshold<<endl;
 		f<<"#Max restart:\t"<<max_restarts<<endl;
 		f<<"#Max iterations:\t"<<max_iterations<<endl;
 		f<<"#Initial depth bound:\t"<<initial_depth_bound<<endl;
