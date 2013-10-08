@@ -190,7 +190,7 @@
 #define MAX_TYPE 2000
 
 
-#define MAX_OPERATORS 10000
+#define MAX_OPERATORS 1000
 
 
 /* in DNF: AND with OR - sons - collect 'hitting set':
