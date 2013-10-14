@@ -1074,6 +1074,14 @@ Bool process_command_line( int argc, char *argv[] )
 				continue;
 			}
 
+			if (strcmp(str_option,"-immediate_exact_wmc_call_on_valid_plans") == 0) {
+
+				RelaxedPlan::immediate_exact_wmc_call_on_valid_plans = true;
+				continue;
+			}
+
+
+
 			if (strcmp(str_option,"-robust_ff_rp") == 0) {
 
 				RelaxedPlan::rp_types = RelaxedPlan::ROBUST_FF_RP;

@@ -28,6 +28,8 @@ bool RelaxedPlan::clauses_from_rpg_for_false_preconditions = true;	// Use clause
 bool RelaxedPlan::current_actions_affect_candidate_action = true;	// The effect of current actions on a candidate action (after them) is considered
 bool RelaxedPlan::candidate_actions_affect_current_actions = true;	// and that of a candidate action on current actions (after it)
 
+bool RelaxedPlan::immediate_exact_wmc_call_on_valid_plans = false;
+
 RelaxedPlan::RELAXED_PLAN_TYPES RelaxedPlan::rp_types = INCREMENTAL_ROBUSTNESS_RP;
 
 int RelaxedPlan::num_rp_calls = 0;
@@ -36,6 +38,8 @@ int RelaxedPlan::num_better_supporting_action_checks_in_rpg = 0;
 int RelaxedPlan::num_better_supporting_actions_found_in_rpg = 0;
 int RelaxedPlan::num_rp_robustness_increasing_checks = 0;
 int RelaxedPlan::num_rp_robustness_increasing_check_success = 0;
+int RelaxedPlan::num_upper_bound_checkings = 0;
+int RelaxedPlan::num_successful_upper_bound_checkings = 0;
 
 RelaxedPlan::RelaxedPlan(const StripsEncoding *e, const State *init, const State *goals, double robustness_threshold) {
 	assert(e && goals);
@@ -3044,8 +3048,6 @@ bool RelaxedPlan::extract_annotations_free_ff_heuristic(pair<int, double>& resul
 			continue;
 		}
 
-		// Now the goal is either not in the state or in the state but not certainly known to be true
-
 		SubGoal subgoal(g, GOAL_ACTION, n, false, &goal_step->s);
 		Q.push(subgoal);
 
@@ -3119,20 +3121,21 @@ bool RelaxedPlan::extract_annotations_free_ff_heuristic(pair<int, double>& resul
 		assert(rp_itr != rp.end());
 #endif
 
-		// If this subgoal is not in its fact layer in the RPG, which also means
-		// it is the possible precondition subgoal, we simply ignore this subgoal
-		// (since there is not any best supporting action for it)
-		if (!fact_present(subgoal.g, subgoal.l)) {
-			assert(subgoal.possible_precondition);
-
-#ifdef DEBUG_EXTRACT
-			TAB(3);
-			cout<<"Subgoal ignored (possible precondition not in fact layer "<<subgoal.l<<")."<<endl<<endl;
-#endif
-
-			// Continue with the next subgoal
-			continue;
-		}
+//	THIS WON'T HAPPEN FOR ANNOTATION_FREE_FF
+//		// If this subgoal is not in its fact layer in the RPG, which also means
+//		// it is the possible precondition subgoal, we simply ignore this subgoal
+//		// (since there is not any best supporting action for it)
+//		if (!fact_present(subgoal.g, subgoal.l)) {
+//			assert(subgoal.possible_precondition);
+//
+//#ifdef DEBUG_EXTRACT
+//			TAB(3);
+//			cout<<"Subgoal ignored (possible precondition not in fact layer "<<subgoal.l<<")."<<endl<<endl;
+//#endif
+//
+//			// Continue with the next subgoal
+//			continue;
+//		}
 
 		// If this subgoal presents in the corresponding rp-state, it is considered "supported"
 		// as in classical planning
@@ -3146,7 +3149,7 @@ bool RelaxedPlan::extract_annotations_free_ff_heuristic(pair<int, double>& resul
 				continue;
 		}
 		else {
-			rp_itr_before--;
+			// rp_itr_before--; // Turning this on is wrong!
 			const RP_STATE& prev_rp_state = (*rp_itr_before)->s;
 			if (in_rp_state(subgoal.g, prev_rp_state))
 				continue;
@@ -4167,15 +4170,27 @@ bool RelaxedPlan::compute_robustness(double& lower, double& upper, double& exact
 	lower = all_clauses.lower_wmc();
 	upper = all_clauses.upper_wmc();
 
-	// We don't always compute the exact robustness, to save time!
-	if (RelaxedPlan::use_robustness_threshold && upper > robustness_threshold) {
+	if (RelaxedPlan::immediate_exact_wmc_call_on_valid_plans) {
 		CACHET_OUTPUT o;
 		all_clauses.wmc(o);
 		exact = o.prob;
 		wmc_time += o.time;
 	}
-	else
-		exact = -1.0;
+	else {
+		RelaxedPlan::num_upper_bound_checkings++;
+		// We don't always compute the exact robustness, to save time!
+		if (RelaxedPlan::use_robustness_threshold && upper > robustness_threshold) {
+
+			RelaxedPlan::num_successful_upper_bound_checkings++;
+
+			CACHET_OUTPUT o;
+			all_clauses.wmc(o);
+			exact = o.prob;
+			wmc_time += o.time;
+		}
+		else
+			exact = -1.0;
+	}
 	return true;
 }
 

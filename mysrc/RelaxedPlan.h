@@ -338,6 +338,10 @@ public:
 	static int num_rp_calls;
 	static int num_successful_rp_calls;
 
+	// Count number of times the upper bound is checked against the threshold, and the times such checking succeed
+	static int num_upper_bound_checkings;
+	static int num_successful_upper_bound_checkings;
+
 	// Count number of times we check if a proposition in the RPG has better supporting action
 	// And number of times such checks really succeeds (i.e., a more robust supporting action is found)
 	static int num_better_supporting_action_checks_in_rpg;
@@ -400,6 +404,10 @@ public:
 	// of actions in the relaxed plan (i.e., the known preconditions that are not present in the
 	// state before it)
 	static bool clauses_from_rpg_for_false_preconditions;
+
+	// Whether we immediately invoke exact wmc on a valid plans or not
+	// (If false: call upper bound first, and check it against the threshold; calling exact wmc only if the upper exceeds the threshold)
+	static bool immediate_exact_wmc_call_on_valid_plans;
 
 	/*********************************************************************************************/
 
