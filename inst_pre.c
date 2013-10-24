@@ -167,6 +167,7 @@ void encode_domain_in_integers( void )
 		printf("\n\nfirst step goal is:\n");
 		print_Wff( ggoal, 0 );
 
+
 	}
 
 }
