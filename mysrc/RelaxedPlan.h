@@ -283,15 +283,17 @@ class RelaxedPlan {
 	// Extract the relaxed plan with incremental robustness value, and stop as soon as its robustness exceeds the threshold
 	// Return true if a relaxed plan is found. The "result" pair contains its length and
 	// the approximate robustness of the plan prefix + the relaxed plan
+	// This extraction using lower bound is the main technique in PISA
 	bool extract_incremental_robustness_rp(std::pair<int, double>& result);
+
+	// Extract the FF relaxed plan, ignoring annotations. This is to compare with PISA
+	bool extract_annotations_free_ff_heuristic(std::pair<int, double>& result);
+
+	//-- The following either results in worse performance or has not been fully tested with
+	// the benchmarks
 
 	// Extract the relaxed plan consisting of all most robust supporting actions
 	bool extract_rp_with_all_most_robust_supporting_actions(std::pair<int, double>& result);
-
-	// Extract the FF-like relaxed plan
-	bool extract_pure_ff_heuristic(std::pair<int, double>& result);
-
-	bool extract_annotations_free_ff_heuristic(std::pair<int, double>& result);
 
 	bool extract_locally_incremental_robustness_rp(std::pair<int, double>& result);
 
