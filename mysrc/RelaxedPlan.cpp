@@ -3724,9 +3724,6 @@ bool RelaxedPlan::extract_robust_ff_heuristic(pair<int, double>& result) {
 bool RelaxedPlan::extract(std::pair<int, double>& result) {
 	bool ret = false;
 	switch(RelaxedPlan::rp_types) {
-	case PURE_FF_RP:
-		ret = extract_pure_ff_heuristic(result);
-		break;
 	case ANNOTATIONS_FREE_FF_RP:
 		ret = extract_annotations_free_ff_heuristic(result);
 		break;
